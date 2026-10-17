@@ -2,7 +2,7 @@
 
 Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem de arma do Genshin ou Cone de Luz do HSR → OCR por regiões → campos interpretados → revisão visual → JSON**. Windows e interface em inglês; perfis iniciais desenvolvidos com resolução de jogo declarada de 1440×900 (16:10).
 
-**Próximo marco confirmado:** scanner automático Genshin para armas de **4★/5★**, com jogo em primeiro plano, controles exclusivos, JSON de inventário e revisão local. Depois, scanner HSR e expansão para WuWa/ZZZ/NTE. Captura/navegação ainda não estão implementadas; GOOD e integração com o Gacha Advisor ficam para entregas próprias. Os repositórios permanecem separados. Veja o [roadmap](docs/ROADMAP.md).
+**M3 experimental implementado para teste:** captura e coleta Genshin de armas **4★/5★**, com jogo em primeiro plano, controles exclusivos, JSON de inventário e revisão local. **Aceite com varreduras reais pendente.** Comece por `npm.cmd run capture -- --delay 5` e confira a prévia antes do piloto `npm.cmd run scan -- --limit 10 --delay 5`. Preparação, parada F8, limites e revisão estão no [guia do scanner](docs/genshin-scanner.md). Depois, scanner HSR e expansão WuWa/ZZZ/NTE; GOOD e Advisor ficam para entregas próprias. Os repositórios permanecem separados. Veja o [roadmap](docs/ROADMAP.md).
 
 ## Instalar e executar
 
@@ -76,7 +76,7 @@ npm.cmd run evaluate -- --game hsr --split development
 npm.cmd run evaluate -- --game hsr --split evaluation --final
 ```
 
-**59 testes automatizados passaram**. Incluem parser, coordenadas, erros de entrada/cache, despacho por jogo, revisão e feedback imutável. Os testes de sucesso do CLI com OCR simulado são identificados como sintéticos; não medem reconhecimento. O smoke test separado usa OCR real em imagens sintéticas de texto (Genshin legado), inglês/português, imagem vazia e PNG corrompido.
+**122 testes automatizados passaram**; veja também a [validação M3 e o aceite real pendente](docs/genshin-scanner.md#validação-e-aceite-pendente). Incluem parser, coordenadas, erros de entrada/cache, despacho por jogo, revisão e feedback imutável. Os testes de sucesso do CLI com OCR simulado são identificados como sintéticos; não medem reconhecimento. O smoke test separado usa OCR real em imagens sintéticas de texto (Genshin legado), inglês/português, imagem vazia e PNG corrompido.
 
 OCR real HSR: **2 imagens de desenvolvimento**, três campos corretos em ambas, referências confirmadas por Cristian. Após congelar código e manifesto, **2 reservadas**: nome 2/2, nível 2/2, sobreposição 1/2 e um candidato correto mantido incerto em Phainon; nenhum campo incorreto aceito observado. O caso incerto não orientou ajustes. As quatro capturas mostram 80/80 e somente sobreposições 1/5; outros níveis, ranks, títulos multilinha e campos parcialmente ocultos ainda precisam de capturas reais. Essa amostra pequena não estima precisão geral.
 
@@ -90,12 +90,14 @@ A avaliação é ferramenta de teste, não lote de inventário no produto. Manif
 - `src/ocr.js`: Tesseract.js, sessão reutilizada nas regiões da mesma imagem; `read-weapon.js`: coordenação por jogo.
 - `src/games.js`: metadados e campos; `parse-regions.js` e `parse-hsr.js`: interpretação específica; `parse-weapon.js`: Genshin legado.
 - `src/review.js`, `result.js`, `feedback.js`: diagnóstico, gravação e confirmação independente.
+- `src/scan-cli.js`, `scan-inventory.js`, `genshin-inventory.js`, `windows-game.js`: captura, percurso e visão de inventário; `scripts/windows-game.ps1`: helper Windows.
+- `src/inventory-session.js`, `inventory-review.js`: sessão e relatório HTML local; `scripts/process-inventory.js`/`review-session.js`: reprocessamento e revisão.
 - `scripts/`: avaliação, congelamento e revisão; `test/`: verificações sem capturas pessoais.
 - [Roadmap](docs/ROADMAP.md): objetivo, decisões e marcos; [Inventory Kamera](docs/inventory-kamera.md): estudo da referência.
 
 JavaScript ESM + **Tesseract.js 7.0.0** mantém OCR local sem Python/API. **Sharp 0.35.5** faz recortes, ampliação e diagnóstico. Genshin preserva seus tratamentos; HSR usa título com limiares 130/140, nível cinza/normalização e limiar 140, sobreposição ampliada/cinza, e âncora com limiar 140. O recorte HSR exclui o sublinhado do título e o ícone romano. Escolhas vieram somente dos dois exemplos de desenvolvimento: escala colorida perdeu dígitos dourados e o sublinhado gerou caractere espúrio. Não houve treinamento de modelo.
 
-Compartilhamos infraestrutura e mantivemos regiões/regras por jogo, com módulos simples, sem framework de plugins, interface gráfica, backend, banco ou MCP. As diferenças reais do HSR justificam essa separação; automação e export continuam fora desta entrega.
+Compartilhamos infraestrutura e mantivemos regiões/regras por jogo, com módulos simples, sem framework de plugins, interface gráfica, backend, banco ou MCP. As diferenças reais do HSR justificam essa separação. A automação Genshin M3 é experimental, com helper Windows separado; exportação e integração continuam futuras.
 
 Repositório público: [cristianworth/gacha-ocr-lab](https://github.com/cristianworth/gacha-ocr-lab). Imagens, resultados, modelos e temporários ficam fora do Git: `examples/`, `data/`, `.cache/`, `tmp/`. Não force sua inclusão. Evidências locais de M2 ficam em `data/research/m2/`, `data/evaluation/` e `data/reviews/m2/`.
 

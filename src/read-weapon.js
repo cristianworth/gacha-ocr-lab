@@ -17,19 +17,21 @@ export async function readWeapon(image, options = {}) {
     const ocr = await recognizeImage(image.buffer, options);
     return { ...common, processing: { ...selection, method: 'whole-image', layoutVerified: false }, ocr, fields: parseWeapon(ocr.rawText) };
   }
-  const session = await createOcrSession(options);
+  const session = options.ocrSession ?? await createOcrSession(options);
   const regions = {};
   try {
     for (const [field, rectangle] of Object.entries(selection.regions)) {
+      options.signal?.throwIfAborted();
       const attempts = [];
       for (const variant of variants[field]) {
+        options.signal?.throwIfAborted();
         const prepared = await prepareRegion(image.buffer, rectangle, variant);
         const ocr = await session.recognize(prepared.buffer, ['name', 'path'].includes(field) ? 'SINGLE_BLOCK' : 'SINGLE_LINE');
         attempts.push({ id: variant.id, ...ocr, processing: prepared.processing });
       }
       regions[field] = { rectangle, coordinates: 'original-image', attempts };
     }
-  } finally { await session.close(); }
+  } finally { if (!options.ocrSession) await session.close(); }
   const { fields, layoutVerified } = game.id === 'hsr' ? interpretHsrRegions(regions) : interpretRegions(regions);
   return {
     ...common,

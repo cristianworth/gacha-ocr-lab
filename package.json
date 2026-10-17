@@ -12,7 +12,11 @@
     "test": "node --test",
     "test:ocr": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-ocr.ps1",
     "review": "node scripts/review-result.js",
-    "evaluate": "node scripts/evaluate.js"
+    "evaluate": "node scripts/evaluate.js",
+    "capture": "node src/scan-cli.js --capture",
+    "scan": "node src/scan-cli.js",
+    "review:scan": "node scripts/review-session.js",
+    "process:scan": "node scripts/process-inventory.js"
   },
   "dependencies": {
     "sharp": "0.35.5",

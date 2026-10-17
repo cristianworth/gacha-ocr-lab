@@ -39,7 +39,7 @@ Um log local registra nome de arma inválido. Portanto, `weapon.json` de logging
 
 ## Uso da referência no próximo marco
 
-M1/M2 já entregaram leitura regional de uma imagem. A próxima entrega planejada é a coleta Genshin de armas 4★/5★, com JSON e revisão local, conforme o [roadmap](ROADMAP.md). A navegação ainda não foi incorporada ao runtime.
+M1/M2 já entregaram leitura regional de uma imagem. A próxima entrega planejada é a coleta Genshin de armas 4★/5★, com JSON e revisão local, conforme o [roadmap](ROADMAP.md). A navegação M3 agora tem implementação experimental própria, ainda sem aceite de captura/inputs no jogo. Veja o [guia do scanner](genshin-scanner.md).
 
 O [Navigation.cs](https://github.com/taiwenlee/Inventory_Kamera/blob/a5d1c776301f688793d42f52c4c44c718f20c4a7/InventoryKamera/game/Navigation.cs) consultado mede a área cliente/posição da janela e separa captura de regiões e simulação de entrada. O [WeaponScraper.cs](https://github.com/taiwenlee/Inventory_Kamera/blob/a5d1c776301f688793d42f52c4c44c718f20c4a7/InventoryKamera/scraping/WeaponScraper.cs) percorre posições, conta itens e rola a lista. Essas separações são úteis para o desenho; seus offsets e esperas não são configuração comprovada para o laboratório.
 
