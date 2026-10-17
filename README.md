@@ -1,6 +1,10 @@
 # gacha-ocr-lab
 
-Laboratório pessoal de OCR para jogos gacha, preparado para evoluir conforme os experimentos. **Suporte atual: uma imagem local da página de uma arma do Genshin Impact**, com interface em inglês e resolução de referência **1440×900** → OCR local → conferência → JSON. Outros jogos ainda não foram implementados. Não captura janelas, clica, navega, processa lotes, consulta catálogo ou atualiza contas. É independente do Gacha Advisor.
+Projeto pessoal para construir um **scanner local de inventário para vários gachas**, começando por armas em Genshin Impact, Honkai: Star Rail, Wuthering Waves, Zenless Zone Zero e Neverness to Everness. O objetivo inclui coleta automática futura e, depois de validar armas nos cinco jogos, integração dos resultados revisados com o Gacha Advisor. Windows e interface em inglês são o escopo inicial. Outras categorias serão avaliadas posteriormente.
+
+O [objetivo, marcos e critérios de avanço](docs/ROADMAP.md) definem o norte do projeto. Os repositórios do scanner e do Gacha Advisor permanecem separados.
+
+**Capacidade atual:** uma imagem local da página de uma arma do Genshin Impact, com referência de **1440×900** → OCR local → conferência → JSON. A extração na captura real ainda precisa melhorar. Outros jogos, captura automática, navegação, lotes, catálogo e integração ainda não foram implementados.
 
 ## Instalação e execução
 
@@ -42,7 +46,8 @@ src/image.js               Leitura, assinatura PNG/JPEG e hash
 src/ocr.js                 Tesseract.js, idiomas, cache e worker
 src/parse-weapon.js        Interpretação pura do texto
 src/result.js              Apresentação e gravação JSON
-docs/inventory-kamera.md   Estrutura proposta e estudo do scanner de referência
+docs/ROADMAP.md            Objetivo, marcos, responsabilidades e próxima entrega
+docs/inventory-kamera.md   Estudo do scanner de referência
 test/                     Testes com node:test
 scripts/test-ocr.ps1        Smoke test Windows com imagens sintéticas
 examples/                 Capturas reais fornecidas pelo usuário (ignorado)
@@ -80,4 +85,4 @@ Próximo passo técnico: melhorar a seleção do texto da arma e avaliar reconhe
 
 ## Integração e referência
 
-Recomendação: manter este laboratório separado do Gacha Advisor, com exports revisados permanecendo no laboratório até existir uma importação explícita. O estudo do Inventory Kamera v1.3.17, formatos encontrados e próximo experimento estão em [docs/inventory-kamera.md](docs/inventory-kamera.md). Ainda não há export GOOD nem importador implementado.
+Decisão: manter este laboratório separado do Gacha Advisor, com exports revisados permanecendo no laboratório até existir uma importação explícita. O estudo do Inventory Kamera v1.3.17, formatos encontrados e próximo experimento estão em [docs/inventory-kamera.md](docs/inventory-kamera.md). Ainda não há export GOOD nem importador implementado.
