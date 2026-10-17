@@ -2,7 +2,7 @@
 
 Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem de arma do Genshin ou Cone de Luz do HSR → OCR por regiões → campos interpretados → revisão visual → JSON**. Windows e interface em inglês; perfis iniciais desenvolvidos com resolução de jogo declarada de 1440×900 (16:10).
 
-Os próximos jogos são WuWa, ZZZ e NTE. Captura automática, navegação, lote de inventário, export GOOD e integração com o Gacha Advisor são futuros. Os repositórios permanecem separados. Veja o [roadmap](docs/ROADMAP.md).
+**Próximo marco confirmado:** scanner automático Genshin para armas de **4★/5★**, com jogo em primeiro plano, controles exclusivos, JSON de inventário e revisão local. Depois, scanner HSR e expansão para WuWa/ZZZ/NTE. Captura/navegação ainda não estão implementadas; GOOD e integração com o Gacha Advisor ficam para entregas próprias. Os repositórios permanecem separados. Veja o [roadmap](docs/ROADMAP.md).
 
 ## Instalar e executar
 

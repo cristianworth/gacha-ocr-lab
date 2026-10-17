@@ -37,10 +37,14 @@ Também foram encontrados exports agregados em `GenshinData/`, com `format: GOOD
 
 Um log local registra nome de arma inválido. Portanto, `weapon.json` de logging não é necessariamente um resultado aprovado nem um rótulo infalível para testes. Comparar sempre cartão, log e saída; a presença de um arquivo não confirma extração correta ou inventário completo.
 
-## Próximo experimento dentro da etapa de uma imagem
+## Uso da referência no próximo marco
 
-Comparar a captura completa com um cartão já recortado; depois testar regiões de texto e pré-processamento simples, avaliando o nome sem preenchimento automático. Usar as rotinas acima como referência de abordagem, sem portar cliques, navegação ou processamento em lote. O código consultado está apenas em `.cache/reference/inventory-kamera/`, ignorado pelo Git, e não foi incorporado ao runtime do laboratório. A licença do código consultado é MIT.
+M1/M2 já entregaram leitura regional de uma imagem. A próxima entrega planejada é a coleta Genshin de armas 4★/5★, com JSON e revisão local, conforme o [roadmap](ROADMAP.md). A navegação ainda não foi incorporada ao runtime.
+
+O [Navigation.cs](https://github.com/taiwenlee/Inventory_Kamera/blob/a5d1c776301f688793d42f52c4c44c718f20c4a7/InventoryKamera/game/Navigation.cs) consultado mede a área cliente/posição da janela e separa captura de regiões e simulação de entrada. O [WeaponScraper.cs](https://github.com/taiwenlee/Inventory_Kamera/blob/a5d1c776301f688793d42f52c4c44c718f20c4a7/InventoryKamera/scraping/WeaponScraper.cs) percorre posições, conta itens e rola a lista. Essas separações são úteis para o desenho; seus offsets e esperas não são configuração comprovada para o laboratório.
+
+Medir captura, foco, geometria, seleção e término no perfil real antes de reutilizar uma abordagem. O export antigo auxilia comparação somente se inventário e filtro forem equivalentes; não comprova cobertura atual. O código consultado continua apenas em `.cache/reference/inventory-kamera/`, ignorado pelo Git, sob licença MIT; nenhum scanner externo foi executado nesta investigação.
 
 ## Planejamento do projeto
 
-O objetivo completo, a arquitetura acordada e os marcos estão em [ROADMAP.md](ROADMAP.md). A validação de uma imagem é a primeira entrega do scanner para cinco jogos; não representa todo o projeto. Este documento mantém apenas a pesquisa do Inventory Kamera e a origem das referências, evitando dois roadmaps concorrentes.
+O objetivo completo, a arquitetura acordada e os marcos estão em [ROADMAP.md](ROADMAP.md). Os leitores de uma imagem de Genshin/HSR são a base já entregue. A ordem agora prioriza um scanner Genshin utilizável antes de ampliar os jogos. Este documento mantém apenas a pesquisa do Inventory Kamera e a origem das referências, evitando dois roadmaps concorrentes.
