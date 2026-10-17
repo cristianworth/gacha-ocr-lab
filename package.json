@@ -1,0 +1,14 @@
+{
+  "name": "gacha-ocr-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local single-image gacha OCR lab; initial Genshin weapon experiment",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "node --test",
+    "test:ocr": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-ocr.ps1"
+  },
+  "dependencies": { "tesseract.js": "7.0.0" }
+}
