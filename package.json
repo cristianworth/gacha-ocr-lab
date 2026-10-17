@@ -4,11 +4,18 @@
   "private": true,
   "type": "module",
   "description": "Local single-image gacha OCR lab; initial Genshin weapon experiment",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node src/cli.js",
     "test": "node --test",
-    "test:ocr": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-ocr.ps1"
+    "test:ocr": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-ocr.ps1",
+    "review": "node scripts/review-result.js",
+    "evaluate": "node scripts/evaluate.js"
   },
-  "dependencies": { "tesseract.js": "7.0.0" }
+  "dependencies": {
+    "sharp": "0.35.5",
+    "tesseract.js": "7.0.0"
+  }
 }
