@@ -36,7 +36,9 @@ export async function writeVisualReview(result, original, directory) {
     await sharp({ create: { width, height, channels: 3, background: '#101827' } }).composite([{ input: image, top: 54, left: 0 }, { input: svg, top: 0, left: 0 }]).png().toFile(paths.overviewImage);
     lines.push('', '![Regiões selecionadas](overview.png)', '', 'As caixas mostram o que foi lido; o conteúdo original não foi corrigido ou redesenhado.', '');
     paths.regions = {};
-    for (const field of ['name', 'level', 'refinement']) {
+    const diagnosticFields = ['name', 'level', 'refinement'];
+    if (result.ocr.regions.weaponType) diagnosticFields.push('weaponType');
+    for (const field of diagnosticFields) {
       const region = result.ocr.regions[field];
       const originalPath = join(directory, `${field}-original.png`);
       const processedPath = join(directory, `${field}-processed.png`);
@@ -44,9 +46,11 @@ export async function writeVisualReview(result, original, directory) {
       const prepared = await prepareRegion(original, region.rectangle, fieldVariants[field][0]);
       await writeFile(processedPath, prepared.buffer, { flag: 'wx' });
       paths.regions[field] = { originalImage: originalPath, processedImage: processedPath };
-      lines.push(`## ${fieldLabels[field]}`, '', `![Texto original](${field}-original.png)`, '', `![Primeiro tratamento](${field}-processed.png)`, '', '| Tentativa | Texto bruto | Confiança OCR |', '|---|---|---|');
+      lines.push(`## ${fieldLabels[field] ?? 'Tipo de arma (diagnóstico do perfil)'}`, '', `![Texto original](${field}-original.png)`, '', `![Primeiro tratamento](${field}-processed.png)`, '', '| Tentativa | Texto bruto | Confiança OCR |', '|---|---|---|');
       for (const attempt of region.attempts) lines.push(`| ${attempt.id} | ${markdownCell(attempt.rawText)} | ${attempt.confidence ?? '—'} |`);
-      lines.push('', result.fields[field].reason, '');
+      lines.push('', field === 'weaponType'
+        ? 'Este rótulo identifica o cartão de arma e condiciona a aceitação dos três campos. Não é um quarto campo do resultado nem uma aprovação humana.'
+        : result.fields[field].reason, '');
     }
   } else {
     lines.push('', 'OCR geral: não foi selecionado um cartão. Para a tela de inventário, use um painel explícito.', '', '## Texto bruto', '', '```text', result.ocr.rawText.replace(/```/gu, "'''"), '```');

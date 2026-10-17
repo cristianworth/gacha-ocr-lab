@@ -27,7 +27,7 @@ Layouts: `auto` (padrão) escolhe `screenshot` com `--panel`, `card` para imagem
 
 ## Como vamos validar juntos
 
-1. O CLI salva um JSON em `data/results/` e imprime o caminho de **`data/reviews/<execução>/review.md`**. Abra esse documento: ele mostra imagem com caixas, valores interpretados, recortes e texto bruto por tentativa. Verde = nome, azul = nível, laranja = refinamento.
+1. O CLI salva um JSON em `data/results/` e imprime o caminho de **`data/reviews/<execução>/review.md`**. Abra esse documento: ele mostra imagem com caixas, valores interpretados, recortes e texto bruto por tentativa. Verde = nome, azul = nível, laranja = refinamento. A seção de diagnóstico também mostra o tipo de arma e suas tentativas, pois esse rótulo condiciona a aceitação dos campos.
 2. Compare os valores com a imagem, não com o indicador de confiança. Responda no chat **“os três conferem”**, informe os campos corrigidos ou diga que estão ilegíveis. Não é preciso produzir outra imagem para conferir a atual.
 3. A confirmação/correção fica em um JSON separado em `data/feedback/`, vinculado ao SHA-256 do resultado e da imagem. O diagnóstico original permanece intacto. Nada é aplicado ao Advisor.
 
@@ -62,11 +62,15 @@ npm.cmd run evaluate -- --split development
 npm.cmd run evaluate -- --split evaluation --final
 ```
 
-A avaliação é uma ferramenta de teste com manifesto de referências; não é processamento em lote de inventário. Ela verifica hashes, grupos de amostras e guarda relatórios sem sobrescrita. Os testes normais não dependem das capturas pessoais. O manifesto em `data/datasets/genshin-weapons.json` define caminho, hash, divisão, grupo, procedência e valores esperados; não pertence ao Git.
+A avaliação é uma ferramenta de teste com manifesto de referências; não é processamento em lote de inventário. Ela verifica hashes, grupos de amostras e guarda relatórios sem sobrescrita. Cada linha preserva a procedência da referência; o resumo distingue conferência pelo assistente, confirmação humana e informação não declarada, conforme o manifesto. Feedbacks separados não aprovam silenciosamente o manifesto congelado. Os testes normais não dependem das capturas pessoais. O manifesto em `data/datasets/genshin-weapons.json` define caminho, hash, divisão, grupo, procedência e valores esperados; não pertence ao Git.
 
-Nesta entrega: **23 testes automatizados passaram**, além do smoke test de OCR sintético, modo offline, imagem vazia e arquivo corrompido. Nas **8 referências de desenvolvimento**, os três campos acertaram. Na primeira avaliação das **4 referências reservadas**, nome e refinamento acertaram 4/4; nível acertou 3/4, com 1 incerto e nenhum valor incorreto aceito como válido. A captura completa fornecida produziu Aqua Simulacra, 90/90, refinamento 1 com painel explícito. Essas referências foram conferidas visualmente pelo assistente; não são aprovação humana nem prova de precisão geral. Cristian confirmou explicitamente os três campos da captura completa em 17/10/2026; a confirmação está registrada separadamente em `data/feedback/`. Isso não aprova individualmente os demais cartões.
+Nesta entrega: **35 testes automatizados passaram**, além do smoke test de OCR sintético, modo offline, imagem vazia e arquivo corrompido. Nas **8 referências de desenvolvimento**, os três campos acertaram. Na primeira avaliação das **4 referências reservadas**, nome e refinamento acertaram 4/4; nível acertou 3/4, com 1 incerto e nenhum valor incorreto aceito como válido. A captura completa fornecida produziu Aqua Simulacra, 90/90, refinamento 1 com painel explícito. Essas referências foram conferidas visualmente pelo assistente; não são aprovação humana nem prova de precisão geral. Cristian confirmou explicitamente os três campos da captura completa em 17/10/2026; a confirmação está registrada separadamente em `data/feedback/`. Isso não aprova individualmente os demais cartões.
+
+Cristian também confirmou os três campos de Mountain-Bracing Bolt (40/40, R2), “Ultimate Overlord's Mega Magic Sword” (90/90, R5) e Ballad of the Fjords (90/90, R3). Os registros separados e seus vínculos estão em `data/research/m1-followup/human-confirmation.json`; o nível de Mountain-Bracing Bolt permanece incerto no OCR original. A captura Aqua Simulacra foi reexecutada após os ajustes de diagnóstico, preservando os três acertos.
 
 O perfil foi congelado antes da primeira leitura OCR reservada. A incerteza foi preservada, sem ajustar o perfil sobre esse exemplo. Relatórios, baseline anterior, congelamento e caminhos da entrega ficam em `data/evaluation/` e `data/research/m1-delivery.json`, ignorados.
+
+A avaliação reservada agora exige o arquivo `data/evaluation/profile-freeze.json` (ou `--freeze <caminho>`), verifica os sete hashes de núcleo/lock e o conjunto de IDs antes de iniciar OCR, e registra o congelamento verificado no relatório. O congelamento original não vincula os rótulos, opções de execução, modelos e ambiente por hash; ele protege esses arquivos e IDs, sem provar independência estatística. Relatórios registram também manifesto e modo usados. Repetir os quatro casos já examinados é regressão, não nova avaliação independente.
 
 ## Estrutura e decisões
 
@@ -74,7 +78,7 @@ O perfil foi congelado antes da primeira leitura OCR reservada. A incerteza foi 
 - `src/ocr.js`: sessão Tesseract.js reutilizada por imagem, com liberação em `finally`.
 - `src/read-weapon.js`: coordenação; `parse-regions.js`: interpretação das regiões; `parse-weapon.js`: parser legado do modo `text`.
 - `src/review.js`, `result.js`, `feedback.js`: pacote visual, gravação e confirmação independente.
-- `scripts/evaluate.js`: avaliação local; `scripts/review-result.js`: registro explícito de revisão; `test/`: testes sem dependência do acervo pessoal.
+- `scripts/evaluate.js` e `evaluation-provenance.js`: avaliação local e conferência do congelamento; `scripts/review-result.js`: registro explícito de revisão; `test/`: testes sem dependência do acervo pessoal.
 - `docs/ROADMAP.md`: marcos; [inventory-kamera.md](docs/inventory-kamera.md): referência e arquitetura.
 
 JavaScript ESM + Tesseract.js 7.0.0 mantém OCR local sem Python, API ou credenciais. **Sharp 0.35.5** foi acrescentado para recortes, ampliação, contraste e imagens de diagnóstico: o teste real demonstrou a necessidade desse tratamento. Duas variantes fixas por campo foram escolhidas somente nas amostras de desenvolvimento; nomes usam limiares 220/230, nível/refinamento usam ampliação e cinza/normalização. O nome permite bloco multilinha; números usam linha única. As transformações são registradas; a margem branca é aplicada em uma etapa separada para evitar inversão/reordenação da borda. Treinamento de um modelo novo e catálogo foram adiados.

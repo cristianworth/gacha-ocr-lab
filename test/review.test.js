@@ -53,10 +53,17 @@ test('visual review keeps raw text visible, escapes markdown cells and preserves
       raw.ocr.regions[field] = region;
       raw.fields[field] = interpretRegion(field, region);
     }
+    raw.ocr.regions.weaponType = { rectangle: selection.regions.weaponType, attempts: [{ id: 'anchor', rawText: 'Sword', confidence: 88 }] };
     const artifacts = await writeVisualReview(raw, image, directory);
     const markdown = await readFile(artifacts.reviewMarkdown, 'utf8');
     assert.match(markdown, /aguarda revisão humana/u);
     assert.match(markdown, /&lt;bad&gt;&#124;text/u);
+    assert.match(markdown, /Tipo de arma \(diagnóstico do perfil\)/u);
+    assert.match(markdown, /\| anchor \| Sword \| 88 \|/u);
+    assert.match(markdown, /condiciona a aceitação dos três campos/u);
+    assert.deepEqual(Object.keys(raw.fields), ['name', 'level', 'refinement']);
+    const anchor = await sharp(artifacts.regions.weaponType.originalImage).metadata();
+    assert.deepEqual([anchor.width, anchor.height], [selection.regions.weaponType.width, selection.regions.weaponType.height]);
     assert.equal(markdownCell('<x>|\n'), '&lt;x&gt;&#124; ');
     const panel = await sharp(artifacts.panelImage).metadata();
     assert.deepEqual([panel.width, panel.height], [370, 722]);
