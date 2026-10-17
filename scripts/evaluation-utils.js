@@ -12,9 +12,9 @@ export function scoreField(field, output, expected) {
   return output.status;
 }
 
-export function summarize(rows) {
+export function summarize(rows, fieldNames = ['name', 'level', 'refinement']) {
   const fields = {};
-  for (const field of ['name', 'level', 'refinement']) {
+  for (const field of fieldNames) {
     const counts = {};
     for (const row of rows) counts[row.scores[field]] = (counts[row.scores[field]] ?? 0) + 1;
     fields[field] = { samples: rows.length, counts };

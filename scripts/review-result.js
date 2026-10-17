@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { createFeedback } from '../src/feedback.js';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 try {
-  const { values, positionals } = parseArgs({ options: { 'confirm-all': { type: 'boolean', default: false }, name: { type: 'string' }, level: { type: 'string' }, refinement: { type: 'string' }, reviewer: { type: 'string' } }, allowPositionals: true });
+  const { values, positionals } = parseArgs({ options: { 'confirm-all': { type: 'boolean', default: false }, name: { type: 'string' }, level: { type: 'string' }, refinement: { type: 'string' }, superimposition: { type: 'string' }, reviewer: { type: 'string' } }, allowPositionals: true });
   if (positionals.length !== 1) throw new Error('Informe o caminho de um resultado JSON.');
   const resultPath = resolve(positionals[0]);
   const feedback = createFeedback(await readFile(resultPath), { confirmAll: values['confirm-all'], ...values });

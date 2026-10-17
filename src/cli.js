@@ -7,13 +7,16 @@ import { readWeapon } from './read-weapon.js';
 import { saveResult, formatReview } from './result.js';
 import { parseRectangle } from './regions.js';
 import { writeVisualReview } from './review.js';
+import { getGame } from './games.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const usage = `Uso: npm start -- "C:\\caminho\\arma.png" [--lang eng] [--offline]
-  [--layout auto|card|screenshot|text] [--panel left,top,width,height]
+  [--game genshin|hsr] [--layout auto|card|screenshot|text] [--panel left,top,width,height]
 
 Uma imagem PNG/JPEG por execucao. O padrao e eng (ingles).
-Referencia: Genshin Impact em 1440x900 (perfil de cartao 16:10).
+Jogos: genshin (padrao, armas) e hsr (Cones de Luz), ingles, perfil inicial 16:10.
+Referencia inicial declarada: 1440x900 em ambos os jogos; PNG pode incluir bordas.
+HSR exige --panel em capturas completas; modo text nao e suportado.
 Auto: painel explicito => screenshot; imagem estreita => card; demais => OCR geral text.
 Screenshot exige --panel do cartao inteiro, em pixels da imagem original.
 Text preserva o OCR geral, sem prometer extrair a arma selecionada de uma lista.
@@ -24,10 +27,14 @@ let parsed;
 let panel;
 try {
   parsed = parseArgs({ options: {
-    lang: { type: 'string', default: 'eng' }, offline: { type: 'boolean', default: false },
+    game: { type: 'string', default: 'genshin' }, lang: { type: 'string', default: 'eng' }, offline: { type: 'boolean', default: false },
     layout: { type: 'string', default: 'auto' }, panel: { type: 'string' }, help: { type: 'boolean', short: 'h' },
   }, allowPositionals: true, strict: true });
   if (!parsed.values.help) {
+    getGame(parsed.values.game);
+    if (parsed.values.game === 'hsr' && parsed.values.lang !== 'eng') throw new Error('HSR e validado apenas em ingles; use --lang eng.');
+    if (parsed.values.game === 'hsr' && parsed.values.layout === 'text') throw new Error('HSR nao suporta --layout text nesta etapa.');
+    if (parsed.values.game === 'hsr' && ['auto', 'screenshot'].includes(parsed.values.layout) && !parsed.values.panel) throw new Error('HSR exige --panel para capturas; para painel ja recortado, use --layout card.');
     if (parsed.positionals.length !== 1 || !/^(?:por|eng)(?:\+(?:por|eng))?$/u.test(parsed.values.lang)) throw new Error('Informe exatamente uma imagem e use --lang por, eng ou por+eng.');
     if (!['auto', 'card', 'screenshot', 'text'].includes(parsed.values.layout)) throw new Error('--layout invalido.');
     panel = parsed.values.panel ? parseRectangle(parsed.values.panel) : undefined;
@@ -40,7 +47,7 @@ else {
   try {
     const image = await readImage(parsed.positionals[0]);
     console.error('Executando OCR local...');
-    const result = await readWeapon(image, { languages: [...new Set(parsed.values.lang.split('+'))].join('+'),
+    const result = await readWeapon(image, { game: parsed.values.game, languages: [...new Set(parsed.values.lang.split('+'))].join('+'),
       cachePath: resolve(root, '.cache/models'), offline: parsed.values.offline, layout: parsed.values.layout, panel });
     const runId = `${new Date().toISOString().replace(/[:.]/gu, '-')}-${randomUUID()}`;
     result.artifacts = await writeVisualReview(result, image.buffer, resolve(root, 'data/reviews', runId));

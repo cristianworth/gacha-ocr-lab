@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { getGame } from './games.js';
 
 export async function saveResult(result, directory) {
   await mkdir(directory, { recursive: true });
@@ -11,7 +12,7 @@ export async function saveResult(result, directory) {
 }
 
 export function formatReview(result) {
-  const labels = { name: 'Nome', level: 'Nivel', refinement: 'Refinamento' };
+  const labels = getGame(result.game).labels;
   const states = { recognized: 'reconhecido', absent: 'ausente', uncertain: 'incerto' };
   const lines = ['--- Texto bruto do OCR ---', result.ocr.rawText || '(nenhum texto)', '--- Campos interpretados ---'];
   if (result.ocr.imageSize) lines.unshift(`Imagem: ${result.ocr.imageSize.width}x${result.ocr.imageSize.height} pixels.`);

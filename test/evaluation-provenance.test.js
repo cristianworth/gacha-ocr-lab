@@ -6,7 +6,8 @@ import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { frozenFiles, verifyEvaluationFreeze, summarizeReferences } from '../scripts/evaluation-provenance.js';
+import { frozenFiles, verifyEvaluationFreeze, summarizeReferences, evaluationFiles, buildEvaluationFreeze } from '../scripts/evaluation-provenance.js';
+import { summarize } from '../scripts/evaluation-utils.js';
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'gacha-freeze-'));
@@ -91,4 +92,78 @@ test('evaluation CLI rejects a different reserved set before attempting image ac
   assert.match(child.stderr, /IDs reservados diferem/u);
   assert.doesNotMatch(child.stderr, /Nao foi possivel ler a imagem|Falha no OCR/u);
   assert.equal(child.stdout, '');
+});
+
+async function gameFixture(t, game) {
+  const input = await fixture(t);
+  const files = new Set([...evaluationFiles('genshin'), ...evaluationFiles('hsr')]);
+  for (const file of files) {
+    await mkdir(dirname(join(input.root, file)), { recursive: true });
+    await writeFile(join(input.root, file), `game-aware fixture: ${file}`);
+  }
+  const context = { ...input, game, mode: 'regions', profile: `${game}-test-profile`,
+    manifestBytes: Buffer.from(JSON.stringify({ game, profile: `${game}-test-profile`, samples: input.samples })) };
+  context.freeze = await buildEvaluationFreeze(context);
+  await writeFile(context.freezePath, JSON.stringify(context.freeze));
+  return context;
+}
+
+test('new freeze binds each game, profile, mode, exact manifest bytes and reserved IDs', async (t) => {
+  for (const game of ['genshin', 'hsr']) {
+    const input = await gameFixture(t, game);
+    const verified = await verifyEvaluationFreeze(input);
+    assert.equal(verified.schemaVersion, 2);
+    assert.equal(verified.game, game);
+    assert.equal(verified.mode, 'regions');
+    assert.equal(verified.manifestSha256, createHash('sha256').update(input.manifestBytes).digest('hex'));
+    assert.deepEqual(Object.keys(verified.hashes), evaluationFiles(game));
+    for (const change of [{ game: game === 'hsr' ? 'genshin' : 'hsr' }, { mode: 'text' }, { profile: 'different-profile' }, { manifestBytes: Buffer.concat([input.manifestBytes, Buffer.from('\n')]) }]) {
+      await assert.rejects(verifyEvaluationFreeze({ ...input, ...change }), /Jogo, modo, perfil ou manifesto|Modo de avaliacao/u);
+    }
+    await assert.rejects(verifyEvaluationFreeze({ ...input, samples: [{ id: 'different-reserved' }] }), /IDs reservados/u);
+  }
+});
+
+test('new freeze protects the reader and scoring code without trusting JSON-supplied paths', async (t) => {
+  const input = await gameFixture(t, 'hsr');
+  assert.ok(evaluationFiles('hsr').includes('src/parse-regions.js'));
+  assert.ok(!evaluationFiles('hsr').includes('src/parse-weapon.js'));
+  for (const file of evaluationFiles('hsr')) {
+    const path = join(input.root, file);
+    const original = await readFile(path);
+    await writeFile(path, 'changed after freeze');
+    await assert.rejects(verifyEvaluationFreeze(input), (error) => error.message.includes(`Arquivo difere do congelamento: ${file}`));
+    await writeFile(path, original);
+  }
+  const arbitrary = { ...input.freeze, hashes: { ...input.freeze.hashes, '../outside-secret.txt': 'a'.repeat(64) } };
+  await writeFile(input.freezePath, JSON.stringify(arbitrary));
+  await assert.rejects(verifyEvaluationFreeze(input), /exatamente os arquivos/u);
+});
+
+test('legacy freeze is restricted to Genshin and cannot be used as HSR approval', async (t) => {
+  const input = await fixture(t);
+  await assert.rejects(verifyEvaluationFreeze({ ...input, game: 'hsr' }), /legado so pode ser usado com Genshin/u);
+  assert.equal((await verifyEvaluationFreeze(input)).schemaVersion, 1);
+});
+
+test('HSR summary scores superimposition without inventing a refinement metric', () => {
+  const summary = summarize([{ scores: { name: 'correct', level: 'candidate-only', superimposition: 'wrong-accepted' } }], ['name', 'level', 'superimposition']);
+  assert.deepEqual(Object.keys(summary), ['name', 'level', 'superimposition']);
+  assert.equal(summary.superimposition.counts['wrong-accepted'], 1);
+});
+
+test('evaluation CLI checks explicit game and HSR mode before accessing images', async (t) => {
+  const input = await fixture(t);
+  const manifest = join(input.root, 'hsr-manifest.json');
+  await writeFile(manifest, JSON.stringify({ game: 'hsr', profile: 'hsr-test-profile', samples: [{ id: 'reserved-a', group: 'a', split: 'evaluation', path: 'missing.png' }] }));
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  for (const [args, expected] of [
+    [['--game', 'genshin', '--manifest', manifest, '--split', 'development'], /jogo do manifesto difere/u],
+    [['--game', 'hsr', '--manifest', manifest, '--mode', 'text'], /HSR suporta somente/u],
+  ]) {
+    const child = spawnSync(process.execPath, ['scripts/evaluate.js', ...args], { cwd: root, encoding: 'utf8', timeout: 10_000 });
+    assert.equal(child.status, 1, child.stderr);
+    assert.match(child.stderr, expected);
+    assert.doesNotMatch(child.stderr, /Nao foi possivel ler a imagem|Falha no OCR/u);
+  }
 });

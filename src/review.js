@@ -2,20 +2,24 @@ import sharp from 'sharp';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { prepareRegion, fieldVariants } from './regions.js';
+import { hsrFieldVariants } from './hsr-regions.js';
+import { getGame } from './games.js';
 
-export const fieldLabels = { name: 'Nome', level: 'Nível', refinement: 'Refinamento' };
+export const fieldLabels = { name: 'Nome', level: 'Nível', refinement: 'Refinamento', superimposition: 'Sobreposição' };
 export function markdownCell(value) {
   return String(value ?? '—').replace(/&/gu, '&amp;').replace(/</gu, '&lt;').replace(/>/gu, '&gt;').replace(/\|/gu, '&#124;').replace(/[\r\n]+/gu, ' ');
 }
 
 export async function writeVisualReview(result, original, directory) {
+  const game = getGame(result.game);
+  const variants = game.id === 'hsr' ? hsrFieldVariants : fieldVariants;
   await mkdir(directory, { recursive: true });
   const paths = { reviewMarkdown: join(directory, 'review.md') };
   const lines = ['# Conferência da leitura', '', 'Status: **aguarda revisão humana**. Este documento não aprova nem importa dados.', '',
-    `Origem: ${markdownCell(result.source.path)}`, `SHA-256 da imagem: ${result.source.sha256}`, '',
+    `Jogo: ${game.id} · Tipo: ${game.itemType}`, `Origem: ${markdownCell(result.source.path)}`, `SHA-256 da imagem: ${result.source.sha256}`, '',
     '| Campo | Valor interpretado | Estado |', '|---|---|---|'];
-  for (const field of ['name', 'level', 'refinement']) {
-    lines.push(`| ${fieldLabels[field]} | ${markdownCell(JSON.stringify(result.fields[field].value))} | ${result.fields[field].status} |`);
+  for (const field of game.fieldNames) {
+    lines.push(`| ${game.labels[field]} | ${markdownCell(JSON.stringify(result.fields[field].value))} | ${result.fields[field].status} |`);
   }
   if (result.processing.method === 'field-regions') {
     paths.panelImage = join(directory, 'panel.png');
@@ -27,29 +31,30 @@ export async function writeVisualReview(result, original, directory) {
     const width = panel.width * scale;
     const height = bottom * scale + 54;
     const image = await sharp(original).extract({ ...panel, height: bottom }).resize({ width }).png().toBuffer();
-    const colors = { name: '#22c55e', level: '#38bdf8', refinement: '#f97316' };
+    const colors = { name: '#22c55e', level: '#38bdf8', [game.progressionField]: '#f97316' };
     const rectangles = Object.entries(colors).map(([field, color]) => {
       const box = result.processing.regions[field];
       return `<rect x="${(box.left - panel.left) * scale}" y="${(box.top - panel.top) * scale + 54}" width="${box.width * scale}" height="${box.height * scale}" fill="none" stroke="${color}" stroke-width="3"/>`;
     }).join('');
-    const svg = Buffer.from(`<svg width="${width}" height="${height}"><rect width="${width}" height="54" fill="#101827"/><text x="12" y="34" font-family="Arial" font-size="22"><tspan fill="#22c55e">Nome</tspan><tspan dx="35" fill="#38bdf8">Nivel</tspan><tspan dx="35" fill="#f97316">Refinamento</tspan></text>${rectangles}</svg>`);
+    const svg = Buffer.from(`<svg width="${width}" height="${height}"><rect width="${width}" height="54" fill="#101827"/><text x="12" y="34" font-family="Arial" font-size="22"><tspan fill="#22c55e">Nome</tspan><tspan dx="35" fill="#38bdf8">Nível</tspan><tspan dx="35" fill="#f97316">${game.labels[game.progressionField]}</tspan></text>${rectangles}</svg>`);
     await sharp({ create: { width, height, channels: 3, background: '#101827' } }).composite([{ input: image, top: 54, left: 0 }, { input: svg, top: 0, left: 0 }]).png().toFile(paths.overviewImage);
     lines.push('', '![Regiões selecionadas](overview.png)', '', 'As caixas mostram o que foi lido; o conteúdo original não foi corrigido ou redesenhado.', '');
     paths.regions = {};
-    const diagnosticFields = ['name', 'level', 'refinement'];
-    if (result.ocr.regions.weaponType) diagnosticFields.push('weaponType');
+    const anchor = game.id === 'hsr' ? 'path' : 'weaponType';
+    const diagnosticFields = [...game.fieldNames, ...(result.ocr.regions[anchor] ? [anchor] : [])];
     for (const field of diagnosticFields) {
       const region = result.ocr.regions[field];
       const originalPath = join(directory, `${field}-original.png`);
       const processedPath = join(directory, `${field}-processed.png`);
       await sharp(original).extract(region.rectangle).png().toFile(originalPath);
-      const prepared = await prepareRegion(original, region.rectangle, fieldVariants[field][0]);
+      const prepared = await prepareRegion(original, region.rectangle, variants[field][0]);
       await writeFile(processedPath, prepared.buffer, { flag: 'wx' });
       paths.regions[field] = { originalImage: originalPath, processedImage: processedPath };
-      lines.push(`## ${fieldLabels[field] ?? 'Tipo de arma (diagnóstico do perfil)'}`, '', `![Texto original](${field}-original.png)`, '', `![Primeiro tratamento](${field}-processed.png)`, '', '| Tentativa | Texto bruto | Confiança OCR |', '|---|---|---|');
+      const anchorLabel = game.id === 'hsr' ? 'Restrição de Caminho (diagnóstico do perfil)' : 'Tipo de arma (diagnóstico do perfil)';
+      lines.push(`## ${game.labels[field] ?? anchorLabel}`, '', `![Texto original](${field}-original.png)`, '', `![Primeiro tratamento](${field}-processed.png)`, '', '| Tentativa | Texto bruto | Confiança OCR |', '|---|---|---|');
       for (const attempt of region.attempts) lines.push(`| ${attempt.id} | ${markdownCell(attempt.rawText)} | ${attempt.confidence ?? '—'} |`);
-      lines.push('', field === 'weaponType'
-        ? 'Este rótulo identifica o cartão de arma e condiciona a aceitação dos três campos. Não é um quarto campo do resultado nem uma aprovação humana.'
+      lines.push('', field === anchor
+        ? 'Este rótulo identifica o painel e condiciona a aceitação dos três campos. Não é um quarto campo do resultado nem uma aprovação humana.'
         : result.fields[field].reason, '');
     }
   } else {
