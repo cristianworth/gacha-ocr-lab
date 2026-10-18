@@ -7,6 +7,7 @@ A implementação está disponível para teste; **o aceite M3.9 está pendente**
 - Windows com Node.js 22+, PowerShell do Windows e dependências do projeto instaladas. O helper C# compila em memória; não há executável adicional, serviço, API ou dependência npm nova.
 - Genshin em inglês, controle por mouse/teclado, **área cliente exatamente 1440×900**, preferencialmente em janela para o primeiro teste. Bordas não contam nessa medida. Não redimensionar um PNG para contornar erro de dimensão.
 - Inventário aberto na aba **Weapons**, ordenação **Quality decrescente**, início da lista e sem filtros que escondam armas 4★/5★. Não alterar o inventário durante a sessão.
+- Para scans com cliques/rolagem, o terminal deve ter integridade compatível com o jogo. Se o Genshin estiver elevado, abra Git Bash ou PowerShell como Administrador, ou execute ambos no mesmo nível. O preflight consulta esses níveis antes da ativação e salva config.inputAccess; captura isolada não exige esse acesso de input. Não há elevação automática.
 - Jogo em primeiro plano e controles exclusivos. A automação seleciona posições da grade e usa a roda do mouse; não abre o jogo nem navega a partir de qualquer tela.
 - Modelo inglês disponível em `.cache/models/`. No primeiro scan, `--download-model` permite baixá-lo antes de ativar o jogo; capturas não são enviadas a um serviço. A captura diagnóstica não requer OCR/modelo.
 
@@ -89,7 +90,7 @@ Referências técnicas: [SendInput](https://learn.microsoft.com/en-us/windows/wi
 
 ## Validação e aceite pendente
 
-**129 testes automatizados**: contratos antigos, imagem/grade/raridade sintéticas, sessão, CLI, reprocessamento, revisões, cancelamento e percurso simulado. O helper real foi compilado; protocolo, enumeração com processo inexistente e recusa de attach sem alvo foram verificados. Isso não testa aceitação de input pelo jogo.
+**131 testes automatizados**: contratos antigos, imagem/grade/raridade sintéticas, sessão, CLI, reprocessamento, revisões, cancelamento e percurso simulado. O helper real foi compilado; protocolo, enumeração com processo inexistente e recusa de attach sem alvo foram verificados. Isso não testa aceitação de input pelo jogo.
 
 Na imagem legada recortada de forma declaradamente aproximada: grade de 40 posições, seleção Aqua e raridade 5; três cartões locais retornaram raridade 4. A preparação e os três campos da Aqua tiveram OCR real correto; uma reprodução estática de uma observação integrou visão/OCR/sessão sem backend nativo. Esse recorte mantém problemas de borda e não é prova de captura cliente correta. Raridades 1–3, barra no meio/fim e rolagem têm cobertura sintética. Regressão: 13 exemplos Genshin e 4 HSR mantiveram estados/valores; não são avaliações independentes novas.
 
@@ -116,10 +117,20 @@ No teste inicial, a seleção brilhante não passou o limiar nas duas imagens is
 
 O timeout seguinte mostrou que uma borda translúcida e o retrato sobreposto não eram bem representados pelo teste de branco quase puro. A verificação agora aceita um contorno com contraste local e examina trechos fora do retrato, mantendo a exigência dos quatro lados. Borda incompleta, faixa clara de nível, cartão vizinho e cópia sem seleção continuam recusados. Quadros muito apagados permanecem incertos; duas capturas consecutivas precisam confirmar seleção e estabilidade.
 
-A suíte chegou a 129 testes, incluindo um piloto de dez posições com visão real sobre imagens sintéticas, transição sem borda, painel ainda mudando, raridades 4/5, cópias com valores iguais e nenhum scroll. Esse teste automatizado simula OCR e input; não mede reconhecimento do jogo.
+A suíte chegou a 131 testes, incluindo um piloto de dez posições com visão real sobre imagens sintéticas, transição sem borda, painel ainda mudando, raridades 4/5, cópias com valores iguais e nenhum scroll. Esse teste automatizado simula OCR e input; não mede reconhecimento do jogo.
 
 Também executamos offline o fluxo com os quadros reais salvos e OCR real: preparação, seleção, estabilidade e Aqua 90/90 R1 passaram. Um segundo replay usou grade sintética e dez cartões reais conhecidos, redimensionados para composição, com OCR real: dez observações distintas, inclusive duas Aquas iguais; 25 campos reconhecidos coincidiram com as referências e cinco ficaram incertos com o candidato correto preservado. Nenhum valor incorreto aceito foi observado nesse replay. A composição alterou o comportamento de alguns campos, portanto não é avaliação independente nem precisão geral, e o OCR não foi ajustado para forçar concordância.
 
 Falhas de seleção agora preservam métricas por tentativa, alvo e até oito quadros com hashes; o review.html dá acesso a essa sequência. Sucesso guarda a evidência de seleção/estabilidade na observação e remove os intermediários. Interrupção antes de qualquer observação não aparece como processamento completo. Evidências locais: data/research/selection-debug/; os dois replays e seus dados não usam backend Windows nem demonstram que o jogo aceitou cliques/rolagem.
 
 O próximo teste no jogo continua sendo somente o piloto de dez posições. Se falhar, uma sessão terá a sequência necessária para distinguir borda apagada, painel instável, alteração da grade e interrupção, evitando depender de uma única imagem final.
+
+## Piloto real: bloqueio de inputs por integridade
+
+A sessão seguinte reconheceu a Aqua (90/90, R1, 5★) na primeira posição, mas a segunda nunca ficou selecionada: a sequência preservada continuou mostrando a primeira arma e o mesmo painel. O scanner recusou reaproveitar essa leitura para a segunda posição. Processamento completo dos itens capturados não significa percurso completo.
+
+A consulta somente de leitura confirmou Git Bash/helper em integridade média (8192) e Genshin em alta (12288), com botões do mouse não invertidos. A restrição UIPI do [SendInput](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput) limita o envio para processos de nível superior. Nenhum input foi executado pelo assistente nessa investigação.
+
+O scan agora verifica essa compatibilidade antes de ativar/armar a janela e registra os níveis na sessão. Incompatibilidade retorna input-integrity-mismatch com instrução de execução, sem elevar o processo. O helper também verifica o acesso antes de cada clique/rolagem. Captura isolada continua sem essa exigência. Dois testes novos verificam a recusa antes de ativação/input e a independência do modo de captura.
+
+Para repetir o piloto: abra o terminal como Administrador se mantiver o jogo elevado, entre na pasta do laboratório e execute o mesmo comando de dez posições. A troca de shell não muda o nível de integridade por si só. Sucesso dos cliques e rolagem ainda requer validação no jogo; o aceite M3.9 permanece aberto. Evidência local: data/research/input-access-debug/.

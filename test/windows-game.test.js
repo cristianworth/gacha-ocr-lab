@@ -69,6 +69,7 @@ test('real helper lists an absent allowed process and rejects attach without act
     assert.deepEqual(await control.status(), { attached: false, armed: false, stopped: false, stopReason: null, window: null, emergencyKey: 'F8' });
     assert.deepEqual(await control.list(), []);
     await assert.rejects(control.attach(), error => error.code === 'window-not-found');
+    await assert.rejects(control.checkInputAccess(), error => error.code === 'not-attached');
     assert.equal((await control.status()).attached, false);
   } finally { await control.close(); }
 });
@@ -86,12 +87,13 @@ test('RPC serializes commands, preserves IDs and sends no command on open or gra
   assert.deepEqual(await list, [{ pid: 123 }]);
   assert.deepEqual(await status, { op: 'status' });
   await control.attach({ pid: 123 });
+  assert.deepEqual(await control.checkInputAccess(), { op: 'input-access' });
   await control.activate(); await control.arm();
   const close = control.close();
   assert.equal(control.close(), close);
   await close;
-  assert.deepEqual(child.requests.map((item) => item.op), ['list', 'status', 'attach', 'activate', 'arm', 'close']);
-  assert.deepEqual(child.requests.map((item) => item.id), [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(child.requests.map((item) => item.op), ['list', 'status', 'attach', 'input-access', 'activate', 'arm', 'close']);
+  assert.deepEqual(child.requests.map((item) => item.id), [1, 2, 3, 4, 5, 6, 7]);
   assert.deepEqual(child.requests[2].args, { pid: 123 });
   assert.equal(child.killCount, 0);
   await assert.rejects(control.list(), /encerrando/u);

@@ -66,3 +66,57 @@ test('image diagnostic CLI uses static synthetic vision only and writes copied i
   assert.equal((await sharp(manifest.preview).metadata()).width, 1440);
   assert.match(await readFile(join(path, 'review.html'), 'utf8'), /Captura inicial/u);
 });
+
+test('scan refuses higher-integrity input before activation and keeps actionable session diagnostics', async t => {
+  const directory = await sandbox(t);
+  await writeFile(join(directory, 'src', 'ocr.js'), "export const engineVersion='synthetic'; export async function createOcrSession(){return {async close(){}};} export async function recognizeImage(){}\n");
+  await writeFile(join(directory, 'src', 'windows-game.js'), [
+    "import {appendFile} from 'node:fs/promises';",
+    "const log=event=>appendFile('native-trace.log',event+'\\n');",
+    "export async function openWindowsGame(){return {",
+    "async attach(){await log('attach');return {width:1440,height:900};},",
+    "async checkInputAccess(){await log('check-access');return {helperIntegrity:8192,targetIntegrity:12288,allowed:false,reason:'higher-integrity-target'};},",
+    "async activate(){await log('UNEXPECTED-ACTIVATE');throw new Error('Must not activate');},",
+    "async arm(){throw new Error('Must not arm');},async capture(){throw new Error('Must not capture');},",
+    "async close(){await log('close');}};}",
+  ].join('\n'));
+  const child = run(directory, ['--limit', '1', '--delay', '0']);
+  assert.equal(child.status, 1, child.stderr);
+  assert.match(child.stderr, /Administrador/u);
+  assert.deepEqual((await readFile(join(directory, 'native-trace.log'), 'utf8')).trim().split('\n'), ['attach', 'check-access', 'close']);
+  const [path] = await sessions(directory);
+  const manifest = JSON.parse(await readFile(join(path, 'inventory.json'), 'utf8'));
+  assert.equal(manifest.termination.reason, 'input-integrity-mismatch');
+  assert.equal(manifest.config.inputAccess.allowed, false);
+  assert.deepEqual(manifest.observations, []);
+  assert.equal(manifest.captureComplete, false);
+  assert.ok(await readFile(join(path, 'review.html'), 'utf8'));
+});
+
+test('capture-only does not demand input privileges or call input preflight', async t => {
+  const directory = await sandbox(t);
+  await writeFile(join(directory, 'src', 'ocr.js'), "export const engineVersion='unused'; export async function createOcrSession(){throw new Error('OCR_MUST_NOT_RUN');} export async function recognizeImage(){}\n");
+  await writeFile(join(directory, 'src', 'genshin-inventory.js'), [
+    "export async function inspectInventory(){return {profile:'synthetic',panel:{left:980,top:90,width:370,height:722},slots:[]};}",
+    "export async function readRarity(){return {status:'uncertain',value:null};}",
+    "export async function inspectSelection(){} export function matchRows(){}",
+  ].join('\n'));
+  await sharp({ create: { width:1440,height:900,channels:3,background:'white' } }).png().toFile(join(directory, 'synthetic.png'));
+  await writeFile(join(directory, 'src', 'windows-game.js'), [
+    "import {copyFile,appendFile} from 'node:fs/promises';",
+    "const log=event=>appendFile('native-trace.log',event+'\\n');",
+    "export async function openWindowsGame(){return {",
+    "async attach(){await log('attach');return {width:1440,height:900};},",
+    "async checkInputAccess(){throw new Error('INPUT_PREFLIGHT_MUST_NOT_RUN_FOR_CAPTURE');},",
+    "async activate(){await log('activate');},async arm(){await log('arm');},",
+    "async capture(path){await log('capture');await copyFile('synthetic.png',path);},",
+    "async close(){await log('close');}};}",
+  ].join('\n'));
+  const child = run(directory, ['--capture', '--delay', '0']);
+  assert.equal(child.status, 0, child.stderr);
+  assert.deepEqual((await readFile(join(directory, 'native-trace.log'), 'utf8')).trim().split('\n'), ['attach', 'activate', 'arm', 'capture', 'close']);
+  const [path] = await sessions(directory);
+  const manifest = JSON.parse(await readFile(join(path, 'inventory.json'), 'utf8'));
+  assert.equal(manifest.termination.reason, 'capture-only');
+  assert.equal(manifest.config.inputAccess, undefined);
+});

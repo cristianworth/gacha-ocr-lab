@@ -37,6 +37,7 @@ namespace GachaOcrWindows {
     public WindowInfo window; public string emergencyKey = "F8";
   }
   public sealed class CaptureInfo { public string path; public int width; public int height; }
+  public sealed class InputAccessInfo { public int helperIntegrity; public int targetIntegrity; public bool allowed; public string reason; }
   public sealed class GameControl : IDisposable {
     [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] private struct POINT { public int X, Y; }
@@ -51,6 +52,10 @@ namespace GachaOcrWindows {
     [DllImport("kernel32.dll", SetLastError=true)] private static extern bool GetProcessTimes(IntPtr process, out FILETIME created, out FILETIME exited, out FILETIME kernel, out FILETIME user);
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool QueryFullProcessImageName(IntPtr process, uint flags, StringBuilder path, ref uint size);
     [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
+    [DllImport("advapi32.dll", SetLastError=true)] private static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+    [DllImport("advapi32.dll", SetLastError=true)] private static extern bool GetTokenInformation(IntPtr token, int kind, IntPtr buffer, int size, out int needed);
+    [DllImport("advapi32.dll")] private static extern IntPtr GetSidSubAuthorityCount(IntPtr sid);
+    [DllImport("advapi32.dll")] private static extern IntPtr GetSidSubAuthority(IntPtr sid, uint index);
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowProc callback, IntPtr parameter);
     [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr handle);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr handle);
@@ -219,6 +224,41 @@ namespace GachaOcrWindows {
         return VerifyAttached();
       }
     }
+    private static int IntegrityLevel(int pid) {
+      IntPtr process = OpenProcess(0x1000, false, (uint)pid);
+      if (process == IntPtr.Zero) throw new ControlError("input-permission-unverified", "Nao foi possivel consultar permissoes do processo (Win32 " + Marshal.GetLastWin32Error() + ").");
+      IntPtr token = IntPtr.Zero, buffer = IntPtr.Zero;
+      try {
+        if (!OpenProcessToken(process, 8, out token)) throw new ControlError("input-permission-unverified", "Nao foi possivel ler o token do processo (Win32 " + Marshal.GetLastWin32Error() + ").");
+        int size;
+        GetTokenInformation(token, 25, IntPtr.Zero, 0, out size);
+        if (size <= 0) throw new ControlError("input-permission-unverified", "Tamanho do nivel de integridade indisponivel.");
+        buffer = Marshal.AllocHGlobal(size);
+        if (!GetTokenInformation(token, 25, buffer, size, out size)) throw new ControlError("input-permission-unverified", "Nao foi possivel ler o nivel de integridade (Win32 " + Marshal.GetLastWin32Error() + ").");
+        IntPtr sid = Marshal.ReadIntPtr(buffer);
+        byte count = Marshal.ReadByte(GetSidSubAuthorityCount(sid));
+        if (count == 0) throw new ControlError("input-permission-unverified", "SID de integridade invalido.");
+        return Marshal.ReadInt32(GetSidSubAuthority(sid, (uint)(count - 1)));
+      } finally {
+        if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
+        if (token != IntPtr.Zero) CloseHandle(token);
+        CloseHandle(process);
+      }
+    }
+    public InputAccessInfo InputAccess() {
+      lock (gate) {
+        VerifyAttached();
+        int helper;
+        using (Process current = Process.GetCurrentProcess()) { helper = IntegrityLevel(current.Id); }
+        int target = IntegrityLevel(attachedPid);
+        return new InputAccessInfo { helperIntegrity = helper, targetIntegrity = target, allowed = helper >= target,
+          reason = helper >= target ? "integrity-compatible" : "higher-integrity-target" };
+      }
+    }
+    private void RequireInputAccess() {
+      InputAccessInfo access = InputAccess();
+      if (!access.allowed) throw new ControlError("input-integrity-mismatch", "Genshin esta com integridade superior ao helper (" + access.targetIntegrity + " > " + access.helperIntegrity + "). Para enviar cliques, abra o terminal do scanner como Administrador se o jogo estiver elevado, ou execute ambos no mesmo nivel. Captura isolada nao exige isso. Sem elevacao automatica.");
+    }
     public WindowInfo Activate() {
       lock (gate) {
         WindowInfo window = VerifyAttached(); ValidateSize(window);
@@ -296,6 +336,7 @@ namespace GachaOcrWindows {
       if (!click && (delta == 0 || Math.Abs((long)delta) > 10)) throw new ControlError("invalid-scroll", "delta deve ser um numero inteiro de notches entre -10 e 10, diferente de zero.");
       double elapsed = (Stopwatch.GetTimestamp() - lastInput) * 1000.0 / Stopwatch.Frequency;
       if (lastInput != 0 && elapsed < 100) Thread.Sleep((int)Math.Ceiling(100 - elapsed));
+      RequireInputAccess();
       WindowInfo window = CheckArmed(); CheckUnobscured(window);
       POINT target = new POINT { X = window.left + x, Y = window.top + y };
       if (Root(WindowFromPoint(target)) != attachedHandle) { Stop("target-occluded"); throw new ControlError("stopped", "O ponto de input pertence a outra janela."); }
@@ -356,6 +397,7 @@ try {
       $result = switch ([string]$request.op) {
         'list' { ,$control.List(); break }
         'attach' { $pidValue = 0; if ($null -ne $arguments.pid) { $pidValue = Require-Integer $arguments.pid 'pid'; if ($pidValue -le 0) { throw 'PID deve ser positivo.' } }; $control.Attach($pidValue); break }
+        'input-access' { $control.InputAccess(); break }
         'activate' { $control.Activate(); break }
         'arm' { $control.Arm(); break }
         'status' { $control.Status(); break }

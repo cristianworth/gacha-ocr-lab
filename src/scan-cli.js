@@ -81,6 +81,15 @@ else {
       const window = await backend.attach(values.pid ? { pid: values.pid } : {});
       session.manifest.config.window = window;
       await saveSession(session);
+      if (!values.capture) {
+        const access = await backend.checkInputAccess();
+        session.manifest.config.inputAccess = access;
+        await saveSession(session);
+        if (access.allowed !== true) throw Object.assign(new Error(
+          'O jogo esta com integridade superior ao helper (' + access.targetIntegrity + ' > ' + access.helperIntegrity
+          + '). Abra o terminal do scanner como Administrador se o jogo estiver elevado, ou execute ambos no mesmo nivel. Sem elevacao automatica.'
+        ), { code: 'input-integrity-mismatch' });
+      }
       console.log(`Prepare Weapons / Quality decrescente / topo. Ativando Genshin em ${values.delay}s; F8 para interromper.`);
       await wait(values.delay * 1000, controller.signal);
       await backend.activate();

@@ -125,6 +125,7 @@ export async function createWindowsGameClient(child, { outputRoot, expectedSize,
       if (pid !== undefined && (!Number.isInteger(pid) || pid <= 0)) throw backendError('PID invalido.', 'invalid-pid');
       return rpc('attach', pid === undefined ? {} : { pid });
     }),
+    checkInputAccess: () => enqueue(() => rpc('input-access')),
     activate: () => enqueue(() => rpc('activate')),
     arm: () => enqueue(() => rpc('arm')),
     status: () => enqueue(() => rpc('status')),
