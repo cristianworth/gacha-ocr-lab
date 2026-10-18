@@ -141,12 +141,14 @@ export async function runInventoryScan({ backend, session, ocrSession, options =
       current = await inspect(initial.buffer);
       session.manifest.config.panel = current.panel;
       session.manifest.config.profile = current.profile;
+      session.manifest.initialInspection = { profile: current.profile, geometry: current.geometry, scrollbar: current.scrollbar,
+        completeRows: current.rows.filter(row => row.complete).length, partialRows: current.rows.filter(row => !row.complete).length };
       topVerified = current.scrollbar?.status === 'recognized' && current.scrollbar.atTop === true;
       if (current.scrollbar?.status === 'recognized' && current.scrollbar.atTop === false) throw new ScanStopped('start-unverified', 'A barra indica que a lista nao esta no topo; --at-top nao pode contradizer a imagem.');
       if (!topVerified && prepared.observedTotal !== null && prepared.observedTotal === current.slots.length && current.rows.every(row => row.complete)) topVerified = true;
       if (!topVerified && config.startAtTopDeclared) { topVerified = true; session.manifest.startEvidence = { method: 'user-declared', note: 'Usuario declarou inicio da lista; nao e deteccao automatica do topo.' }; }
       else if (topVerified) session.manifest.startEvidence = { method: 'image-evidence', scrollbar: current.scrollbar ?? null };
-      if (!topVerified) throw new ScanStopped('start-unverified', 'Inicio da lista nao confirmado. Volte ao topo e reinicie uma nova sessao.');
+      if (!topVerified) throw new ScanStopped('start-unverified', 'A barra nao confirmou o inicio da lista. Confira a captura inicial; se estiver no topo, --at-top registra sua confirmacao explicita.');
       await saveSession(session);
       while (page < config.maxPages) {
         const rows = current.rows.filter(row => row.complete);

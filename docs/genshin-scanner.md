@@ -1,6 +1,6 @@
 # Scanner Genshin — M3 experimental
 
-A implementação está disponível para teste; **o aceite M3.9 está pendente**. Nenhuma captura de janela, clique, rolagem ou varredura real do jogo foi executada nesta entrega, por escolha de Cristian. Código/protocolo, cenários simulados e imagens estáticas foram verificados separadamente.
+A implementação está disponível para teste; **o aceite M3.9 está pendente**. A captura cliente real feita por Cristian em 18/10 foi conferida, incluindo grade, painel e OCR da Aqua salva. Piloto com seleção, rolagem, paradas e varreduras completas ainda aguardam validação no jogo; simulações e OCR de imagens salvas não substituem esse aceite.
 
 ## Preparação
 
@@ -89,7 +89,7 @@ Referências técnicas: [SendInput](https://learn.microsoft.com/en-us/windows/wi
 
 ## Validação e aceite pendente
 
-**122 testes automatizados**: contratos antigos, imagem/grade/raridade sintéticas, sessão, CLI, reprocessamento, revisões, cancelamento e percurso simulado. O helper real foi compilado; protocolo, enumeração com processo inexistente e recusa de attach sem alvo foram verificados. Isso não testa aceitação de input pelo jogo.
+**123 testes automatizados**: contratos antigos, imagem/grade/raridade sintéticas, sessão, CLI, reprocessamento, revisões, cancelamento e percurso simulado. O helper real foi compilado; protocolo, enumeração com processo inexistente e recusa de attach sem alvo foram verificados. Isso não testa aceitação de input pelo jogo.
 
 Na imagem legada recortada de forma declaradamente aproximada: grade de 40 posições, seleção Aqua e raridade 5; três cartões locais retornaram raridade 4. A preparação e os três campos da Aqua tiveram OCR real correto; uma reprodução estática de uma observação integrou visão/OCR/sessão sem backend nativo. Esse recorte mantém problemas de borda e não é prova de captura cliente correta. Raridades 1–3, barra no meio/fim e rolagem têm cobertura sintética. Regressão: 13 exemplos Genshin e 4 HSR mantiveram estados/valores; não são avaliações independentes novas.
 
@@ -101,3 +101,13 @@ O primeiro teste do usuário revelou timeout em attach. A enumeração original 
 Na mesma investigação, HasExited do .NET Framework retornou acesso negado ao consultar o processo Genshin. A identidade passou a usar caminho do executável e horário de criação com PROCESS_QUERY_LIMITED_INFORMATION, mantendo a allowlist e a detecção de reutilização do PID. Não há elevação automática. Referências: [GetProcessTimes](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesstimes) e [direitos de processo](https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights).
 
 A seleção também ignora janelas ocultas ou sem área cliente: duas janelas auxiliares IME do mesmo PID eram contadas como candidatas. Múltiplas janelas utilizáveis continuam sendo recusadas. Após as correções, attach/status na janela real confirmou 1440×900 em aproximadamente 100 ms, sem ativar, armar, capturar ou enviar inputs. Isso valida a localização; captura/piloto/varreduras e aceite M3.9 permanecem pendentes. Evidências locais: data/research/attach-debug/.
+
+## Captura real e detecção de topo — 18/10/2026
+
+A captura automática de 1440×900 preservou a área cliente, com 40 cartões completos em oito colunas, linha inferior parcial e painel direito alinhados na prévia. O OCR do arquivo salvo leu Aqua Simulacra, 90/90 e R1; a mesma arma já tinha referência humana anterior. Isso é conferência do caminho de captura/leitura, não nova avaliação independente.
+
+O piloto foi interrompido antes dos cliques porque parte do trilho escuro da barra tinha contraste inferior ao limiar do detector. O detector agora verifica esse trilho de baixo contraste a partir da área útil da barra, excluindo o marcador acima dela. As duas imagens reais salvas e a aproximação legada retornaram topo reconhecido; testes sintéticos cobrem trilho fraco no topo/meio e continuam recusando indicador sem trilho. As sessões antigas permanecem intactas.
+
+Novas sessões preservam initialInspection com barra/geometria e quantidades de linhas, inclusive quando a confirmação do topo falha. O erro de evidência incerta orienta conferir a imagem em vez de presumir que a lista está rolada. O comando --at-top continua sendo uma declaração humana opcional, sem sobrepor evidência de barra fora do topo.
+
+A seleção brilhante não passou o limiar nas duas imagens isoladas; o piloto ainda precisa confirmar a borda e a estabilidade ao longo das capturas de espera. Não foi relaxado o critério de seleção nem executado input nesta análise. Evidências locais: data/research/scrollbar-debug/. Uma captura diagnóstica bem-sucedida termina com captureComplete=false porque esse campo se refere ao percurso do inventário.

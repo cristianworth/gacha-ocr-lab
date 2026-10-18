@@ -13,7 +13,7 @@ function star(cx, cy, radius = 10) {
   }).join(' ');
 }
 const encode = (svg) => sharp(Buffer.from(svg)).png().toBuffer();
-async function scene({ columns = 6, selected = 0, omit = null, level = 90, partial = true, scrollbar = 'top', identicalArt = false, pitch = 110, yOffset = 0 } = {}) {
+async function scene({ columns = 6, selected = 0, omit = null, level = 90, partial = true, scrollbar = 'top', identicalArt = false, pitch = 110, yOffset = 0, faintTrack = false } = {}) {
   let svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900"><defs><clipPath id="grid"><rect x="70" y="80" width="888" height="730"/></clipPath></defs><rect width="1440" height="900" fill="#30303a"/><g clip-path="url(#grid)">';
   for (let row = 0; row < (partial ? 6 : 5); row += 1) for (let column = 0; column < columns; column += 1) {
     if (omit?.row === row && omit?.column === column) continue;
@@ -27,7 +27,7 @@ async function scene({ columns = 6, selected = 0, omit = null, level = 90, parti
   for (let index = 0; index < 5; index += 1) svg += `<polygon points="${star(1012 + index * 26, 280)}" fill="#ffcc32"/>`;
   if (scrollbar) {
     const top = scrollbar === 'top' ? 90 : scrollbar === 'bottom' ? 674 : 300;
-    svg += `<rect x="964" y="90" width="3" height="710" fill="#17171c"/><rect x="963" y="${top}" width="5" height="126" rx="1" fill="#c8c1b6"/>`;
+    svg += `<rect x="964" y="90" width="3" height="710" fill="${faintTrack ? '#2b2b35' : '#17171c'}"/><rect x="963" y="${top}" width="5" height="126" rx="1" fill="#c8c1b6"/>`;
   }
   return encode(`${svg}</svg>`);
 }
@@ -103,6 +103,20 @@ test('local scrollbar contrast distinguishes top, middle and bottom; missing tra
   assert.equal(absent.status, 'uncertain');
   assert.equal(absent.atTop, null);
   assert.equal(absent.atBottom, null);
+});
+
+test('a faint complete track confirms top or middle while a thumb without a track stays uncertain', async () => {
+  for (const position of ['top', 'middle']) {
+    const { scrollbar } = await inspectInventory(await scene({ scrollbar: position, faintTrack: true }));
+    assert.equal(scrollbar.status, 'recognized', position);
+    assert.equal(scrollbar.atTop, position === 'top');
+    assert.equal(scrollbar.atBottom, false);
+  }
+  const withoutTrack = await scene({ scrollbar: null });
+  const thumbOnly = await sharp(withoutTrack).composite([{ input: Buffer.from('<svg width="1440" height="900"><rect x="963" y="90" width="5" height="126" fill="#c8c1b6"/></svg>') }]).png().toBuffer();
+  const unknown = (await inspectInventory(thumbOnly)).scrollbar;
+  assert.equal(unknown.status, 'uncertain');
+  assert.equal(unknown.atTop, null);
 });
 
 test('rarity counts complete aligned gold star shapes independently of text and supports 1 through 5', async () => {

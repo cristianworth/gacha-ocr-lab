@@ -90,6 +90,11 @@ test('preparation and start failures issue no clicks and keep an actionable part
     assert.equal(f.session.manifest.status, 'failed');
     assert.equal(f.session.manifest.captureComplete, false);
     assert.match(f.session.manifest.termination.reason, /preparation-unverified|start-unverified/u);
+    if (prepared) {
+      const saved = JSON.parse(await readFile(join(f.session.directory, 'inventory.json'), 'utf8'));
+      assert.equal(saved.initialInspection.scrollbar.atTop, false);
+      assert.equal(saved.initialInspection.completeRows, 1);
+    }
   }
 });
 

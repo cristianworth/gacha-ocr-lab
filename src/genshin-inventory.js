@@ -98,22 +98,24 @@ function bodyHasEdges(data, info, rectangle) {
 }
 function findScrollbar(data, info) {
   const candidates = [];
+  const searchTop = 90;
+  const trackContrastThreshold = 4;
   for (let center = 961; center <= 970; center += 1) {
     const contrasts = [];
-    for (let y = 85; y < 810; y += 1) {
+    for (let y = searchTop; y < 810; y += 1) {
       const luma = (x) => { const c = rgb(data, info, x, y); return (c[0] + c[1] + c[2]) / 3; };
       const middle = (luma(center - 1) + luma(center) + luma(center + 1)) / 3;
       const outside = (luma(center - 5) + luma(center - 4) + luma(center + 4) + luma(center + 5)) / 4;
       contrasts.push(middle - outside);
     }
-    const tracks = runs(contrasts.map((value) => Math.abs(value) > 7), 660, 725, 1);
+    const tracks = runs(contrasts.map((value) => Math.abs(value) > trackContrastThreshold), 660, 725, 1);
     for (const run of tracks) {
-      if (run.start + 85 > 110 || run.end + 85 < 780 || run.end + 85 > 810) continue;
+      if (run.start + searchTop > 110 || run.end + searchTop < 780 || run.end + searchTop > 810) continue;
       const thumbs = runs(contrasts.slice(run.start, run.end).map((value) => value > 18), 20, 640, 3);
       if (thumbs.length !== 1) continue;
       const thumb = thumbs[0];
-      const top = run.start + 85;
-      const bottom = run.end + 85;
+      const top = run.start + searchTop;
+      const bottom = run.end + searchTop;
       const thumbTop = top + thumb.start;
       const thumbBottom = top + thumb.end;
       const score = contrasts.slice(run.start, run.end).reduce((sum, value) => sum + Math.abs(value), 0) / (run.end - run.start);
@@ -129,7 +131,7 @@ function findScrollbar(data, info) {
     return { status: 'uncertain', atTop: null, atBottom: null, thumb: null, track: null, evidence: { reason: 'Conflicting scrollbar candidates.' } };
   }
   return { status: 'recognized', atTop: best.atTop, atBottom: best.atBottom, thumb: best.thumb, track: best.track,
-    evidence: { method: 'narrow-track-local-contrast', localContrast: best.score, endpointTolerance: 4 } };
+    evidence: { method: 'narrow-track-local-contrast', localContrast: best.score, trackContrastThreshold, searchTop, endpointTolerance: 4 } };
 }
 function findPanel(data, info) {
   for (let y = 80; y <= 112; y += 1) {

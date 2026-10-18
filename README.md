@@ -76,7 +76,7 @@ npm.cmd run evaluate -- --game hsr --split development
 npm.cmd run evaluate -- --game hsr --split evaluation --final
 ```
 
-**122 testes automatizados passaram**; veja também a [validação M3 e o aceite real pendente](docs/genshin-scanner.md#validação-e-aceite-pendente). Incluem parser, coordenadas, erros de entrada/cache, despacho por jogo, revisão e feedback imutável. Os testes de sucesso do CLI com OCR simulado são identificados como sintéticos; não medem reconhecimento. O smoke test separado usa OCR real em imagens sintéticas de texto (Genshin legado), inglês/português, imagem vazia e PNG corrompido.
+**123 testes automatizados passaram**; veja também a [validação M3 e o aceite real pendente](docs/genshin-scanner.md#validação-e-aceite-pendente). Incluem parser, coordenadas, erros de entrada/cache, despacho por jogo, revisão e feedback imutável. Os testes de sucesso do CLI com OCR simulado são identificados como sintéticos; não medem reconhecimento. O smoke test separado usa OCR real em imagens sintéticas de texto (Genshin legado), inglês/português, imagem vazia e PNG corrompido.
 
 OCR real HSR: **2 imagens de desenvolvimento**, três campos corretos em ambas, referências confirmadas por Cristian. Após congelar código e manifesto, **2 reservadas**: nome 2/2, nível 2/2, sobreposição 1/2 e um candidato correto mantido incerto em Phainon; nenhum campo incorreto aceito observado. O caso incerto não orientou ajustes. As quatro capturas mostram 80/80 e somente sobreposições 1/5; outros níveis, ranks, títulos multilinha e campos parcialmente ocultos ainda precisam de capturas reais. Essa amostra pequena não estima precisão geral.
 
