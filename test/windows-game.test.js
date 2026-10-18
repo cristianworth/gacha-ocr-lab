@@ -62,11 +62,14 @@ test('Windows helper compiles without enumerating, activating or capturing a rea
   assert.deepEqual(JSON.parse(child.stdout.trim()), { event: 'validated', protocol: 1 });
 });
 
-test('real helper startup, unattached status and close use JSON protocol without querying a game window', { skip: process.platform !== 'win32' }, async (t) => {
+test('real helper lists an absent allowed process and rejects attach without activation or capture', { skip: process.platform !== 'win32' }, async (t) => {
   const outputRoot = await directory(t);
   const control = await openWindowsGame({ outputRoot, expectedSize, processNames: ['gacha_ocr_test_nonexistent'] });
   try {
     assert.deepEqual(await control.status(), { attached: false, armed: false, stopped: false, stopReason: null, window: null, emergencyKey: 'F8' });
+    assert.deepEqual(await control.list(), []);
+    await assert.rejects(control.attach(), error => error.code === 'window-not-found');
+    assert.equal((await control.status()).attached, false);
   } finally { await control.close(); }
 });
 

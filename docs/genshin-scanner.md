@@ -84,8 +84,15 @@ Referências técnicas: [SendInput](https://learn.microsoft.com/en-us/windows/wi
 
 ## Validação e aceite pendente
 
-**122 testes automatizados**: contratos antigos, imagem/grade/raridade sintéticas, sessão, CLI, reprocessamento, revisões, cancelamento e percurso simulado. O helper real foi compilado e teve handshake/status sem janela anexada/encerramento verificados. Isso não testa aceitação de input pelo jogo.
+**122 testes automatizados**: contratos antigos, imagem/grade/raridade sintéticas, sessão, CLI, reprocessamento, revisões, cancelamento e percurso simulado. O helper real foi compilado; protocolo, enumeração com processo inexistente e recusa de attach sem alvo foram verificados. Isso não testa aceitação de input pelo jogo.
 
 Na imagem legada recortada de forma declaradamente aproximada: grade de 40 posições, seleção Aqua e raridade 5; três cartões locais retornaram raridade 4. A preparação e os três campos da Aqua tiveram OCR real correto; uma reprodução estática de uma observação integrou visão/OCR/sessão sem backend nativo. Esse recorte mantém problemas de borda e não é prova de captura cliente correta. Raridades 1–3, barra no meio/fim e rolagem têm cobertura sintética. Regressão: 13 exemplos Genshin e 4 HSR mantiveram estados/valores; não são avaliações independentes novas.
 
 Para fechar M3.9: conferir captura real, piloto e duas varreduras completas do mesmo inventário 4★/5★ sem alterações entre elas; comparar contagens/cópias/primeiro/último/transições, resolver discrepâncias e testar F8/perda de foco. Não considerar M3 aceito só porque a suíte passa. Evidências locais desta entrega: `data/research/m3-inspection/`.
+## Localização da janela: correção de 18/10/2026
+
+O primeiro teste do usuário revelou timeout em attach. A enumeração original consultava metadados de processo para cada HWND; a reprodução local com allowlist inexistente levou cerca de 13 s, além do limite de 10 s. Agora os PIDs permitidos são resolvidos uma vez por enumeração, mantendo o limite e as guardas de alvo.
+
+Na mesma investigação, HasExited do .NET Framework retornou acesso negado ao consultar o processo Genshin. A identidade passou a usar caminho do executável e horário de criação com PROCESS_QUERY_LIMITED_INFORMATION, mantendo a allowlist e a detecção de reutilização do PID. Não há elevação automática. Referências: [GetProcessTimes](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesstimes) e [direitos de processo](https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights).
+
+A seleção também ignora janelas ocultas ou sem área cliente: duas janelas auxiliares IME do mesmo PID eram contadas como candidatas. Múltiplas janelas utilizáveis continuam sendo recusadas. Após as correções, attach/status na janela real confirmou 1440×900 em aproximadamente 100 ms, sem ativar, armar, capturar ou enviar inputs. Isso valida a localização; captura/piloto/varreduras e aceite M3.9 permanecem pendentes. Evidências locais: data/research/attach-debug/.

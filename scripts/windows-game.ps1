@@ -46,6 +46,11 @@ namespace GachaOcrWindows {
     [StructLayout(LayoutKind.Explicit)] private struct INPUTUNION { [FieldOffset(0)] public MOUSEINPUT mouse; }
     [StructLayout(LayoutKind.Sequential)] private struct INPUT { public uint type; public INPUTUNION data; }
     private delegate bool EnumWindowProc(IntPtr handle, IntPtr parameter);
+    [StructLayout(LayoutKind.Sequential)] private struct FILETIME { public uint Low, High; }
+    [DllImport("kernel32.dll", SetLastError=true)] private static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+    [DllImport("kernel32.dll", SetLastError=true)] private static extern bool GetProcessTimes(IntPtr process, out FILETIME created, out FILETIME exited, out FILETIME kernel, out FILETIME user);
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool QueryFullProcessImageName(IntPtr process, uint flags, StringBuilder path, ref uint size);
+    [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowProc callback, IntPtr parameter);
     [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr handle);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr handle);
@@ -109,20 +114,25 @@ namespace GachaOcrWindows {
         width = area.Right - area.Left, height = area.Bottom - area.Top, left = origin.X, top = origin.Y,
         foreground = Root(GetForegroundWindow()) == handle, minimized = IsIconic(handle), visible = IsWindowVisible(handle) };
     }
-    private bool ProcessAllowed(int pid, bool identity) {
+    private long VerifiedProcessStarted(int pid) {
+      // Metadata only: .NET Framework HasExited/StartTime request broader access than this helper needs.
+      IntPtr process = OpenProcess(0x1000, false, (uint)pid); // PROCESS_QUERY_LIMITED_INFORMATION
+      if (process == IntPtr.Zero) throw new ControlError("process-query-denied", "Nao foi possivel consultar metadados do processo (Win32 " + Marshal.GetLastWin32Error() + "). Sem elevacao automatica.");
       try {
-        using (Process process = Process.GetProcessById(pid)) {
-          return !process.HasExited && allowed.Contains(process.ProcessName)
-            && (!identity || process.StartTime.ToUniversalTime().Ticks == processStarted);
-        }
-      } catch { return false; }
+        StringBuilder path = new StringBuilder(32768); uint size = (uint)path.Capacity;
+        FILETIME created, exited, kernel, user;
+        if (!QueryFullProcessImageName(process, 0, path, ref size) || !GetProcessTimes(process, out created, out exited, out kernel, out user))
+          throw new ControlError("process-query-denied", "Nao foi possivel verificar a identidade do processo (Win32 " + Marshal.GetLastWin32Error() + ").");
+        if (!allowed.Contains(Path.GetFileNameWithoutExtension(path.ToString()))) throw new ControlError("process-not-allowed", "O executavel nao pertence a allowlist.");
+        return ((long)created.High << 32) | created.Low;
+      } finally { CloseHandle(process); }
     }
     private void EnsureOpen() { if (closed) throw new ControlError("closed", "Helper encerrado."); }
     private WindowInfo VerifyAttached() {
       EnsureOpen();
       if (attachedHandle == IntPtr.Zero) throw new ControlError("not-attached", "Anexe uma janela primeiro.");
       uint pid; GetWindowThreadProcessId(attachedHandle, out pid);
-      if (!IsWindow(attachedHandle) || pid != attachedPid || !ProcessAllowed(attachedPid, true)) throw new ControlError("window-exited", "O processo/janela anexado mudou ou encerrou.");
+      if (!IsWindow(attachedHandle) || pid != attachedPid || VerifiedProcessStarted(attachedPid) != processStarted) throw new ControlError("window-exited", "O processo/janela anexado mudou ou encerrou.");
       return ReadWindow(attachedHandle);
     }
     private void ValidateSize(WindowInfo window) {
@@ -163,9 +173,16 @@ namespace GachaOcrWindows {
     public WindowInfo[] List() {
       lock (gate) {
         EnsureOpen(); List<WindowInfo> windows = new List<WindowInfo>();
+        // Resolve the allowlist once; ProcessName queries per HWND repeatedly enumerate process metadata.
+        HashSet<int> allowedPids = new HashSet<int>();
+        foreach (string name in allowed) {
+          foreach (Process process in Process.GetProcessesByName(name)) {
+            using (process) { try { allowedPids.Add(process.Id); } catch (InvalidOperationException) { } }
+          }
+        }
         EnumWindows(delegate(IntPtr handle, IntPtr unused) {
           uint pid; GetWindowThreadProcessId(handle, out pid);
-          if (Root(handle) != handle || !ProcessAllowed((int)pid, false)) return true;
+          if (Root(handle) != handle || !allowedPids.Contains((int)pid)) return true;
           try { WindowInfo info = ReadWindow(handle); if (!String.IsNullOrWhiteSpace(info.title)) windows.Add(info); } catch { }
           return true;
         }, IntPtr.Zero);
@@ -176,13 +193,13 @@ namespace GachaOcrWindows {
       lock (gate) {
         EnsureOpen();
         WindowInfo[] windows = List(); List<WindowInfo> candidates = new List<WindowInfo>();
-        foreach (WindowInfo window in windows) if (pid == 0 || window.pid == pid) candidates.Add(window);
+        // IME/helper windows can share the game's PID but are not usable game surfaces.
+        foreach (WindowInfo window in windows) if ((pid == 0 || window.pid == pid) && window.visible && window.width > 0 && window.height > 0) candidates.Add(window);
         if (candidates.Count == 0) throw new ControlError("window-not-found", "Nenhuma janela correspondente a allowlist/PID.");
         if (candidates.Count != 1) throw new ControlError("multiple-windows", "Mais de uma janela candidata; informe o PID da janela desejada.");
         WindowInfo selected = candidates[0]; ValidateSize(selected);
         IntPtr handle = new IntPtr(Int64.Parse(selected.handle));
-        long started;
-        using (Process process = Process.GetProcessById(selected.pid)) { started = process.StartTime.ToUniversalTime().Ticks; }
+        long started = VerifiedProcessStarted(selected.pid);
         attachedHandle = handle; attachedPid = selected.pid; processStarted = started;
         armed = false; stopped = false; stopReason = null; baseline = null;
         return VerifyAttached();
