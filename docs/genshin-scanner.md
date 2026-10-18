@@ -82,14 +82,14 @@ npm.cmd run scan -- --image "C:\caminho\cliente-1440x900.png"
 - JavaScript coordena OCR, percurso e arquivos. Um helper PowerShell/C# usa Win32/GDI para janela, captura e input; JSON-lines serializado e timeouts separam esse processo. Escolhemos recursos já presentes no Windows em vez de adicionar uma biblioteca nativa npm/instalador.
 - O helper restringe o alvo a GenshinImpact/YuanShen, mede a área cliente, verifica foco/geometria/oclusão e monitora F8 em intervalos nominais de 50 ms. `SendInput` é global: checagens reduzem, mas não tornam atômica uma troca externa de foco. Por isso o uso exclusivo é parte do contrato. Oclusão por retângulos Win32 pode ser conservadora e não comprova ausência de overlays injetados; jogo/elevação podem recusar inputs. Não há fallback silencioso ou elevação automática.
 - O perfil mede cartões por faixas de nível/arestas e conta componentes alinhados de estrelas. Exige ao menos duas linhas completas; layouts pequenos, alterações de interface, HDR/escala e imagens parcialmente cobertas podem ser recusados. Nome/hash do cartão não serve como identidade de cópia.
-- Seleção requer borda clara em quatro lados, arte compatível com a grade-base e estabilidade dos recortes de texto em duas observações. Retries, páginas, posições e OCR têm limites. Uma sessão OCR é reutilizada, sem paralelismo de inputs.
+- Seleção requer contorno verificável nos quatro lados por contraste local ou brilho, com amostragem fora do retrato equipado, arte compatível com a grade-base e duas observações consecutivas selecionadas com recortes estáveis. Retries, páginas, posições e OCR têm limites. Uma sessão OCR é reutilizada, sem paralelismo de inputs.
 - Dados ficam em `data/sessions/`, ignorados pelo Git; capturas por observação ocupam disco. Não há limpeza automática das evidências. Captura pode conter UID; ela permanece local e não acompanha o repositório.
 
 Referências técnicas: [SendInput](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput), [GetAsyncKeyState](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getasynckeystate), e o [estudo do Inventory Kamera](inventory-kamera.md). O código do scanner de referência não foi incorporado.
 
 ## Validação e aceite pendente
 
-**123 testes automatizados**: contratos antigos, imagem/grade/raridade sintéticas, sessão, CLI, reprocessamento, revisões, cancelamento e percurso simulado. O helper real foi compilado; protocolo, enumeração com processo inexistente e recusa de attach sem alvo foram verificados. Isso não testa aceitação de input pelo jogo.
+**129 testes automatizados**: contratos antigos, imagem/grade/raridade sintéticas, sessão, CLI, reprocessamento, revisões, cancelamento e percurso simulado. O helper real foi compilado; protocolo, enumeração com processo inexistente e recusa de attach sem alvo foram verificados. Isso não testa aceitação de input pelo jogo.
 
 Na imagem legada recortada de forma declaradamente aproximada: grade de 40 posições, seleção Aqua e raridade 5; três cartões locais retornaram raridade 4. A preparação e os três campos da Aqua tiveram OCR real correto; uma reprodução estática de uma observação integrou visão/OCR/sessão sem backend nativo. Esse recorte mantém problemas de borda e não é prova de captura cliente correta. Raridades 1–3, barra no meio/fim e rolagem têm cobertura sintética. Regressão: 13 exemplos Genshin e 4 HSR mantiveram estados/valores; não são avaliações independentes novas.
 
@@ -110,4 +110,16 @@ O piloto foi interrompido antes dos cliques porque parte do trilho escuro da bar
 
 Novas sessões preservam initialInspection com barra/geometria e quantidades de linhas, inclusive quando a confirmação do topo falha. O erro de evidência incerta orienta conferir a imagem em vez de presumir que a lista está rolada. O comando --at-top continua sendo uma declaração humana opcional, sem sobrepor evidência de barra fora do topo.
 
-A seleção brilhante não passou o limiar nas duas imagens isoladas; o piloto ainda precisa confirmar a borda e a estabilidade ao longo das capturas de espera. Não foi relaxado o critério de seleção nem executado input nesta análise. Evidências locais: data/research/scrollbar-debug/. Uma captura diagnóstica bem-sucedida termina com captureComplete=false porque esse campo se refere ao percurso do inventário.
+No teste inicial, a seleção brilhante não passou o limiar nas duas imagens isoladas; a correção e os replays abaixo tratam esse caso. O sucesso do piloto com inputs reais permanece pendente. Evidências locais: data/research/scrollbar-debug/. Uma captura diagnóstica bem-sucedida termina com captureComplete=false porque esse campo se refere ao percurso do inventário.
+
+## Seleção e testes antes de nova execução
+
+O timeout seguinte mostrou que uma borda translúcida e o retrato sobreposto não eram bem representados pelo teste de branco quase puro. A verificação agora aceita um contorno com contraste local e examina trechos fora do retrato, mantendo a exigência dos quatro lados. Borda incompleta, faixa clara de nível, cartão vizinho e cópia sem seleção continuam recusados. Quadros muito apagados permanecem incertos; duas capturas consecutivas precisam confirmar seleção e estabilidade.
+
+A suíte chegou a 129 testes, incluindo um piloto de dez posições com visão real sobre imagens sintéticas, transição sem borda, painel ainda mudando, raridades 4/5, cópias com valores iguais e nenhum scroll. Esse teste automatizado simula OCR e input; não mede reconhecimento do jogo.
+
+Também executamos offline o fluxo com os quadros reais salvos e OCR real: preparação, seleção, estabilidade e Aqua 90/90 R1 passaram. Um segundo replay usou grade sintética e dez cartões reais conhecidos, redimensionados para composição, com OCR real: dez observações distintas, inclusive duas Aquas iguais; 25 campos reconhecidos coincidiram com as referências e cinco ficaram incertos com o candidato correto preservado. Nenhum valor incorreto aceito foi observado nesse replay. A composição alterou o comportamento de alguns campos, portanto não é avaliação independente nem precisão geral, e o OCR não foi ajustado para forçar concordância.
+
+Falhas de seleção agora preservam métricas por tentativa, alvo e até oito quadros com hashes; o review.html dá acesso a essa sequência. Sucesso guarda a evidência de seleção/estabilidade na observação e remove os intermediários. Interrupção antes de qualquer observação não aparece como processamento completo. Evidências locais: data/research/selection-debug/; os dois replays e seus dados não usam backend Windows nem demonstram que o jogo aceitou cliques/rolagem.
+
+O próximo teste no jogo continua sendo somente o piloto de dez posições. Se falhar, uma sessão terá a sequência necessária para distinguir borda apagada, painel instável, alteração da grade e interrupção, evitando depender de uma única imagem final.

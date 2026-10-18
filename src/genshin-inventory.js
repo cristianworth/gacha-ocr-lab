@@ -229,31 +229,53 @@ export async function inspectInventory(buffer) {
 export async function inspectSelection(buffer, slot) {
   const { data, info } = await pixels(buffer);
   const rectangle = validateRectangle(slot?.rectangle, { width: info.width, height: info.height });
-  const horizontal = (y) => {
-    let count = 0; const length = rectangle.width - 12;
-    for (let dx = 6; dx < rectangle.width - 6; dx += 1) if (bright(rgb(data, info, rectangle.left + dx, y))) count += 1;
-    return count / length;
-  };
-  const vertical = (x) => {
-    let count = 0; const length = rectangle.height - 20;
-    for (let dy = 10; dy < rectangle.height - 10; dy += 1) if (bright(rgb(data, info, x, rectangle.top + dy))) count += 1;
-    return count / length;
-  };
   if (rectangle.width < 70 || rectangle.height < 90 || rectangle.left < 8 || rectangle.top < 8
-      || rectangle.left + rectangle.width + 8 >= info.width || rectangle.top + rectangle.height + 8 >= info.height) {
+      || rectangle.left + rectangle.width + 9 >= info.width || rectangle.top + rectangle.height + 9 >= info.height) {
     return { status: 'uncertain', selected: false, evidence: { reason: 'selection-border-outside-supported-card-geometry' } };
   }
-  const maximum = (values) => Math.max(...values);
-  const scores = {
-    top: maximum(Array.from({ length: 10 }, (_, index) => horizontal(rectangle.top - 6 + index))),
-    bottom: maximum(Array.from({ length: 10 }, (_, index) => horizontal(rectangle.top + rectangle.height - 3 + index))),
-    left: maximum(Array.from({ length: 10 }, (_, index) => vertical(rectangle.left - 7 + index))),
-    right: maximum(Array.from({ length: 10 }, (_, index) => vertical(rectangle.left + rectangle.width - 3 + index))),
+  const luma = (color) => (color[0] + color[1] + color[2]) / 3;
+  const chroma = (color) => Math.max(...color) - Math.min(...color);
+  const contrastedOutline = (x, y, dx, dy) => {
+    const color = rgb(data, info, x, y);
+    const outside = rgb(data, info, x + dx * 3, y + dy * 3);
+    const inside = rgb(data, info, x - dx * 3, y - dy * 3);
+    return Math.min(...color) > 85 && chroma(color) < 42 && luma(color) - luma(outside) > 12
+      && (luma(color) - luma(inside) > 6 || chroma(inside) - chroma(color) > 25);
   };
-  const selected = Object.values(scores).every((score) => score >= 0.72);
+  // Equipped portraits overlap the upper-right corner; test continuous edge segments below them.
+  const verticalStart = Math.ceil(rectangle.height * 0.35);
+  const verticalEnd = Math.floor(rectangle.height * 0.78);
+  const coverages = (localContrast) => {
+    const point = (x, y, dx, dy) => localContrast ? contrastedOutline(x, y, dx, dy) : bright(rgb(data, info, x, y));
+    const horizontal = (y, direction, end) => {
+      let count = 0;
+      for (let dx = 6; dx < end; dx += 1) if (point(rectangle.left + dx, y, 0, direction)) count += 1;
+      return count / (end - 6);
+    };
+    const vertical = (x, direction) => {
+      let count = 0;
+      for (let dy = verticalStart; dy < verticalEnd; dy += 1) if (point(x, rectangle.top + dy, direction, 0)) count += 1;
+      return count / (verticalEnd - verticalStart);
+    };
+    const maximum = (values) => Math.max(...values);
+    return {
+      top: maximum(Array.from({ length: 10 }, (_, index) => horizontal(rectangle.top - 6 + index, -1, rectangle.width - 30))),
+      bottom: maximum(Array.from({ length: 10 }, (_, index) => horizontal(rectangle.top + rectangle.height - 3 + index, 1, rectangle.width - 6))),
+      left: maximum(Array.from({ length: 10 }, (_, index) => vertical(rectangle.left - 7 + index, -1))),
+      right: maximum(Array.from({ length: 10 }, (_, index) => vertical(rectangle.left + rectangle.width - 3 + index, 1))),
+    };
+  };
+  const contrastCoverage = coverages(true);
+  const brightCoverage = coverages(false);
+  const complete = (scores) => Object.values(scores).every((score) => score >= 0.72);
+  const contrastRecognized = complete(contrastCoverage);
+  const selected = contrastRecognized || complete(brightCoverage);
   const signature = await artSignature(buffer, rectangle);
   return { status: selected ? 'recognized' : 'uncertain', selected, signature,
-    evidence: { method: 'four-sided-bright-selection-outline', rectangle, sideCoverage: scores, expectedSignatureMatches: typeof slot.signature === 'string' ? signature === slot.signature : null } };
+    evidence: { method: 'four-sided-local-contrast-outline-v2', rectangle,
+      sideCoverage: contrastRecognized ? contrastCoverage : brightCoverage, contrastCoverage, brightCoverage,
+      sampling: { top: [6, rectangle.width - 30], vertical: [verticalStart, verticalEnd], normalDistance: 3 },
+      expectedSignatureMatches: typeof slot.signature === 'string' ? signature === slot.signature : null } };
 }
 
 function goldComponents(data, info) {

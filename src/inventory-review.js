@@ -62,6 +62,13 @@ export async function writeSessionReview(session) {
     if (path) lines.push(`<figure><figcaption>${escape(label)}</figcaption>${link(directory, path, label, true)}</figure>`);
   }
   if (manifest.lastDiagnostic?.reason) lines.push(`<p>Diagnóstico: ${escape(manifest.lastDiagnostic.reason)}</p>`);
+  if (manifest.lastDiagnostic?.attempts) {
+    lines.push('<details><summary>Tentativas de seleção e estabilidade</summary>', json(manifest.lastDiagnostic));
+    for (const [index, capture] of (manifest.lastDiagnostic.retainedCaptures ?? []).entries()) {
+      lines.push('<p>' + link(directory, capture.path, 'Quadro de diagnóstico ' + (index + 1)) + '</p>');
+    }
+    lines.push('</details>');
+  }
   for (const observation of observations) {
     lines.push(`<article id="item-${escape(observation.id)}"><h2>Observação ${escape(observation.ordinal)} · ${escape(observation.status)}</h2>`,
       `<p>Identificador: ${escape(observation.id)}</p>`, fieldSummary(observation.fields),

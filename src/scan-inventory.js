@@ -65,31 +65,44 @@ export async function runInventoryScan({ backend, session, ocrSession, options =
     await checkScanControl(backend, signal);
     await backend.click(slot.center);
     await pause(config.settleMs, signal);
-    const until = Date.now() + config.selectionTimeoutMs;
+    const started = Date.now();
+    const until = started + config.selectionTimeoutMs;
     let previousFingerprint;
-    let previous;
+    const retained = [];
+    const attempts = [];
     try {
       while (Date.now() < until) {
         const frame = await capture('selected');
+        retained.push(frame);
+        if (retained.length > 8) await discard(retained.shift());
         const selected = await selection(frame.buffer, slot);
+        const attempt = { ordinal: attempts.length + 1, elapsedMs: Date.now() - started, path: frame.path,
+          sha256: frame.source.sha256, selection: selected, stable: false, fingerprintDistance: null };
+        attempts.push(attempt);
         if (selected.evidence?.expectedSignatureMatches === false) {
-          await discard(previous); previous = frame;
           throw new ScanStopped('grid-changed', 'A arte do item mudou em relacao a grade-base; selecao/posicao nao sera reaproveitada.');
         }
         const pixels = selected.selected === true ? await fingerprint(frame.buffer, panel) : null;
-        if (pixels && previousFingerprint && pixelDistance(pixels, previousFingerprint) <= 2) {
-          await discard(previous);
+        attempt.fingerprintDistance = pixels && previousFingerprint ? pixelDistance(pixels, previousFingerprint) : null;
+        attempt.stable = attempt.fingerprintDistance !== null && attempt.fingerprintDistance <= 2;
+        if (attempt.stable) {
+          frame.selectionEvidence = { ...selected, attempts: attempts.length, elapsedMs: attempt.elapsedMs,
+            stability: { consecutiveSelectedFrames: 2, meanPixelDistance: attempt.fingerprintDistance, threshold: 2 } };
+          await Promise.all(retained.filter(item => item.path !== frame.path).map(discard));
           return frame;
         }
-        await discard(previous);
-        previous = frame;
         previousFingerprint = pixels;
         await pause(config.settleMs, signal);
       }
-      if (previous) session.manifest.lastDiagnostic = { path: previous.path, reason: 'selection-timeout' };
-      throw new ScanStopped('selection-timeout', 'Selecao/estabilidade do painel nao confirmada; nenhum item anterior sera reaproveitado.');
+      const hadSelection = attempts.some(attempt => attempt.selection.selected);
+      throw new ScanStopped('selection-timeout', hadSelection
+        ? 'A borda foi observada, mas duas capturas consecutivas nao confirmaram selecao/painel estavel. Veja as tentativas no diagnostico.'
+        : 'A borda de selecao nao foi confirmada. Veja as tentativas no diagnostico; nenhum item anterior sera reaproveitado.');
     } catch (failure) {
-      if (previous) session.manifest.lastDiagnostic = { path: previous.path, reason: failure.reason ?? 'selection-failed' };
+      const paths = new Set(retained.map(item => item.path));
+      session.manifest.lastDiagnostic = { path: retained.at(-1)?.path ?? null, reason: failure.reason ?? 'selection-failed',
+        target: slot, retainedCaptures: retained.map(item => ({ path: item.path, sha256: item.source.sha256 })),
+        attempts: attempts.map(attempt => ({ ...attempt, path: paths.has(attempt.path) ? attempt.path : null })) };
       throw failure;
     }
   }
@@ -169,7 +182,7 @@ export async function runInventoryScan({ backend, session, ocrSession, options =
               if (recognizedRarity && lastKnownRarity !== null && rarity.value > lastKnownRarity) throw new ScanStopped('sorting-changed', 'A ordem observada nao e Quality decrescente.');
               const status = !recognizedRarity ? 'scope-uncertain' : [4, 5].includes(rarity.value) ? 'included' : 'excluded';
               observation = await appendObservation(session, { status, position,
-                capture: { path: frame.path, sha256: frame.source.sha256, panel: current.panel }, rarity, fields: null, resultPath: null });
+                capture: { path: frame.path, sha256: frame.source.sha256, panel: current.panel }, selection: frame.selectionEvidence, rarity, fields: null, resultPath: null });
               visited.add(identity);
               if (recognizedRarity) lastKnownRarity = rarity.value;
               if (status !== 'excluded') {
@@ -215,7 +228,8 @@ export async function runInventoryScan({ backend, session, ocrSession, options =
     error = failure.message;
   } finally {
     const coverage = assessCoverage({ reason, topVerified, expectedCount: config.expectedCount, observations: session.manifest.observations });
-    const processingComplete = session.manifest.observations.every(item => item.status === 'excluded' || (item.resultPath && !item.error));
+    const processingComplete = (reason === 'empty-inventory' || session.manifest.observations.length > 0)
+      && session.manifest.observations.every(item => item.status === 'excluded' || (item.resultPath && !item.error));
     await finishSession(session, { reason, captureComplete: coverage.traversalComplete, coverage, processingComplete, error });
     await writeSessionReview(session);
   }

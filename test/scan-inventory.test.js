@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import sharp from 'sharp';
@@ -117,6 +117,9 @@ test('synthetic lost-focus and stale selection stop without reusing an old item'
   assert.equal(stale.session.manifest.termination.reason, 'selection-timeout');
   assert.equal(stale.session.manifest.items.length, 0);
   assert.ok(stale.session.manifest.lastDiagnostic.path);
+  assert.equal(stale.session.manifest.processingComplete, false);
+  assert.ok(stale.session.manifest.lastDiagnostic.attempts.length > 0);
+  assert.ok(stale.session.manifest.lastDiagnostic.retainedCaptures.length <= 8);
 });
 
 test('ambiguous overlap is partial, and confirmed bottom requires repeated unchanged views', async t => {
@@ -189,4 +192,52 @@ test('an initial low-rarity card does not prove an empty eligible inventory', as
   assert.equal(f.session.manifest.captureComplete, false);
   assert.equal(f.session.manifest.coverage.status, 'unconfirmed');
   assert.equal(f.calls.filter(call => call === 'click').length, 1);
+});
+
+test('selection waits through a dim border and unstable panel before writing one observation', async t => {
+  const f = await fixture(t, [page([row('A', 0), row('B', 1)])]);
+  let calls = 0; let fingerprints = 0;
+  f.dependencies.inspectSelection = async () => ({ selected: ++calls > 1, evidence: { expectedSignatureMatches: true } });
+  f.dependencies.fieldFingerprint = async () => Buffer.from(++fingerprints === 1 ? [10, 10] : [90, 90]);
+  await runInventoryScan({ ...f, options: { limit: 1 } });
+  assert.equal(f.session.manifest.termination.reason, 'pilot-limit');
+  assert.equal(f.session.manifest.items.length, 1);
+  const item = f.session.manifest.items[0];
+  assert.equal(item.selection.attempts, 4);
+  assert.equal(item.selection.stability.consecutiveSelectedFrames, 2);
+  assert.equal(item.selection.stability.meanPixelDistance, 0);
+  assert.equal((await readdir(join(f.session.directory, 'captures'))).length, 2);
+});
+
+test('alternating selection evidence never confirms two stable selected frames', async t => {
+  const f = await fixture(t, [page([row('A', 0)])]);
+  let calls = 0;
+  f.dependencies.inspectSelection = async () => ({ selected: ++calls % 2 === 1 });
+  await runInventoryScan({ ...f, options: { limit: 1, selectionTimeoutMs: 150 } });
+  assert.equal(f.session.manifest.termination.reason, 'selection-timeout');
+  assert.equal(f.session.manifest.items.length, 0);
+  assert.match(f.session.manifest.termination.error, /borda foi observada/u);
+  const diagnostic = f.session.manifest.lastDiagnostic;
+  assert.ok(diagnostic.attempts.some(attempt => attempt.selection.selected));
+  assert.ok(diagnostic.attempts.every(attempt => !attempt.stable));
+  assert.ok(diagnostic.retainedCaptures.length <= 8);
+  for (const capture of diagnostic.retainedCaptures) assert.ok((await readFile(capture.path)).length > 0);
+});
+
+test('a stationary old panel does not bypass a missing border and only bounded failure frames remain', async t => {
+  const f = await fixture(t, [page([row('A', 0)])], { selection: false });
+  let captures = 0;
+  const capture = f.backend.capture;
+  f.backend.capture = async path => {
+    captures += 1;
+    if (captures === 13) throw Object.assign(new Error('Synthetic stop after retained frames'), { reason: 'focus-lost' });
+    return capture(path);
+  };
+  await runInventoryScan({ ...f, options: { selectionTimeoutMs: 3000 } });
+  assert.equal(f.session.manifest.items.length, 0);
+  assert.equal(f.session.manifest.termination.reason, 'focus-lost');
+  assert.equal(f.session.manifest.lastDiagnostic.retainedCaptures.length, 8);
+  assert.equal(f.session.manifest.lastDiagnostic.attempts.length, 11);
+  assert.equal(f.session.manifest.lastDiagnostic.attempts.filter(attempt => attempt.path === null).length, 3);
+  assert.equal((await readdir(join(f.session.directory, 'captures'))).length, 9);
 });
