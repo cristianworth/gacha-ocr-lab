@@ -14,6 +14,11 @@ A implementação está disponível para teste; **o aceite M3.9 está pendente**
 
 Execute a partir de `D:\Repo\gacha-ocr-lab`. O atraso de cinco segundos permite preparar a janela; depois o programa tenta ativar apenas o processo Genshin anexado.
 
+Pode executar no Git Bash com npm.cmd; o programa inicia seu próprio helper PowerShell. Durante a contagem, clique no jogo para deixá-lo em foco e depois mantenha os controles livres. Minimize janelas flutuantes e overlays sobre a área do jogo, inclusive ChatGPT, antes do teste. Estar em foco não garante ausência de sobreposição.
+
+Se a proteção bloquear uma janela sobreposta, o erro informa aplicativo/PID, classe e retângulo, sem incluir título ou conteúdo da janela. Remova a sobreposição e repita somente a captura. O retângulo de um overlay pode incluir regiões transparentes; não é prova de que todo ele cobre pixels. A proteção permanece conservadora e não possui bypass. Esse bloqueio não pede elevação de administrador; permissões de input, se houver falha nessa etapa futura, são um diagnóstico separado.
+
+
 ```powershell
 # 1. Somente captura e diagnóstico: sem cliques ou rolagem.
 npm.cmd run capture -- --delay 5

@@ -133,9 +133,11 @@ test('a link escaping outputRoot is rejected before creating missing directories
 test('a helper error preserves its code and does not poison later serialized status calls', async (t) => {
   const { control } = await client(t, { onRequest(request, child) {
     if (request.op === 'activate') child.stdout.write(`${JSON.stringify({ id: request.id, ok: false, error: { code: 'not-attached', message: 'Anexe uma janela primeiro.' } })}\n`);
+    else if (request.op === 'arm') child.stdout.write(JSON.stringify({ id: request.id, ok: false, error: { code: 'stopped', message: 'Janela sobreposta detectada (aplicativo=synthetic-overlay; PID=123; classe=test; area=10,20,30,40).' } }) + '\n');
     else child.reply(request, { stopped: false });
   } });
   await assert.rejects(control.activate(), { code: 'not-attached' });
+  await assert.rejects(control.arm(), error => error.code === 'stopped' && /aplicativo=synthetic-overlay; PID=123/u.test(error.message));
   assert.deepEqual(await control.status(), { stopped: false });
 });
 

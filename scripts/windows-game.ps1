@@ -63,6 +63,7 @@ namespace GachaOcrWindows {
     [DllImport("user32.dll")] private static extern IntPtr GetAncestor(IntPtr handle, uint flags);
     [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(POINT point);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] private static extern int GetWindowText(IntPtr handle, StringBuilder text, int count);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] private static extern int GetClassName(IntPtr handle, StringBuilder name, int count);
     [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr handle, int command);
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr handle);
     [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int key);
@@ -157,6 +158,7 @@ namespace GachaOcrWindows {
     }
     private void CheckUnobscured(WindowInfo window) {
       bool beforeAttached = true, covered = false;
+      string blocker = null;
       EnumWindows(delegate(IntPtr handle, IntPtr unused) {
         if (handle == attachedHandle) { beforeAttached = false; return false; }
         if (!IsWindowVisible(handle) || IsIconic(handle)) return true;
@@ -165,10 +167,22 @@ namespace GachaOcrWindows {
         catch (DllNotFoundException) { }
         RECT bounds;
         if (GetWindowRect(handle, out bounds) && bounds.Right > window.left && bounds.Left < window.left + window.width
-            && bounds.Bottom > window.top && bounds.Top < window.top + window.height) { covered = true; return false; }
+            && bounds.Bottom > window.top && bounds.Top < window.top + window.height) {
+          covered = true;
+          uint pid; GetWindowThreadProcessId(handle, out pid);
+          StringBuilder className = new StringBuilder(256); GetClassName(handle, className, className.Capacity);
+          string processName = "desconhecido";
+          try { using (Process process = Process.GetProcessById((int)pid)) { processName = process.ProcessName; } } catch { }
+          blocker = "aplicativo=" + processName + "; PID=" + pid + "; classe=" + className + "; area=" + bounds.Left + "," + bounds.Top + "," + (bounds.Right - bounds.Left) + "," + (bounds.Bottom - bounds.Top);
+          return false;
+        }
         return true;
       }, IntPtr.Zero);
-      if (covered || beforeAttached) { Stop("occluded"); throw new ControlError("stopped", "Janela ocluida ou ordem de janelas indisponivel; captura/input recusado."); }
+      if (covered) {
+        Stop("occluded");
+        throw new ControlError("stopped", "Janela sobreposta detectada (" + blocker + "). Minimize/remova essa janela da area do jogo, incluindo overlays. O teste por retangulo e conservador; captura/input recusado.");
+      }
+      if (beforeAttached) { Stop("window-order-unverified"); throw new ControlError("stopped", "A janela do jogo nao foi encontrada na ordem de janelas; captura/input recusado."); }
     }
     public WindowInfo[] List() {
       lock (gate) {
