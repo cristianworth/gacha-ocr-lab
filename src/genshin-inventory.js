@@ -51,8 +51,12 @@ function runs(mask, minWidth, maxWidth, maxHole = 8) {
 function levelStrips(data, info) {
   const groups = [];
   for (let y = viewport.top; y < viewport.top + viewport.height; y += 1) {
-    const mask = Array.from({ length: viewport.width }, (_, dx) => pale(rgb(data, info, viewport.left + dx, y)));
-    for (const run of runs(mask, 72, 110)) {
+    const colors = Array.from({ length: viewport.width }, (_, dx) => rgb(data, info, viewport.left + dx, y));
+    const mask = colors.map(pale);
+    // A stricter second pass separates bright labels joined by pale scenery.
+    // Preserve the original pass for antialiased labels and gaps within their text.
+    const brightMask = colors.map((color) => pale(color) && Math.min(...color) > 210);
+    for (const run of [...runs(mask, 72, 110), ...runs(brightMask, 72, 110)]) {
       const left = run.start + viewport.left;
       const width = run.end - run.start;
       let group = groups.find((item) => Math.abs(item.left - left) < 6 && y - item.bottom < 5 && Math.abs(item.width - width) < 9);
@@ -142,9 +146,12 @@ function findPanel(data, info) {
     const candidates = runs(mask, 350, 395, 5);
     if (candidates.length !== 1) continue;
     let candidate = candidates[0];
-    const seed = rgb(data, info, 960 + candidate.start + 3, y);
+    // The scenery can join the coarse colored run to the left of the panel.
+    // Sample inside every supported panel start (972-990), then measure its actual edges.
+    const seed = rgb(data, info, Math.max(960 + candidate.start + 3, 993), y);
     const sameColor = Array.from({ length: 420 }, (_, dx) => rgb(data, info, 960 + dx, y).reduce((sum, channel, index) => sum + Math.abs(channel - seed[index]), 0) < 65);
-    const refined = runs(sameColor, 350, 380, 2).filter((run) => Math.abs(run.start - candidate.start) <= 3);
+    const refined = runs(sameColor, 350, 380, 2).filter((run) => 960 + run.start >= 972 && 960 + run.start <= 990
+      && run.start >= candidate.start - 3 && run.end <= candidate.end + 3);
     if (refined.length !== 1) continue;
     [candidate] = refined;
     const rectangle = { left: 960 + candidate.start, top: y, width: candidate.end - candidate.start, height: Math.round((candidate.end - candidate.start) * 722 / 370) };

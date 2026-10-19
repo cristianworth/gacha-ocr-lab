@@ -149,3 +149,40 @@ test('partially scrolled top cards remain unclickable while complete row signatu
   assert.ok(after.slots.every((slot) => slot.rectangle.top >= after.geometry.viewport.top));
   assert.deepEqual(matchRows(before.rows, after.rows), { status: 'matched', offset: 1, overlap: 4 });
 });
+
+test('panel edges are measured when colored scenery joins the title run', async () => {
+  const background = Buffer.from('<svg width="1440" height="900"><rect x="960" y="90" width="20" height="23" fill="#494a64"/></svg>');
+  const image = await sharp(await scene()).composite([{ input: background }]).png().toBuffer();
+  const analysis = await inspectInventory(image);
+  assert.deepEqual(analysis.panel, { left: 980, top: 90, width: 370, height: 722 });
+  assert.equal(analysis.slots.length, 30);
+});
+
+test('panel detection still rejects missing headers, missing pale bodies and unsupported horizontal positions', async () => {
+  const base = await scene();
+  for (const overlay of [
+    '<rect x="980" y="90" width="370" height="212" fill="#30303a"/>',
+    '<rect x="980" y="302" width="370" height="510" fill="#30303a"/>',
+    '<rect x="960" y="80" width="430" height="740" fill="#30303a"/><rect x="1005" y="90" width="370" height="722" fill="#b96b35"/><rect x="1005" y="302" width="370" height="510" fill="#ece5d5"/>',
+  ]) {
+    const image = await sharp(base).composite([{ input: Buffer.from('<svg width="1440" height="900">' + overlay + '</svg>') }]).png().toBuffer();
+    await assert.rejects(inspectInventory(image), /painel direito/u);
+  }
+});
+
+test('pale scenery between level labels does not merge adjacent observed cards', async () => {
+  const overlay = Buffer.from('<svg width="1440" height="900"><rect x="619" y="578" width="18" height="21" fill="#d5bfae"/></svg>');
+  const image = await sharp(await scene()).composite([{ input: overlay }]).png().toBuffer();
+  const analysis = await inspectInventory(image);
+  assert.equal(analysis.slots.length, 30);
+  assert.equal(analysis.rows[3].slots.length, 6);
+  assert.equal(analysis.geometry.columns, 6);
+});
+
+test('the supplementary bright-label pass preserves dimmer labels observed by the original pass', async () => {
+  const overlay = Buffer.from('<svg width="1440" height="900"><rect x="527" y="447" width="92" height="20" fill="#e4e2cf"/><text x="549" y="463" font-family="Arial" font-size="14" fill="#30303a">Lv. 40</text></svg>');
+  const image = await sharp(await scene()).composite([{ input: overlay }]).png().toBuffer();
+  const analysis = await inspectInventory(image);
+  assert.equal(analysis.slots.length, 30);
+  assert.equal(analysis.rows[2].slots.length, 6);
+});

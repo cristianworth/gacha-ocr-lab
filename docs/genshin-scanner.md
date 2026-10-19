@@ -92,7 +92,7 @@ Referências técnicas: [SendInput](https://learn.microsoft.com/en-us/windows/wi
 
 ## Validação e aceite pendente
 
-**131 testes automatizados**: contratos antigos, imagem/grade/raridade sintéticas, sessão, CLI, reprocessamento, revisões, cancelamento e percurso simulado. O helper real foi compilado; protocolo, enumeração com processo inexistente e recusa de attach sem alvo foram verificados. Isso não testa aceitação de input pelo jogo.
+**135 testes automatizados**: contratos antigos, imagem/grade/raridade sintéticas, sessão, CLI, reprocessamento, revisões, cancelamento e percurso simulado. O helper real foi compilado; protocolo, enumeração com processo inexistente e recusa de attach sem alvo foram verificados. Isso não testa aceitação de input pelo jogo.
 
 Na imagem legada recortada de forma declaradamente aproximada: grade de 40 posições, seleção Aqua e raridade 5; três cartões locais retornaram raridade 4. A preparação e os três campos da Aqua tiveram OCR real correto; uma reprodução estática de uma observação integrou visão/OCR/sessão sem backend nativo. Esse recorte mantém problemas de borda e não é prova de captura cliente correta. Raridades 1–3, barra no meio/fim e rolagem têm cobertura sintética. Regressão: 13 exemplos Genshin e 4 HSR mantiveram estados/valores; não são avaliações independentes novas.
 
@@ -136,3 +136,13 @@ A consulta somente de leitura confirmou Git Bash/helper em integridade média (8
 O scan agora verifica essa compatibilidade antes de ativar/armar a janela e registra os níveis na sessão. Incompatibilidade retorna input-integrity-mismatch com instrução de execução, sem elevar o processo. O helper também verifica o acesso antes de cada clique/rolagem. Captura isolada continua sem essa exigência. Dois testes novos verificam a recusa antes de ativação/input e a independência do modo de captura.
 
 Para repetir o piloto: abra o terminal como Administrador se mantiver o jogo elevado, entre na pasta do laboratório e execute o mesmo comando de dez posições. A troca de shell não muda o nível de integridade por si só. Sucesso dos cliques e rolagem ainda requer validação no jogo; o aceite M3.9 permanece aberto. Evidência local: data/research/input-access-debug/.
+
+## Painel e grade sobre cenário colorido — 19/10/2026
+
+As três execuções pelo lançador pararam na geometria, antes de qualquer clique. Os dois scans registraram helper e jogo com integridade alta (12288), compatíveis. A captura cliente estava correta; o fundo colorido encostado ao cabeçalho fazia o detector usar a cor do cenário como referência do painel.
+
+A referência de cor agora fica dentro de todos os inícios de painel suportados pelo perfil. As bordas continuam medidas na imagem, com largura/posição limitadas e corpo claro corroborando o painel; não há recorte aceito sem evidência. O replay também revelou duas faixas de nível unidas pelo cenário claro entre cartões. Uma segunda máscara, mais restrita em brilho, separa essas faixas; a máscara original permanece para rótulos com antialiasing. Posições não observadas continuam bloqueando a grade.
+
+Nas três capturas salvas, o replay verificou 40 cartões completos em oito colunas, linha inferior parcial excluída, barra no topo, raridade 5 e OCR Aqua Simulacra 90/90 R1. O CLI de diagnóstico por arquivo também gerou prévia e revisão com sucesso. São imagens da mesma cena e um caso já conhecido, portanto regressão, não avaliação independente de precisão. As sessões originais não foram alteradas; evidências locais em data/research/panel-background-debug/.
+
+A suíte passou com 135 testes, incluindo cenário unido ao cabeçalho, separação de rótulos, preservação de rótulo menos brilhante e recusa de painel sem cabeçalho/corpo ou fora da posição suportada. A borda de seleção não foi confirmada nessas imagens iniciais; elas foram obtidas antes da etapa de cliques. Não alteramos esse critério nem inferimos aceitação de input. Próximo teste: somente o piloto de dez armas; o mesmo .exe carrega os scripts corrigidos sem recompilação. Aceite M3.9 permanece pendente.
