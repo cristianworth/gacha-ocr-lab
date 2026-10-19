@@ -4,14 +4,16 @@ A implementação está disponível para teste; **o aceite M3.9 está pendente**
 
 ## Preparação
 
-- Windows com Node.js 22+, PowerShell do Windows e dependências do projeto instaladas. O helper C# compila em memória; não há executável adicional, serviço, API ou dependência npm nova.
+- Windows com Node.js 22+, PowerShell do Windows e dependências do projeto instaladas. O helper C# compila em memória; o lançador opcional gacha-ocr-lab.exe apenas abre um menu para os scripts. Não há serviço, API ou dependência npm nova.
 - Genshin em inglês, controle por mouse/teclado, **área cliente exatamente 1440×900**, preferencialmente em janela para o primeiro teste. Bordas não contam nessa medida. Não redimensionar um PNG para contornar erro de dimensão.
 - Inventário aberto na aba **Weapons**, ordenação **Quality decrescente**, início da lista e sem filtros que escondam armas 4★/5★. Não alterar o inventário durante a sessão.
-- Para scans com cliques/rolagem, o terminal deve ter integridade compatível com o jogo. Se o Genshin estiver elevado, abra Git Bash ou PowerShell como Administrador, ou execute ambos no mesmo nível. O preflight consulta esses níveis antes da ativação e salva config.inputAccess; captura isolada não exige esse acesso de input. Não há elevação automática.
+- Para scans com cliques/rolagem, o terminal deve ter integridade compatível com o jogo. Se o Genshin estiver elevado, abra Git Bash ou PowerShell como Administrador, ou execute ambos no mesmo nível. O preflight consulta esses níveis antes da ativação e salva config.inputAccess; captura isolada não exige esse acesso de input. A CLI não se eleva automaticamente; o lançador opcional exige Administrador ao abrir, por manifesto do Windows.
 - Jogo em primeiro plano e controles exclusivos. A automação seleciona posições da grade e usa a roda do mouse; não abre o jogo nem navega a partir de qualquer tela.
 - Modelo inglês disponível em `.cache/models/`. No primeiro scan, `--download-model` permite baixá-lo antes de ativar o jogo; capturas não são enviadas a um serviço. A captura diagnóstica não requer OCR/modelo.
 
 ## Testar em ordem
+
+Alternativa aos comandos: abra gacha-ocr-lab.exe na raiz do projeto e aceite o UAC. Escolha 1 para captura, depois 2 para piloto e, somente após conferir, 3 para coleta completa. O menu preserva as mensagens e retorna após cada execução. Feche com 0; durante a coleta, use F8 ou Ctrl+C para permitir o salvamento parcial. Não feche a janela à força.
 
 Execute a partir de `D:\Repo\gacha-ocr-lab`. O atraso de cinco segundos permite preparar a janela; depois o programa tenta ativar apenas o processo Genshin anexado.
 

@@ -13,6 +13,7 @@
     "test:ocr": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-ocr.ps1",
     "review": "node scripts/review-result.js",
     "evaluate": "node scripts/evaluate.js",
+    "build:launcher": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-launcher.ps1",
     "capture": "node src/scan-cli.js --capture",
     "scan": "node src/scan-cli.js",
     "review:scan": "node scripts/review-session.js",

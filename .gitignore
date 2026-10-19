@@ -21,3 +21,6 @@ tmp/
 *.json
 !package.json
 !package-lock.json
+
+# Local Windows launcher build
+gacha-ocr-lab.exe
