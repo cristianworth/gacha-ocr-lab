@@ -4,11 +4,11 @@ Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem
 
 **Planejamento atualizado:** um motor Python compartilhado, com perfis e estratégias por jogo. Ordem recomendada: **ZZZ → HSR → Genshin → WuWa → NTE**, começando por W-Engines **S/A**. O próximo bloco é qualificar o código existente do candidato ZZZ antes da migração. Veja o [planejamento em etapas](docs/ROADMAP.md) e a [arquitetura pesquisada](docs/architecture-proposal.md).
 
-**Software disponível hoje:** o experimento continua em JavaScript. Há captura/coleta Genshin 4★/5★ e lançador Windows, com **aceite de inventário completo pendente**. O [guia do scanner Genshin](docs/genshin-scanner.md) documenta esse caminho legado; os comandos abaixo ainda pertencem a ele. O novo motor Python/ZZZ não está implementado. A [reprodução isolada P1.1 do Youkai](docs/youkai-qualification.md) executou 273 testes upstream e duas referências públicas, com limitações explícitas; ainda não valida captura/coleta real. Os repositórios do laboratório e Advisor permanecem separados.
+**Software disponível hoje:** o experimento continua em JavaScript. Há captura/coleta Genshin 4★/5★ e lançador Windows, com **aceite de inventário completo pendente**. O [guia do scanner Genshin](docs/genshin-scanner.md) documenta esse caminho legado; os comandos abaixo ainda pertencem a ele. O novo motor Python/ZZZ não está implementado. A [reprodução isolada P1.1 do Youkai](docs/youkai-qualification.md) executou 273 testes upstream e duas referências públicas, com limitações explícitas; esses testes não validam percurso ou inventário completo. Os repositórios do laboratório e Advisor permanecem separados.
 
-**ZZZ por arquivo (P1.2):** há um [comando offline e diagnóstico em três capturas atuais 1280×720](docs/youkai-personal-images.md). Ele executa o leitor original; as divergências de progressão permanecem explícitas. Captura/coleta real ZZZ ainda não foi validada.
+**ZZZ por arquivo (P1.2):** há um [comando offline e diagnóstico em três capturas atuais 1280×720](docs/youkai-personal-images.md). Ele executa o leitor original; as divergências de progressão permanecem explícitas. A captura cliente real foi exercitada em P1.3; seleção/percurso ZZZ ainda não foram validados.
 
-**Captura ZZZ (P1.3):** o [comando de captura única e prévia da grade](docs/youkai-capture.md) está preparado, sem cliques/teclas/rolagem. O ensaio real aguarda uma janela do jogo disponível; a inspeção inicial salvou o motivo de ausência sem capturar imagem.
+**Captura ZZZ (P1.3):** o [comando de captura única e prévia da grade](docs/youkai-capture.md) está preparado, sem cliques/teclas/rolagem. A primeira captura cliente real 1280×720 foi executada, inspecionada e relida pelo OCR original; os 36 pontos ficaram dentro dos cartões. Seleção/percurso continuam pendentes.
 
 ## Instalar e executar
 

@@ -46,12 +46,22 @@ As falhas de progressão e os limites de raridade/lock da candidata continuam ex
 
 As verificações adicionais são locais a esta prova: alvo único, foco, DPI, geometria e estabilidade. Não foi extraído um núcleo geral, incorporada a interface Rust ou iniciado um coletor ZZZ. Os arquivos pessoais e resultados permanecem ignorados pelo Git.
 
-## O que foi verificado nesta entrega
+## Verificações e histórico
 
 - **14 testes novos aprovados**, com APIs de desktop simuladas: captura única, foco explícito ou ausente, janela ausente/ambígua, título/tamanho incompatível, DPI incompatível, calibração divergente, janela movida, foco perdido e frame inesperado.
 - Comando `-CheckWindow` executado no **Windows PowerShell 5.1**, na sessão real acessível (25 janelas visíveis na consulta inicial). Não havia janela ZZZ visível/restaurada que correspondesse aos títulos aceitos. Resultado: `game-window-not-found`, relatório de falha salvo e nenhuma imagem capturada. Isso não prova que o processo esteja fechado; janela minimizada ou título diferente também não é aceita.
 - Relatório real: `.cache/youkai-p1/runs/20261020-171603-5c18a217-capture/capture.json`. A ausência de imagem/flag de captura foi conferida.
 - Prévia offline sobre um PNG pessoal já fornecido: `.cache/youkai-p1/runs/capture-preview-offline/grid-preview.png`. A inspeção do assistente encontrou os 36 pontos dentro dos cartões. Essa imagem não é captura ao vivo e não valida cliques.
-- Os testes upstream/P1.1 e leituras P1.2 continuam históricos; não foram repetidos nesta entrega.
+- Os testes upstream/P1.1 e leituras P1.2 continuam históricos; não foram repetidos na preparação deste comando.
 
-**Pendente:** captura cliente real com o jogo disponível, conferência visual da aquisição e prova limitada de avanço. A resposta de prontidão foi solicitada a Cristian; nenhuma janela de teste com cliques foi iniciada. O passo seguinte exige mecanismo de parada e recusa de foco/geometria antes dos inputs; Escape nativo não deve ser confundido com o F8 previsto para o piloto do laboratório.
+## Primeira aquisição real — 20/10/2026
+
+Após Cristian confirmar que o jogo estava pronto, executado `capture-youkai.ps1 -FocusGame -DelaySeconds 3` no Windows PowerShell 5.1. **Captura cliente real concluída:** 1280×720, escala de coordenadas 2/3, foco e geometria estáveis antes/depois. Nenhum clique, tecla, rolagem ou listener de input foi executado. O foco foi solicitado pela função original do Youkai.
+
+Evidência local: `.cache/youkai-p1/runs/20261020-174113-da8ec083-capture/`, contendo `client.png`, `grid-preview.png` e `capture.json`. A aquisição mostra a grade e o painel do inventário, sem barra de título. O assistente inspecionou a imagem e os 36 pontos, todos dentro dos cartões. A revisão ficou separada em `capture-review.json`; o manifesto original, inclusive sua flag de revisão pendente, foi preservado.
+
+A mesma imagem foi relida com `read-youkai-image.ps1 -ClientArea "0,0,1280,720"`. A saída está em `.cache/youkai-p1/runs/20261020-174155-a0961541-image/image-result.json`. O hash do PNG coincide entre manifesto de captura e resultado OCR. Nome/texto de nível e sondagem de raridade conferem com a inspeção visual do assistente; isso não é confirmação humana dos campos novos nem aprovação de inventário. O booleano de lock da candidata ainda diverge do ícone fechado observado, sem correção aplicada.
+
+Os 260 arquivos upstream permaneceram iguais ao ZIP. A aquisição usou o callback original de `calibrate_window()`, mantendo a tentativa dxcam/fallback Pillow sem instrumentar qual ramo foi efetivamente usado. Não foi necessário reconstruir a aquisição. Não houve mudança de código ou nova execução das suítes nesta confirmação da captura real.
+
+**Pendente:** prova limitada de avanço, com mecanismo de parada e recusa de foco/geometria antes dos inputs. Escape nativo não deve ser confundido com o F8 previsto para o piloto do laboratório. A autorização desta janela foi para uma captura única sem cliques; a seleção será preparada e combinada no recorte seguinte.
