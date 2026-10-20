@@ -8,6 +8,8 @@ Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem
 
 **ZZZ por arquivo (P1.2):** há um [comando offline e diagnóstico em três capturas atuais 1280×720](docs/youkai-personal-images.md). Ele executa o leitor original; as divergências de progressão permanecem explícitas. Captura/coleta real ZZZ ainda não foi validada.
 
+**Captura ZZZ (P1.3):** o [comando de captura única e prévia da grade](docs/youkai-capture.md) está preparado, sem cliques/teclas/rolagem. O ensaio real aguarda uma janela do jogo disponível; a inspeção inicial salvou o motivo de ausência sem capturar imagem.
+
 ## Instalar e executar
 
 Node.js **22+** e npm; verificado no Windows/Node 24.20.0. Sem API paga ou credenciais para OCR.
