@@ -65,3 +65,5 @@ A mesma imagem foi relida com `read-youkai-image.ps1 -ClientArea "0,0,1280,720"`
 Os 260 arquivos upstream permaneceram iguais ao ZIP. A aquisição usou o callback original de `calibrate_window()`, mantendo a tentativa dxcam/fallback Pillow sem instrumentar qual ramo foi efetivamente usado. Não foi necessário reconstruir a aquisição. Não houve mudança de código ou nova execução das suítes nesta confirmação da captura real.
 
 **Pendente:** prova limitada de avanço, com mecanismo de parada e recusa de foco/geometria antes dos inputs. Escape nativo não deve ser confundido com o F8 previsto para o piloto do laboratório. A autorização desta janela foi para uma captura única sem cliques; a seleção será preparada e combinada no recorte seguinte.
+
+O [recorte seguinte de seleção](youkai-selection.md) agora tem comando implementado e testes simulados. Ele passa F8 explicitamente ao listener público original, sem depender do padrão Escape. O preflight recusou inputs por diferença de integridade; a prova real segue pendente.

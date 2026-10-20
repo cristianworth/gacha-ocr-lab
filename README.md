@@ -10,6 +10,8 @@ Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem
 
 **Captura ZZZ (P1.3):** o [comando de captura única e prévia da grade](docs/youkai-capture.md) está preparado, sem cliques/teclas/rolagem. A primeira captura cliente real 1280×720 foi executada, inspecionada e relida pelo OCR original; os 36 pontos ficaram dentro dos cartões. Seleção/percurso continuam pendentes.
 
+**Seleção ZZZ (P1.3):** o [ensaio limitado de três posições](docs/youkai-selection.md) reutiliza o navegador original, com F8 explícito, guardas e rolagem bloqueada. Os 31 testes de seleção/captura passaram em simulação. O preflight real recusou inputs por integridade do helper inferior à do jogo; seleção real ainda pendente, com comando pronto para PowerShell no mesmo nível do ZZZ.
+
 ## Instalar e executar
 
 Node.js **22+** e npm; verificado no Windows/Node 24.20.0. Sem API paga ou credenciais para OCR.
