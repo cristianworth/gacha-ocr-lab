@@ -6,6 +6,8 @@ Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem
 
 **Software disponível hoje:** o experimento continua em JavaScript. Há captura/coleta Genshin 4★/5★ e lançador Windows, com **aceite de inventário completo pendente**. O [guia do scanner Genshin](docs/genshin-scanner.md) documenta esse caminho legado; os comandos abaixo ainda pertencem a ele. O novo motor Python/ZZZ não está implementado. A [reprodução isolada P1.1 do Youkai](docs/youkai-qualification.md) executou 273 testes upstream e duas referências públicas, com limitações explícitas; ainda não valida captura/coleta real. Os repositórios do laboratório e Advisor permanecem separados.
 
+**ZZZ por arquivo (P1.2):** há um [comando offline e diagnóstico em três capturas atuais 1280×720](docs/youkai-personal-images.md). Ele executa o leitor original; as divergências de progressão permanecem explícitas. Captura/coleta real ZZZ ainda não foi validada.
+
 ## Instalar e executar
 
 Node.js **22+** e npm; verificado no Windows/Node 24.20.0. Sem API paga ou credenciais para OCR.

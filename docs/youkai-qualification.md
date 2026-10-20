@@ -2,7 +2,7 @@
 
 Executado em **20/10/2026**, America/Sao_Paulo. Base do laboratório: `main`, versão `0.1.0`, HEAD `241c2b7455571fa17af61d6ab36e78ffc0e00f8f`. Cristian autorizou a reprodução depois de revisar a proposta do sucessor.
 
-**Resultado:** o subconjunto upstream selecionado executa neste Windows, sem modificar o código original: **273 testes aprovados, 5 pulados, zero falhas/erros**. O caminho original de OCR estático também executou em duas referências públicas. Isso qualifica o ambiente e mede limitações; não aceita o leitor, o perfil atual do jogo nem um inventário completo. P1.2 e os ensaios de captura/avanço reais permanecem pendentes.
+**Resultado:** o subconjunto upstream selecionado executa neste Windows, sem modificar o código original: **273 testes aprovados, 5 pulados, zero falhas/erros**. O caminho original de OCR estático também executou em duas referências públicas. Isso qualifica o ambiente e mede limitações; não aceita o leitor, o perfil atual do jogo nem um inventário completo. A comparação offline P1.2 foi executada posteriormente em [três imagens atuais](youkai-personal-images.md); os ensaios de captura/avanço reais permanecem pendentes.
 
 ## Reproduzir
 
@@ -118,4 +118,4 @@ As referências públicas são dados de desenvolvimento, não avaliação indepe
 
 A hipótese de que a base Python pudesse ser reproduzida sem reconstruir captura/grade/reconhecimento **não foi refutada pelo preparo offline**. Não houve falha concreta que justificasse abandonar Youkai ou trocar a ordem agora. A compatibilidade do caminho ao vivo ainda precisa ser demonstrada.
 
-Próximo recorte proposto para revisão: **P1.2**, uma captura ZZZ atual e conferência do layout/campos contra a saída original. Preparar foco/parada antes de qualquer avanço limitado no jogo; o mecanismo nativo do Youkai é Escape, não presumir F8. Só então delimitar as adaptações P2 para progressão incerta, raridade S/A/B, cópias e persistência de falhas. Não foi iniciada adaptação do piloto nem extração de núcleo.
+Recorte proposto na conclusão de P1.1: **P1.2**, uma captura ZZZ atual e conferência do layout/campos contra a saída original. A parte por arquivo já foi executada e está no relatório vinculado acima. Preparar foco/parada antes de qualquer avanço limitado no jogo; o mecanismo nativo do Youkai é Escape, não presumir F8. Só então delimitar as adaptações P2 para progressão incerta, raridade S/A/B, cópias e persistência de falhas. Não foi iniciada adaptação do piloto nem extração de núcleo.

@@ -83,7 +83,7 @@ P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não 
 
 ### P1.1 Preparar sem reestruturar
 
-**Executado isoladamente em 20/10/2026:** 273 testes upstream aprovados, 5 pulados por fixtures ausentes; OCR original em duas referências públicas, sem patch da candidata. [Roteiro, versões/hashes e limitações medidas](youkai-qualification.md). A revisão do primeiro recorte permanece aberta. Captura/avanço reais e P1.2 ainda não foram executados.
+**Executado isoladamente em 20/10/2026:** 273 testes upstream aprovados, 5 pulados por fixtures ausentes; OCR original em duas referências públicas, sem patch da candidata. [Roteiro, versões/hashes e limitações medidas](youkai-qualification.md). A revisão do primeiro recorte permanece aberta. A parte offline de P1.2 foi executada posteriormente, conforme a seção abaixo; captura/avanço reais seguem pendentes.
 
 - Conferir origem/SHA e avisos dos arquivos selecionados. Usar cache/diretório local isolado, sem tocar nos logs ou na instalação pessoal de outro scanner.
 - Verificar runtime Python real e criar ambiente isolado, fixando dependências resolvidas. Providenciar Tesseract e inglês localmente, com versões/hashes. Não instalar o aplicativo inteiro para obter apenas o scanner Python.
@@ -93,6 +93,8 @@ P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não 
 **Saída:** roteiro de instalação reproduzível e relatório curto do que foi possível executar. Se o ambiente/build exigir reescrever a base inteira, revisar o candidato antes de migrar o laboratório.
 
 ### P1.2 Conferir com imagens
+
+**Parte offline executada em 20/10/2026:** três capturas atuais 1280×720 com recorte cliente explícito, sem redimensionar ou modificar a candidata. Nome/nível e a consulta separada de raridade conferem visualmente; progressão diverge em dois casos. Referências humanas e captura/avanço reais permanecem pendentes. [Comando por arquivo e limitações](youkai-personal-images.md).
 
 - Usar capturas públicas do candidato apenas como desenvolvimento/regressão, respeitando procedência.
 - Solicitar um conjunto compacto de capturas atuais de Cristian e referências dos campos. Não é necessário fornecer tudo de uma vez.
@@ -192,4 +194,4 @@ Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reserv
 - Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
 - GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Próximo bloco recomendado:** revisar a reprodução P1.1 e seguir para P1.2: conferir uma captura atual, medir divergências e provar captura/avanço controlado quando o jogo estiver disponível. Depois adaptar apenas o necessário ao piloto P2. Nova arquitetura geral só se a prova trouxer uma razão concreta.
+**Próximo bloco recomendado:** revisar P1.1 e a comparação offline P1.2; concluir a conferência humana e alinhar captura/avanço controlado quando o jogo estiver disponível. Depois adaptar apenas o necessário ao piloto P2. Nova arquitetura geral só se a prova trouxer uma razão concreta.
