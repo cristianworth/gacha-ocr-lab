@@ -77,7 +77,7 @@ O GridNavigator do Youkai recebe função de captura, calibração, parâmetros 
 
 Seu tratamento de painel repetido parte de uma hipótese específica sobre cópias visuais. No laboratório, duas armas podem ter os mesmos atributos e imagem: igualdade de painel não pode determinar identidade nem justificar descartar uma cópia. A política de confirmação deverá ser compatível com esse requisito.
 
-Portanto, aproveitar módulos não significa declarar que eles já são genéricos ou copiar suas suposições. A primeira prova precisa mostrar código reutilizado real e a fronteira entre núcleo/perfil/percurso, evitando repetir o erro de apenas usar referências como inspiração.
+Portanto, aproveitar módulos não significa declarar que eles já são genéricos ou copiar suas suposições. A primeira prova precisa executar o caminho original e medir o reaproveitamento real, evitando usar referências apenas como inspiração. A adaptação inicial entrega um piloto ZZZ; as fronteiras definitivas de núcleo/perfil/percurso são extraídas e verificadas com HSR, após ZZZ funcional.
 
 ## Comparação das rotas
 
@@ -104,7 +104,7 @@ Não forçar todos os jogos a um motor OCR nem incorporar todas as dependências
 
 ## Plano de execução
 
-O [ROADMAP.md](ROADMAP.md) contém os marcos P0–P9, os próximos subpassos ZZZ/HSR, as condições de aceite e a participação necessária de Cristian. P0 é o levantamento concluído; P1 qualifica o candidato na prática antes de extrair o motor. Nenhum candidato passa a base aceita só por ter módulos, testes ou releases.
+O [ROADMAP.md](ROADMAP.md) contém os marcos P0–P9, os próximos subpassos ZZZ/HSR, as condições de aceite e a participação necessária de Cristian. P0 é o levantamento concluído; P1 reproduz o candidato, P2 entrega um piloto ZZZ com adaptação mínima, P3 aceita o inventário completo e P4 consolida o núcleo ao integrar HSR. Nenhum candidato passa a base aceita só por ter módulos, testes ou releases.
 
 A revisão de 20/10 confirmou release v1.0.8, testes específicos e fixtures, mas também incompatibilidades de contrato: fallback de estrelas para 1, classificação interna 4=S/3=A/2=B, raridade não preservada no item exportado e possibilidade de pular célula parada. Essas políticas precisam ser adaptadas e testadas para o escopo S/A.
 

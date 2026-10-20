@@ -28,6 +28,23 @@ Confirmado por Cristian:
 
 Python e Youkai permanecem a recomendação técnica, condicionada à prova prática P1. O pedido atual autoriza o levantamento e o plano, não registra uma migração já realizada.
 
+## Revisão crítica da rota — 20/10/2026
+
+O objetivo é um coletor utilizável nos cinco jogos. Até aqui, comprovamos leitores por imagem Genshin/HSR; ainda não aceitamos um inventário completo. A quantidade de testes, commits ou documentos não substitui esse resultado.
+
+- **Reaproveitamento tardio:** o scanner Genshin criou visão/percurso próprios antes de reproduzir o comportamento da referência. Os ajustes de máscaras, cores e seleção resolveram casos locais, mas o piloto real continuou sem aceite. A próxima base deve ser executada antes de ser generalizada.
+- **Compartilhamento parcial:** `src/read-weapon.js` já compartilha o processamento de imagem entre Genshin/HSR. Porém, `src/scan-inventory.js` importa visão Genshin e fixa jogo/preparação; `src/inventory-session.js` aceita somente Genshin. Não temos um coletor multijogo comprovado.
+- **Generalização antecipada:** o plano anterior colocava extração do núcleo e um perfil HSR antes do primeiro piloto ZZZ. Isso aumenta a superfície de mudança antes de saber se captura, seleção e OCR da base funcionam juntos. P2 passa a ser uma adaptação pequena para dez posições; P4 comprova e refina as fronteiras com HSR.
+- **Planejamento sem nova evidência executável:** os três commits anteriores a esta revisão alteraram documentação. A próxima entrega de implementação precisa produzir uma execução reproduzível e um diagnóstico, em vez de outra reformulação de arquitetura.
+
+Manter Python/Youkai como hipótese de maior reaproveitamento, sem tratar a escolha como garantia. Preservar o experimento JS e seus exemplos confirmados; congelar novas funcionalidades nele durante a prova. Não portar automaticamente suas ferramentas, todos os testes ou seus detectores.
+
+O núcleo comum é uma direção de projeto. Compartilhar captura, coordenadas, emissão de ações, OCR e persistência é plausível; seleção, rolagem, confirmação e término exigem estratégias por jogo. Não obrigar percursos diferentes ao mesmo algoritmo nem esconder comportamento em um arquivo de coordenadas.
+
+**Regra de decisão:** se reproduzir o caminho W-Engines exigir reconstruir captura, grade e reconhecimento antes do piloto, interromper a extração e comparar a base HSR já levantada. Trocar a ordem é preferível a reconstruir um scanner para justificar a escolha inicial. Não iniciar outra pesquisa ampla sem uma falha concreta que a justifique.
+
+**Adiar:** framework de plugins, UI nova, navegação desde o menu principal, outras categorias, suporte amplo a resoluções e empacotamento independente antes do fluxo funcionar. A entrada elevada necessária ao piloto permanece no escopo; validação do pacote sem ferramentas de desenvolvimento fica no aceite P3. Preservar desde o início parada, foco, sessão parcial, dados brutos, incerteza e cópias distintas.
+
 ## Levantamento concluído — P0
 
 | Evidência verificada | Consequência no plano |
@@ -50,10 +67,10 @@ Fonte principal fixada nesta revisão: [Youkai](https://github.com/AJTDaedalus/y
 | Etapa / estado | Entrega concreta | Critério para avançar |
 |---|---|---|
 | **P0 — Concluído neste planejamento** | Escopo, pesquisa, riscos concretos, sequência e protocolo de validação | Plano documentado e decisões de uso registradas. Não equivale a software novo. |
-| **P1 — Qualificar a base ZZZ / próximo** | Instalação isolada, fonte/dependências fixadas, testes relevantes e leitura offline de W-Engines atuais | Instalação reproduzível; resultados e falhas conhecidos. Há um caminho executável para reaproveitar, sem exigir reconstruir o candidato inteiro. |
-| **P2 — Núcleo comum e primeiro perfil** | Reaproveitar captura/coordenadas/OCR, separar perfil/percurso ZZZ e salvar sessão/revisão | Fluxo por arquivo funciona; dados não lidos permanecem pendentes. Um segundo perfil de imagem, usando HSR já disponível, passa pelo mesmo processamento, sem iniciar sua automação. |
+| **P1 — Reproduzir a base ZZZ / próximo** | Instalação isolada, fonte/dependências fixadas, testes e leitura offline pelo caminho original | Base executável com limitações medidas; confirmar captura/avanço controlado antes de reorganizar. Se exigir reconstrução, reavaliar o candidato. |
+| **P2 — Piloto ZZZ com adaptação mínima** | W-Engines S/A, evidências/JSON/revisão simples e dez posições | Seleções reais, imagens correspondentes, estados honestos, cópias preservadas e paradas verificadas. Não depende de abstrair os cinco jogos. |
 | **P3 — ZZZ completo + executável** | Captura real, piloto, percurso S/A completo, revisão e pacote Windows | Duas coletas conferidas, cópias preservadas, escopo/contagem demonstrados e paradas testadas. Um executável de entrada inicia o fluxo. |
-| **P4 — HSR no mesmo motor** | Perfil/parser de Cones de Luz e estratégia de avanço, com reaproveitamento do código consultado | Piloto e duas coletas completas no escopo acordado; sem duplicar janela, captura, executor OCR, sessão, cancelamento ou revisão. |
+| **P4 — HSR e núcleo comprovado** | Extrair responsabilidades comuns a partir de ZZZ funcional e integrar perfil/parser/percurso HSR | Piloto e duas coletas completas; reusar janela, captura, OCR, sessão, cancelamento e revisão sem forçar o mesmo algoritmo de percurso. |
 | **P5 — Genshin no mesmo motor** | Perfil 16:10, procedimentos aproveitados do Kamera e coleta 4/5 estrelas | Regredir imagens confirmadas, conferir raridade/cópias/transições e aceitar duas coletas completas. |
 | **P6 — WuWa** | Qualificação da fonte, perfil de armas, percurso e integração do OCR adequado | Um fluxo completo aceito e regressão dos anteriores; trocar OCR não duplica o motor de coleta. |
 | **P7 — NTE** | Primeiro confirmar categoria de arma, inglês, tela e fonte útil; depois imagem/piloto/coleta | Não iniciar copiando o scanner chinês de outras categorias. Definição do módulo depende desse levantamento específico. |
@@ -80,51 +97,47 @@ P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não 
 - Comparar nome, nível/limite, progressão e raridade. Nome fora do catálogo permanece bruto/candidato; não escolher o vizinho mais próximo silenciosamente.
 - Identificar se as falhas são de instalação, regiões/layout, tratamento, catálogo ou interpretação. Não ajustar tudo ao mesmo tempo.
 
-**Saída:** uma execução de OCR real sobre imagem atual, com bruto, recortes, candidatos e estados, e decisão explícita sobre continuar com a base. Nenhuma automação completa antes dessa prova.
+**Saída:** uma execução de OCR real sobre imagem atual e comparação com o resultado original do candidato. Primeiro medir seu comportamento sem alterar a lógica; o resultado original é diagnóstico, não inventário aprovado. Depois de conferir foco/parada do candidato, provar captura e avanço limitado entre poucas posições antes de reorganizar módulos. Pode ser combinado com a janela de teste P2; não iniciar uma coleta completa nesta qualificação.
 
-## P2 — Extrair o motor sem multiplicar scanners
+## P2 — Adaptação mínima e piloto ZZZ
 
-### P2.1 Contrato mínimo e responsabilidades
+### P2.1 Reutilizar antes de reorganizar
 
-Motor comum: janela e coordenadas, emissão de ações, espera/tentativas limitadas, captura, tratamento/OCR, ciclo de observações, salvamento e revisão.
+- Partir da versão qualificada em P1. Preservar seu caminho funcional de captura, seleção e reconhecimento; registrar arquivos de origem/SHA, avisos e alterações.
+- Começar no inventário de W-Engines já preparado. Não trazer interface Rust, navegação geral ou outras categorias.
+- Uma entrada local, com elevação quando necessária, oferece captura e piloto limitado. Um comando/lançador basta; distribuição independente não bloqueia o piloto.
+- Separar somente as fronteiras necessárias para repetir OCR em arquivo e injetar captura/ações nos testes. Não construir o perfil HSR nem extrair toda a grade nesta etapa.
 
-Módulo: identificação da janela, perfil visual, regiões, campos, raridades, estratégia de percurso e confirmação visual específica. Parâmetros simples ficam em dados; comportamento em funções pequenas. Não criar framework de plugins ou linguagem de automação em configuração.
+### P2.2 Contrato pequeno e correções necessárias
 
-Cada observação preserva jogo/categoria, posição/ordem, versão do leitor/perfil, imagem/hash, texto bruto ou evidência visual, candidatos, estados e decisão de escopo. Refinamento, sobreposição e códigos de raridade mantêm semântica por jogo. Separar texto OCR de classificações visuais; raridade/estrelas não são texto inventado.
+Cada observação mantém jogo/categoria, posição/ordem na sessão, versão do leitor, captura, texto bruto/evidência visual, candidatos, estados e decisão de escopo. Um JSON versionado e uma revisão local simples bastam. Não migrar resultados antigos nem impor uma entidade universal para progressões de jogos distintos.
 
-### P2.2 Corrigir incompatibilidades de contrato conhecidas
+- Preservar raridade S/A/B, distinguindo-a de códigos internos numéricos.
+- Falta de estrelas não vira progressão 1; raridade incerta vira pendência.
+- Falha de célula permanece no relatório, mesmo sem item válido.
+- Igualdade de nome, atributos ou imagem não funde cópias nem prova clique perdido.
+- Catálogo auxilia normalização; nomes desconhecidos mantêm bruto/candidatos, sem correção silenciosa.
+- Separar término do percurso, cobertura, processamento e revisão humana. Salvar a sessão parcial em falhas/parada.
 
-- Falta de estrelas não vira valor mínimo reconhecido.
-- Raridade incerta vira pendência de elegibilidade, não exclusão automática.
-- Falha de célula não desaparece por não gerar um item válido.
-- Igualdade de nome, atributos ou imagem não funde cópias nem prova que o clique falhou.
-- Confiança de OCR/similaridade de catálogo não vira garantia de valor correto.
-- Cobertura, processamento OCR e aprovação humana são estados separados.
-- Arquivos anteriores e feedback humano permanecem rastreáveis, sem reescrita silenciosa.
+### P2.3 Prova real em dez posições
 
-### P2.3 Provar compartilhamento cedo
+- Primeiro conferir captura cliente e sobreposição de regiões/grade. Só iniciar inputs após verificar foco, geometria e mecanismo de parada.
+- Executar dez posições (ou as disponíveis), incluindo repetição visual quando houver. Confirmar que ações chegam ao alvo e o painel corresponde à posição esperada.
+- Registrar ação/posição, tentativas, captura anterior/posterior nos pontos de falha e interpretação; distinguir captura antiga de erro OCR.
+- F8 deve interromper o fluxo do laboratório; perda de foco/mudança de geometria impede novos inputs. Uma parada nativa diferente do candidato precisa ser conferida antes da prova original P1, sem presumir F8 disponível nele.
+- Reprocessar arquivos salvos e acrescentar o caso real à regressão antes de pedir repetição. Alterar uma causa por vez.
 
-Ler imagem ZZZ e imagem HSR já existente pelo mesmo ciclo de recorte, reconhecimento, estados e salvamento, mudando perfil/parser. Não implementar coleta HSR ainda e não criar perfis vazios dos cinco jogos.
-
-**Critério:** não há dois executores OCR, dois armazenamentos ou duas rotinas de revisão para sustentar os dois perfis. Adaptar somente o que a leitura real exigir.
+**Critério:** dez posições rastreáveis, campos conferíveis, falhas explícitas, cópias preservadas e interrupção testada. Não chamar esse piloto de inventário completo. Se P1 já permitir um ensaio de seleção, agrupar os testes de jogo em uma janela combinada, sem exigir execuções redundantes.
 
 ## P3 — Primeiro produto completo: ZZZ
 
-### P3.1 Captura e execução local
+### P3.1 Consolidar o piloto aceito
 
-- Entrada única por executável/menu; escolher captura, piloto ou coleta, sem iniciar inputs só por abrir.
-- Preservar solicitação UAC e verificação de compatibilidade com o alvo. Elevação não demonstra aceitação de input.
-- Validar processo, área cliente, transformação de coordenadas, foco e captura. Gerar prévia com regiões/grade antes do piloto.
-- Guardar evidências no mesmo diretório da sessão e fornecer caminho do relatório. OCR pode ser repetido em disco sem controlar o jogo.
+Preservar a entrada, a captura, as paradas e o diagnóstico exercitados em P2. Antes de ampliar o percurso, resolver divergências observadas no piloto, sem reescrever o leitor para acomodar jogos futuros.
 
-### P3.2 Piloto de dez posições
+### P3.2 Ampliar uma transição de cada vez
 
-- Começar no inventário de W-Engines, sem exigir navegação por personagens ou outros menus.
-- Conferir ordenação/filtro S/A, seleção efetiva, espera, atualização do painel e sequência de posições.
-- Incluir nomes longos, níveis/progressões diferentes e cópias quando existirem na conta. Testes sintéticos cobrem casos que a conta não possuir, sem declarar validação real deles.
-- F8 interrompe a coleta; perda de foco ou mudança de geometria interrompe novos inputs. Sessão parcial é salva e visível.
-
-**Critério:** os cliques chegaram às posições esperadas, nenhuma captura antiga virou outro item e nenhuma cópia foi fundida. Antes de pedir nova execução, reproduzir offline o máximo possível sobre as evidências dessa sessão.
+Exercitar uma passagem entre telas/linhas e a linha final parcial com limites pequenos antes da coleta completa. Reutilizar evidências de P2; não exigir novo piloto idêntico quando o comportamento já tiver sido conferido. Casos sintéticos cobrem estados indisponíveis na conta, com essa limitação explícita.
 
 ### P3.3 Rolagem, escopo S/A e término
 
@@ -144,15 +157,16 @@ Ler imagem ZZZ e imagem HSR já existente pelo mesmo ciclo de recorte, reconheci
 - Testar o pacote em ambiente Windows sem Node/Python de desenvolvimento. Incluir/explicitar dependências nativas e modelos. Preferir pacote de pasta, com um exe de entrada, antes de one-file.
 - O experimento JS só sai do caminho normal depois do aceite novo. Dados e histórico permanecem intactos.
 
-## P4 — Segundo jogo e teste da arquitetura
+## P4 — HSR e consolidação do núcleo compartilhado
 
-1. Definir escopo de Cones de Luz e preparar inglês/16:9. Aproveitar as imagens existentes e ampliar níveis/progressões/referências conforme lacunas.
-2. Reaproveitar configuração e interpretação HSR pertinentes. Não trazer UI ou controle virtual usado por outras categorias se o caminho de armas não precisar.
-3. Adicionar a estratégia de avanço por teclas/ações ao mesmo ciclo. Não copiar captura, OCR, sessão ou revisão.
-4. Remover o fallback de sobreposição 1 onde não houver leitura válida; preservar bruto e evidências.
-5. Fazer captura, piloto, duas coletas conferidas e paradas. Repetir regressão ZZZ após mudanças compartilhadas.
+1. Definir escopo de Cones de Luz e preparar inglês/16:9. Reutilizar as imagens existentes e referências confirmadas para uma primeira leitura em arquivo.
+2. Com ZZZ funcionando, extrair suas operações de janela/coordenadas, ações, captura, execução OCR, sessão e revisão nas fronteiras efetivamente usadas pelos dois jogos. Preservar a regressão ZZZ em cada mudança.
+3. Reaproveitar interpretação e avanço pertinentes do HSR-Scanner, sem trazer a UI ou controle virtual de outras categorias. Percurso HSR pode usar teclas; a grade ZZZ continua uma estratégia específica.
+4. Usar o mesmo processamento/salvamento para imagem ZZZ e HSR. Não criar perfis vazios dos demais jogos. Não duplicar motores nem forçar algoritmos de seleção/fim incompatíveis.
+5. Remover o fallback de sobreposição 1 sem leitura válida; manter bruto, evidências e semântica própria do campo.
+6. Fazer captura, piloto, transição/fim e duas coletas conferidas, com paradas. Comparar os resultados e repetir regressão ZZZ após alterações compartilhadas.
 
-**Teste decisivo:** o segundo jogo acrescenta perfil/parser/percurso e casos de teste. Se precisar de outra cópia do motor, revisar a separação antes de iniciar Genshin.
+**Teste decisivo:** o segundo jogo acrescenta perfil/parser/percurso, mas reaproveita as operações e os contratos comuns. Se isso exigir grandes condicionais por jogo no núcleo ou sua cópia, corrigir a fronteira antes de iniciar Genshin. A arquitetura só passa a ser comprovada nesse momento; ler duas imagens não comprova reutilização de coleta.
 
 ## Validação com poucas idas e voltas
 
@@ -176,4 +190,4 @@ Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reserv
 - Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
 - GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Próximo bloco recomendado:** P1.1 preparação isolada e testes offline, seguido de P1.2 com uma captura atual ZZZ. Não começar extração geral ou pedir varreduras completas antes dessa prova.
+**Próximo bloco recomendado:** P1: reproduzir a base fixada, executar testes relevantes e OCR real, registrar falhas e provar captura/avanço controlado quando o jogo estiver disponível. Depois adaptar apenas o necessário ao piloto P2. Próxima entrega deve trazer evidência executável; nova arquitetura geral só se a prova trouxer uma razão concreta.
