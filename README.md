@@ -4,7 +4,7 @@ Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem
 
 **Planejamento atualizado:** um motor Python compartilhado, com perfis e estratégias por jogo. Ordem recomendada: **ZZZ → HSR → Genshin → WuWa → NTE**, começando por W-Engines **S/A**. O próximo bloco é qualificar o código existente do candidato ZZZ antes da migração. Veja o [planejamento em etapas](docs/ROADMAP.md) e a [arquitetura pesquisada](docs/architecture-proposal.md).
 
-**Software disponível hoje:** o experimento continua em JavaScript. Há captura/coleta Genshin 4★/5★ e lançador Windows, com **aceite de inventário completo pendente**. O [guia do scanner Genshin](docs/genshin-scanner.md) documenta esse caminho legado; os comandos abaixo ainda pertencem a ele. O novo motor Python/ZZZ não está implementado. Os repositórios do laboratório e Advisor permanecem separados.
+**Software disponível hoje:** o experimento continua em JavaScript. Há captura/coleta Genshin 4★/5★ e lançador Windows, com **aceite de inventário completo pendente**. O [guia do scanner Genshin](docs/genshin-scanner.md) documenta esse caminho legado; os comandos abaixo ainda pertencem a ele. O novo motor Python/ZZZ não está implementado. A [reprodução isolada P1.1 do Youkai](docs/youkai-qualification.md) executou 273 testes upstream e duas referências públicas, com limitações explícitas; ainda não valida captura/coleta real. Os repositórios do laboratório e Advisor permanecem separados.
 
 ## Instalar e executar
 

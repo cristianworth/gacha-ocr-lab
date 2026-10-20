@@ -60,14 +60,14 @@ O núcleo comum é uma direção de projeto. Compartilhar captura, coordenadas, 
 | No PATH desta inspeção, Python apontou para o alias WindowsApps e Tesseract não foi localizado | Preparar runtime isolado e OCR nativo. Isso não prova ausência de instalações em outros caminhos; não exigir preparação manual de Cristian antes de verificar. |
 | Exemplos locais fornecidos: Aqua Genshin e quatro imagens HSR; não há captura pessoal ZZZ nessa pasta | Precisamos de referências reais ZZZ para confirmar compatibilidade. A pesquisa e os testes offline independentes podem avançar antes disso. |
 
-Fonte principal fixada nesta revisão: [Youkai](https://github.com/AJTDaedalus/youkai), commit 86a8b34511c86ec864d8f40c558789f7ccad4cc9. Foram lidos módulos, testes, configuração de build, avisos e metadados; **não foram executados os testes ou o scanner do Youkai**. O candidato ainda não está aceito.
+Fonte principal fixada nesta revisão: [Youkai](https://github.com/AJTDaedalus/youkai), commit 86a8b34511c86ec864d8f40c558789f7ccad4cc9. No levantamento P0 foram lidos módulos, testes, configuração de build, avisos e metadados; **não houve execução naquela pesquisa**. A reprodução offline P1.1 posterior está registrada abaixo e no relatório específico; o candidato ainda não está aceito para coleta.
 
 ## Etapas e critérios de avanço
 
 | Etapa / estado | Entrega concreta | Critério para avançar |
 |---|---|---|
 | **P0 — Concluído neste planejamento** | Escopo, pesquisa, riscos concretos, sequência e protocolo de validação | Plano documentado e decisões de uso registradas. Não equivale a software novo. |
-| **P1 — Reproduzir a base ZZZ / próximo** | Instalação isolada, fonte/dependências fixadas, testes e leitura offline pelo caminho original | Base executável com limitações medidas; confirmar captura/avanço controlado antes de reorganizar. Se exigir reconstrução, reavaliar o candidato. |
+| **P1 — Base ZZZ em qualificação** | Instalação isolada, fonte/dependências fixadas, testes e leitura offline pelo caminho original | Base executável com limitações medidas; confirmar captura/avanço controlado antes de reorganizar. Se exigir reconstrução, reavaliar o candidato. |
 | **P2 — Piloto ZZZ com adaptação mínima** | W-Engines S/A, evidências/JSON/revisão simples e dez posições | Seleções reais, imagens correspondentes, estados honestos, cópias preservadas e paradas verificadas. Não depende de abstrair os cinco jogos. |
 | **P3 — ZZZ completo + executável** | Captura real, piloto, percurso S/A completo, revisão e pacote Windows | Duas coletas conferidas, cópias preservadas, escopo/contagem demonstrados e paradas testadas. Um executável de entrada inicia o fluxo. |
 | **P4 — HSR e núcleo comprovado** | Extrair responsabilidades comuns a partir de ZZZ funcional e integrar perfil/parser/percurso HSR | Piloto e duas coletas completas; reusar janela, captura, OCR, sessão, cancelamento e revisão sem forçar o mesmo algoritmo de percurso. |
@@ -82,6 +82,8 @@ P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não 
 ## P1 — Prova prática da base
 
 ### P1.1 Preparar sem reestruturar
+
+**Executado isoladamente em 20/10/2026:** 273 testes upstream aprovados, 5 pulados por fixtures ausentes; OCR original em duas referências públicas, sem patch da candidata. [Roteiro, versões/hashes e limitações medidas](youkai-qualification.md). A revisão do primeiro recorte permanece aberta. Captura/avanço reais e P1.2 ainda não foram executados.
 
 - Conferir origem/SHA e avisos dos arquivos selecionados. Usar cache/diretório local isolado, sem tocar nos logs ou na instalação pessoal de outro scanner.
 - Verificar runtime Python real e criar ambiente isolado, fixando dependências resolvidas. Providenciar Tesseract e inglês localmente, com versões/hashes. Não instalar o aplicativo inteiro para obter apenas o scanner Python.
@@ -185,9 +187,9 @@ Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reserv
 
 - Cada sessão guarda capturas, OCR bruto, candidatos, decisões de escopo, motivo de parada e relatório local. Falhas preservam posição/ação esperada, tentativas, evidência e motivo. Esse diagnóstico deve distinguir erro de clique de erro de leitura.
 - Modelos, fontes de referência em cache, imagens, saídas e temporários permanecem ignorados pelo Git. Configurar o ignore Python antes de criar ambiente/build ou incorporar código.
-- Esta etapa de planejamento não instala dependências, não executa scanner externo e não controla o jogo.
+- O planejamento P0 não instalou dependências nem executou scanners. P1.1 preparou o ambiente isolado e executou testes/OCR offline, conforme o relatório; nenhum jogo foi controlado.
 - O experimento anterior M0/M1/M2 entregou leitores de imagem Genshin/HSR e referências confirmadas. O M3 antigo deixou scanner Genshin experimental, com captura/OCR estáticos e 135 testes JS, mas sem aceite de inventário completo. Eles não validam o novo motor.
 - Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
 - GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Próximo bloco recomendado:** P1: reproduzir a base fixada, executar testes relevantes e OCR real, registrar falhas e provar captura/avanço controlado quando o jogo estiver disponível. Depois adaptar apenas o necessário ao piloto P2. Próxima entrega deve trazer evidência executável; nova arquitetura geral só se a prova trouxer uma razão concreta.
+**Próximo bloco recomendado:** revisar a reprodução P1.1 e seguir para P1.2: conferir uma captura atual, medir divergências e provar captura/avanço controlado quando o jogo estiver disponível. Depois adaptar apenas o necessário ao piloto P2. Nova arquitetura geral só se a prova trouxer uma razão concreta.

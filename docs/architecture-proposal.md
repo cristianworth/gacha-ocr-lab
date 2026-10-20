@@ -2,6 +2,8 @@
 
 Pesquisa em 19–20/10/2026. **Arquitetura recomendada, ainda não implementada.** A sequência e o detalhamento de execução são mantidos somente no [planejamento canônico](ROADMAP.md).
 
+**Atualização de execução, 20/10/2026:** a [reprodução isolada P1.1](youkai-qualification.md) executou testes e OCR estático do Youkai. As indicações de não execução abaixo descrevem a pesquisa original, anterior a essa reprodução. A candidata ainda não foi aceita para captura/coleta real.
+
 ## Objetivo e escopo confirmado
 
 Construir um aplicativo Windows com **um motor de scanner compartilhado** para armas e equivalentes de Genshin, HSR, WuWa, ZZZ e NTE. Cada jogo acrescenta seu perfil visual, interpretação e estratégia de navegação. A expansão futura para personagens ou outros itens deverá aproveitar o mesmo motor.
