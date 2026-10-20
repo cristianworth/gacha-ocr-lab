@@ -19,7 +19,7 @@ Prioridades, em ordem:
 Confirmado por Cristian:
 
 - Windows exclusivo, interface dos jogos em inglês e um aplicativo de entrada.
-- Resolução pode ser ajustada por jogo; primeiro ZZZ em janela 16:9 e escala Windows 100%. Área cliente 1280×720 confirmada por Cristian e exercitada offline em três prints; aquisição cliente real exercitada e inspecionada; inputs ainda precisam da prova. Outra resolução terá validação própria.
+- Resolução pode ser ajustada por jogo; primeiro ZZZ em janela 16:9 e escala Windows 100%. Área cliente 1280×720 confirmada por Cristian e exercitada offline em três prints; aquisição cliente real exercitada e inspecionada; três seleções reais foram conferidas; interrupção em curso e percurso completo ainda precisam da prova. Outra resolução terá validação própria.
 - **ZZZ: somente W-Engines S e A**, de todos os níveis/progressões. B só pode aparecer como evidência de exclusão ou teste negativo, nunca como item do inventário-alvo.
 - Genshin mantém armas 4/5 estrelas. Raridades dos jogos seguintes serão definidas antes de suas coletas, sem aplicar automaticamente esses filtros.
 - Jogo visível em primeiro plano e uso exclusivo dos controles durante a coleta.
@@ -83,7 +83,7 @@ P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não 
 
 ### P1.1 Preparar sem reestruturar
 
-**Executado isoladamente em 20/10/2026:** 273 testes upstream aprovados, 5 pulados por fixtures ausentes; OCR original em duas referências públicas, sem patch da candidata. [Roteiro, versões/hashes e limitações medidas](youkai-qualification.md). Cristian autorizou diretamente a continuidade da qualificação em 20/10/2026. A parte offline de P1.2 foi executada posteriormente, conforme a seção abaixo; a primeira captura cliente real foi realizada em P1.3; avanço segue pendente.
+**Executado isoladamente em 20/10/2026:** 273 testes upstream aprovados, 5 pulados por fixtures ausentes; OCR original em duas referências públicas, sem patch da candidata. [Roteiro, versões/hashes e limitações medidas](youkai-qualification.md). Cristian autorizou diretamente a continuidade da qualificação em 20/10/2026. A parte offline de P1.2 foi executada posteriormente, conforme a seção abaixo; captura e avanço real de três posições foram conferidos em P1.3; paradas durante execução seguem pendentes.
 
 - Conferir origem/SHA e avisos dos arquivos selecionados. Usar cache/diretório local isolado, sem tocar nos logs ou na instalação pessoal de outro scanner.
 - Verificar runtime Python real e criar ambiente isolado, fixando dependências resolvidas. Providenciar Tesseract e inglês localmente, com versões/hashes. Não instalar o aplicativo inteiro para obter apenas o scanner Python.
@@ -94,7 +94,7 @@ P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não 
 
 ### P1.2 Conferir com imagens
 
-**Parte offline executada em 20/10/2026:** três capturas atuais 1280×720 com recorte cliente explícito, sem redimensionar ou modificar a candidata. Nome/nível e a consulta separada de raridade conferem visualmente; progressão diverge em dois casos. Referências humanas confirmadas por Cristian em 20/10/2026; captura real exercitada posteriormente em P1.3; avanço permanece pendente. [Comando por arquivo e limitações](youkai-personal-images.md).
+**Parte offline executada em 20/10/2026:** três capturas atuais 1280×720 com recorte cliente explícito, sem redimensionar ou modificar a candidata. Nome/nível e a consulta separada de raridade conferem visualmente; progressão diverge em dois casos. Referências humanas confirmadas por Cristian em 20/10/2026; captura e seleção limitada reais exercitadas posteriormente em P1.3; paradas em curso permanecem pendentes. [Comando por arquivo e limitações](youkai-personal-images.md).
 
 - Usar capturas públicas do candidato apenas como desenvolvimento/regressão, respeitando procedência.
 - Solicitar um conjunto compacto de capturas atuais de Cristian e referências dos campos. Não é necessário fornecer tudo de uma vez.
@@ -107,7 +107,7 @@ P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não 
 
 1. **Captura única, sem inputs:** executar o caminho original em janela única, 1280×720/100%, conferindo foco e geometria antes/depois. Salvar imagem cliente, prévia da grade e relatório de falha/parada. [Comando e evidências](youkai-capture.md). Implementado e exercitado com 14 testes simulados. Depois da recusa correta por janela ausente, a primeira captura cliente real foi concluída em 20/10/2026, sem inputs.
 2. **Aquisição conferida pelo assistente:** imagem cliente sem barra de título, 36 pontos dentro dos cartões e arquivo relido pelo OCR original, vinculado ao mesmo hash. A captura real prova aquisição; não comprova entrega de input ou campos aprovados.
-3. **Atual — avanço pequeno implementado; prova real pendente:** o [comando de três posições](youkai-selection.md) usa o navegador original com controlador guardado, F8 explicitamente passado ao listener original, rolagem bloqueada e sessão parcial. 17 testes novos + 14 de captura aprovados; inclui percurso original simulado. Preflight real recusou inputs por integridade 8192 do helper < 12288 do jogo. O ensaio combinado exige terminal no nível do jogo e check F8 real antes dos cliques. Escape padrão não foi testado. Registrar e inspecionar imagens/seleções antes de aceitar a entrega de input.
+3. **Avanço pequeno real conferido; paradas em curso pendentes:** o [comando de três posições](youkai-selection.md) usa o navegador original com controlador guardado, F8 explícito, rolagem bloqueada e sessão parcial. 17 testes novos + 14 de captura aprovados historicamente; inclui percurso original simulado. Após a recusa por integridade 8192 < 12288, Cristian executou em 12288: F8 inicial observado, quatro cliques normais, três seleções/painéis correspondentes, nomes/níveis corretos e zero rolagem. Revisão do assistente separada, vinculada por hashes; sem aprovação humana dos campos. Dois painéis ainda escurecidos na transição e lock incorreto orientam P2. Interrupção durante execução, perda de foco/geometria e Escape não foram testados ao vivo.
 4. **Decisão:** se aquisição/avanço originais exigirem reconstrução, aplicar a regra de reavaliação da candidata. Se funcionarem, seguir à adaptação mínima P2. Pode agrupar esse ensaio e o piloto em uma janela de teste após preparar as correções necessárias; não iniciar coleta completa.
 
 **Critério:** aquisição real inspecionável e seleção limitada rastreável, com parada conhecida; testes simulados/prints salvos não encerram esta etapa.
@@ -127,6 +127,7 @@ Cada observação mantém jogo/categoria, posição/ordem na sessão, versão do
 
 - Preservar raridade S/A/B, distinguindo-a de códigos internos numéricos.
 - Falta de estrelas não vira progressão 1; raridade incerta vira pendência. Casos P1.2 confirmaram estrelas claras e recorte que termina antes da quinta: corrigir região e detector em conjunto, preservando a saída original como comparação.
+- Conferir estabilização do painel antes de aceitar leitura: a prova real P1.3 capturou dois painéis ainda escurecidos na transição. Mudança de hash não demonstra fim da animação; preservar os frames e distinguir seleção correta de imagem pronta para OCR.
 - Falha de célula permanece no relatório, mesmo sem item válido.
 - Igualdade de nome, atributos ou imagem não funde cópias nem prova clique perdido.
 - Catálogo auxilia normalização; nomes desconhecidos mantêm bruto/candidatos, sem correção silenciosa.
@@ -203,4 +204,4 @@ Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reserv
 - Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
 - GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Próximo bloco em andamento:** P1.3, executar e conferir o avanço limitado já implementado, com check F8 real e terminal no mesmo nível do jogo, após a captura cliente real e a conferência de imagem/grade concluídas. Depois adaptar apenas o necessário ao piloto P2. Nova arquitetura geral só se a prova trouxer uma razão concreta.
+**Próximo bloco:** preparar a adaptação mínima P2 sobre captura/seleção originais comprovadas em três posições, corrigindo progressão/raridade/lock e conferindo estabilização do painel. Agrupar a interrupção real ainda pendente de P1.3 com o piloto de dez posições, sem repetir a prova bem-sucedida por rotina. Nova arquitetura geral só se a prova trouxer uma razão concreta.

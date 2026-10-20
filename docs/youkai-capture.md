@@ -66,4 +66,4 @@ Os 260 arquivos upstream permaneceram iguais ao ZIP. A aquisição usou o callba
 
 **Pendente:** prova limitada de avanço, com mecanismo de parada e recusa de foco/geometria antes dos inputs. Escape nativo não deve ser confundido com o F8 previsto para o piloto do laboratório. A autorização desta janela foi para uma captura única sem cliques; a seleção será preparada e combinada no recorte seguinte.
 
-O [recorte seguinte de seleção](youkai-selection.md) agora tem comando implementado e testes simulados. Ele passa F8 explicitamente ao listener público original, sem depender do padrão Escape. O preflight recusou inputs por diferença de integridade; a prova real segue pendente.
+O [recorte seguinte de seleção](youkai-selection.md) passa F8 explicitamente ao listener público original. Depois da recusa inicial por integridade, Cristian executou no nível do jogo: três seleções reais conferidas pelo assistente, com quatro cliques normais e sem rolagem. O recibo confirma F8 antes dos inputs; interrupção durante a execução continua pendente. A revisão separada preserva o relatório original.

@@ -6,11 +6,11 @@ Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem
 
 **Software disponível hoje:** o experimento continua em JavaScript. Há captura/coleta Genshin 4★/5★ e lançador Windows, com **aceite de inventário completo pendente**. O [guia do scanner Genshin](docs/genshin-scanner.md) documenta esse caminho legado; os comandos abaixo ainda pertencem a ele. O novo motor Python/ZZZ não está implementado. A [reprodução isolada P1.1 do Youkai](docs/youkai-qualification.md) executou 273 testes upstream e duas referências públicas, com limitações explícitas; esses testes não validam percurso ou inventário completo. Os repositórios do laboratório e Advisor permanecem separados.
 
-**ZZZ por arquivo (P1.2):** há um [comando offline e diagnóstico em três capturas atuais 1280×720](docs/youkai-personal-images.md). Ele executa o leitor original; as divergências de progressão permanecem explícitas. A captura cliente real foi exercitada em P1.3; seleção/percurso ZZZ ainda não foram validados.
+**ZZZ por arquivo (P1.2):** há um [comando offline e diagnóstico em três capturas atuais 1280×720](docs/youkai-personal-images.md). Ele executa o leitor original; as divergências de progressão permanecem explícitas. A captura e a seleção de três posições reais foram exercitadas em P1.3; percurso completo continua pendente.
 
-**Captura ZZZ (P1.3):** o [comando de captura única e prévia da grade](docs/youkai-capture.md) está preparado, sem cliques/teclas/rolagem. A primeira captura cliente real 1280×720 foi executada, inspecionada e relida pelo OCR original; os 36 pontos ficaram dentro dos cartões. Seleção/percurso continuam pendentes.
+**Captura ZZZ (P1.3):** o [comando de captura única e prévia da grade](docs/youkai-capture.md) está preparado, sem cliques/teclas/rolagem. A primeira captura cliente real 1280×720 foi executada, inspecionada e relida pelo OCR original; os 36 pontos ficaram dentro dos cartões. A seleção limitada posterior foi conferida; percurso completo continua pendente.
 
-**Seleção ZZZ (P1.3):** o [ensaio limitado de três posições](docs/youkai-selection.md) reutiliza o navegador original, com F8 explícito, guardas e rolagem bloqueada. Os 31 testes de seleção/captura passaram em simulação. O preflight real recusou inputs por integridade do helper inferior à do jogo; seleção real ainda pendente, com comando pronto para PowerShell no mesmo nível do ZZZ.
+**Seleção ZZZ (P1.3):** o [ensaio limitado de três posições](docs/youkai-selection.md) reutiliza o navegador original, com F8 explícito, guardas e rolagem bloqueada. Os 31 testes de seleção/captura passaram em simulação. Após o bloqueio inicial por integridade, Cristian executou no nível do jogo: três seleções reais conferidas, nomes/níveis corretos, sem rolagem. Lock e estabilização do painel ainda exigem adaptação; parada em curso e piloto de dez posições continuam pendentes.
 
 ## Instalar e executar
 

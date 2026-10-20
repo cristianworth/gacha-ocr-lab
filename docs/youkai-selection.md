@@ -1,6 +1,6 @@
 # Youkai — prova limitada de seleção ZZZ (P1.3)
 
-Implementação preparada em 20/10/2026, após a [captura cliente real](youkai-capture.md). **Nenhum clique real foi validado nesta entrega.** O comando limita a prova às duas ou três primeiras posições da primeira linha, sem rolagem. Não é o piloto de dez posições nem coleta de inventário.
+Implementação preparada em 20/10/2026, após a [captura cliente real](youkai-capture.md). **Primeira seleção real conferida posteriormente nesta data:** três posições e quatro cliques normais; interrupção durante execução ainda pendente. O comando limita a prova às duas ou três primeiras posições da primeira linha, sem rolagem. Não é o piloto de dez posições nem coleta de inventário.
 
 ## Reaproveitamento
 
@@ -63,4 +63,16 @@ As [divergências medidas no leitor original](youkai-personal-images.md) continu
 - Preflight real em Windows PowerShell 5.1: `.cache/youkai-p1/runs/20261020-175721-ddb1c7ab-selection/session.json`, parado por integridade **8192 < 12288**, `liveInputTested: false`. Nenhum clique, tecla ou rolagem foi emitido.
 - OCR do cabeçalho sobre a captura real já salva, sem nova captura: leu `W-Engine Storage [ 1567/2000 |`, candidato 1567. A condição textual/numérica do helper aceita essa referência; não confirma contagem S/A nem cobertura atual.
 
-**Pendente:** check F8 real e ensaio combinado no nível do jogo, inspeção das seleções/frames e teste de parada em execução. Só depois decidir as correções mínimas do piloto P2. Se o caminho exigir reconstruir captura/grade/reconhecimento, aplicar a regra de reavaliação do [ROADMAP](ROADMAP.md).
+**Estado atual:** check F8 inicial e seleção real conferidos na execução abaixo. Falta testar interrupção em curso; preparar as correções mínimas do piloto P2 com essa pendência explícita. Se o caminho exigir reconstruir captura/grade/reconhecimento, aplicar a regra de reavaliação do [ROADMAP](ROADMAP.md).
+
+## Primeira seleção real — 20/10/2026
+
+Cristian executou o comando no PowerShell elevado, sobre o código do commit `ebbbb23`, e forneceu o log. Sessão local: `.cache/youkai-p1/runs/20261020-180856-c241469b-selection/`. Helper e jogo apresentaram integridade **12288**, permitindo o ensaio. O recibo confirma F8 observado antes dos inputs. O navegador reconheceu o topo com **zero rajadas de rolagem** e concluiu três posições, sem retentativas registradas, `upstreamIncomplete: null`.
+
+O assistente abriu os três PNGs de posição e o frame intermediário da preparação. A seleção destacada corresponde às colunas 0/1/2 da primeira linha, e cada painel mostra o item correspondente. Os três nomes e níveis 60/60 retornados pelo leitor original conferem com a inspeção visual. As imagens mostram candidatos S/progressão 1; essa amostra não valida os casos de progressão 2/4 já divergentes. Todos exibem cadeado fechado, enquanto o leitor retorna `lock: false`.
+
+Foram conferidos cinco hashes de frames, os três vínculos imagem/observação e quatro pares de solicitação de pressionamento/liberação: preparação na coluna 1, depois colunas 0/1/2. A correspondência entre destaque, painel e posição comprova entrega de seleção neste recorte; o hash diferente sozinho não faria isso. As observações 1/2 pegaram o painel ainda escurecido pela transição, apesar de nome e nível corretos. P2 precisa conferir estabilização do painel antes de aceitar a leitura; mudança de hash não prova que a animação acabou.
+
+A revisão separada está em `selection-review.json`, vinculada pelo SHA-256 do `session.json`. O relatório original foi preservado, incluindo `selectionDeliveryVerified: false`; a revisão do assistente registra a conferência posterior. Não existe aprovação humana dos campos desses três itens. Imagens, relatório e revisão continuam ignorados pelo Git; este registro agregado preserva o resultado no histórico versionado.
+
+**Comprovado:** captura e seleção originais funcionaram juntas neste ambiente 1280×720/100%, com acesso de input compatível. **Ainda não comprovado:** F8 interrompendo durante cliques, reação real a perda de foco/geometria, cópias iguais, rolagem/fim, filtro S/A ou inventário completo. Não repetir este ensaio bem-sucedido sem motivo; agrupar as paradas restantes com o próximo piloto preparado. Não houve nova execução de suítes nem mudança de comportamento ao registrar esta prova.
