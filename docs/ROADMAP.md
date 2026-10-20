@@ -94,7 +94,7 @@ P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não 
 
 ### P1.2 Conferir com imagens
 
-**Parte offline executada em 20/10/2026:** três capturas atuais 1280×720 com recorte cliente explícito, sem redimensionar ou modificar a candidata. Nome/nível e a consulta separada de raridade conferem visualmente; progressão diverge em dois casos. Referências humanas e captura/avanço reais permanecem pendentes. [Comando por arquivo e limitações](youkai-personal-images.md).
+**Parte offline executada em 20/10/2026:** três capturas atuais 1280×720 com recorte cliente explícito, sem redimensionar ou modificar a candidata. Nome/nível e a consulta separada de raridade conferem visualmente; progressão diverge em dois casos. Referências humanas confirmadas por Cristian em 20/10/2026; captura/avanço reais permanecem pendentes. [Comando por arquivo e limitações](youkai-personal-images.md).
 
 - Usar capturas públicas do candidato apenas como desenvolvimento/regressão, respeitando procedência.
 - Solicitar um conjunto compacto de capturas atuais de Cristian e referências dos campos. Não é necessário fornecer tudo de uma vez.
@@ -194,4 +194,4 @@ Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reserv
 - Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
 - GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Próximo bloco recomendado:** revisar P1.1 e a comparação offline P1.2; concluir a conferência humana e alinhar captura/avanço controlado quando o jogo estiver disponível. Depois adaptar apenas o necessário ao piloto P2. Nova arquitetura geral só se a prova trouxer uma razão concreta.
+**Próximo bloco recomendado:** revisar P1.1 e a comparação offline P1.2; com a conferência humana concluída, alinhar captura/avanço controlado quando o jogo estiver disponível. Depois adaptar apenas o necessário ao piloto P2. Nova arquitetura geral só se a prova trouxer uma razão concreta.
