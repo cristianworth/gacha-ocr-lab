@@ -2,7 +2,9 @@
 
 Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem de arma do Genshin ou Cone de Luz do HSR → OCR por regiões → campos interpretados → revisão visual → JSON**. Windows e interface em inglês; perfis iniciais desenvolvidos com resolução de jogo declarada de 1440×900 (16:10).
 
-**M3 experimental implementado para teste:** captura e coleta Genshin de armas **4★/5★**, com jogo em primeiro plano, controles exclusivos, JSON de inventário e revisão local. **Aceite com varreduras reais pendente.** Comece por `npm.cmd run capture -- --delay 5` e confira a prévia antes do piloto `npm.cmd run scan -- --limit 10 --delay 5`. Preparação, parada F8, limites e revisão estão no [guia do scanner](docs/genshin-scanner.md). Depois, scanner HSR e expansão WuWa/ZZZ/NTE; GOOD e Advisor ficam para entregas próprias. Os repositórios permanecem separados. Veja o [roadmap](docs/ROADMAP.md).
+**Planejamento atualizado:** um motor Python compartilhado, com perfis e estratégias por jogo. Ordem recomendada: **ZZZ → HSR → Genshin → WuWa → NTE**, começando por W-Engines **S/A**. O próximo bloco é qualificar o código existente do candidato ZZZ antes da migração. Veja o [planejamento em etapas](docs/ROADMAP.md) e a [arquitetura pesquisada](docs/architecture-proposal.md).
+
+**Software disponível hoje:** o experimento continua em JavaScript. Há captura/coleta Genshin 4★/5★ e lançador Windows, com **aceite de inventário completo pendente**. O [guia do scanner Genshin](docs/genshin-scanner.md) documenta esse caminho legado; os comandos abaixo ainda pertencem a ele. O novo motor Python/ZZZ não está implementado. Os repositórios do laboratório e Advisor permanecem separados.
 
 ## Instalar e executar
 

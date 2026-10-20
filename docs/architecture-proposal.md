@@ -1,12 +1,12 @@
 # Proposta de arquitetura e retomada do scanner
 
-Pesquisa e revisão: 19/10/2026. **Proposta para validação; implementação e roadmap vigente ainda não foram migrados.**
+Pesquisa em 19–20/10/2026. **Arquitetura recomendada, ainda não implementada.** A sequência e o detalhamento de execução são mantidos somente no [planejamento canônico](ROADMAP.md).
 
 ## Objetivo e escopo confirmado
 
 Construir um aplicativo Windows com **um motor de scanner compartilhado** para armas e equivalentes de Genshin, HSR, WuWa, ZZZ e NTE. Cada jogo acrescenta seu perfil visual, interpretação e estratégia de navegação. A expansão futura para personagens ou outros itens deverá aproveitar o mesmo motor.
 
-Windows exclusivo, inglês, um aplicativo de entrada, ajustes de resolução por jogo e aceitação de licença de software livre compatível foram confirmados por Cristian. Genshin continua primeiro, HSR segundo. O escopo 4/5 estrelas pertence ao primeiro scanner Genshin, não é um filtro universal para os cinco jogos.
+Windows exclusivo, inglês, um aplicativo de entrada, ajustes de resolução por jogo e aceitação de licença de software livre compatível foram confirmados por Cristian. Ordem recomendada: ZZZ, HSR, Genshin, WuWa e NTE. Cristian confirmou W-Engines S/A em ZZZ, janela 16:9 e escala Windows 100%. Genshin mantém 4/5 estrelas; não é um filtro universal para os cinco jogos.
 
 ## Decisão proposta
 
@@ -94,7 +94,7 @@ Um host C# moderno poderia usar [.NET 10 LTS](https://learn.microsoft.com/en-us/
 
 - Python como linguagem principal; primeira prova fixa versão de runtime compatível com os módulos/dependências selecionados, com linha 3.12 como candidata inicial.
 - Pillow/NumPy/OpenCV para imagens e visão, aproveitando implementações existentes.
-- Tesseract local como primeiro OCR, para comparar com as referências Genshin/HSR. A interface permite outra implementação quando a medição justificar, sem duplicar o fluxo.
+- Tesseract local como primeiro OCR, para comparar com referências ZZZ e as já disponíveis de Genshin/HSR. A interface permite outra implementação quando a medição justificar, sem duplicar o fluxo.
 - Um executável de entrada em pacote de pasta, com dependências/modelos incluídos e solicitação UAC como no lançador atual. Não exige Node/Python de desenvolvimento no computador do usuário depois de validado o pacote.
 - [PyInstaller em modo de pasta](https://pyinstaller.org/en/stable/operating-mode.html) como primeira opção de distribuição. A documentação recomenda validar esse modo antes de one-file e desaconselha um one-file elevado que extraia bibliotecas temporárias.
 - Console/menu e revisão local inicialmente. Interface gráfica futura usa o mesmo motor.
@@ -102,22 +102,13 @@ Um host C# moderno poderia usar [.NET 10 LTS](https://learn.microsoft.com/en-us/
 
 Não forçar todos os jogos a um motor OCR nem incorporar todas as dependências dos aplicativos originais. Separar processamento da aquisição permite repetir OCR sobre arquivos salvos e testar módulos sem controlar o jogo.
 
-## Plano depois da aprovação
+## Plano de execução
 
-| Etapa | Entrega | Critério |
-|---|---|---|
-| M3.0 — Prova do núcleo | Selecionar módulos reutilizáveis, fixar origem/licenças e criar o fluxo mínimo Python: perfil, captura por arquivo, recortes, OCR e sessão | Genshin e HSR leem imagens já disponíveis pelo mesmo fluxo. Comparar estados/valores com referências; registrar diferenças sem forçar sucesso. Sem varredura HSR nesta etapa. |
-| M3.1 — Aquisição compartilhada | Janela, coordenadas, ações, cancelamento, captura e sequência de coleta; perfil Genshin baseado no layout conhecido do Kamera | Captura real e comandos no alvo correto; interrupção salva parcial. Identificar o código incorporado, sem reescrever algoritmos existentes por preferência. |
-| M3.2 — Piloto Genshin | Até dez armas pelo único aplicativo, usando o motor e estratégia de grade | Seleção e painel efetivos, ordem e cópias conferidas; nenhuma leitura antiga reaproveitada após clique não confirmado. |
-| M3.3 — Genshin completo | Rolagem/fim, duas coletas completas de armas 4/5 estrelas, JSON e revisão | Contagens/transições/cópias conferidas; F8 e perda de foco testados. Cobertura e campos permanecem estados independentes. |
-| M3.4 — Substituição do experimento | Pacote utilizável e documentação atualizada | Novo caminho Genshin aceito; dados/regressões preservados; Node e helper antigos saem do uso normal. |
-| M4.1 — Perfil e parser HSR | Reutilizar configuração e regras de Cones de Luz do candidato, adaptando-as ao contrato comum | Inglês/16:9, referências offline ampliadas; sem fallback de sobreposição 1 ou suposição de campo ausente. |
-| M4.2 — Percurso HSR | Estratégia de avanço específica usando os mesmos serviços de input/captura e a mesma sequência de coleta | Adicionar HSR sem copiar janela, captura, execução OCR, cancelamento, sessão e revisão. Se exigir outra cópia desses serviços, revisar a fronteira antes de avançar. |
-| M4.3 — HSR completo | Piloto e duas coletas completas no escopo acordado, pelo mesmo executável | Cobertura, cópias, dados e paradas conferidos, sem regressão Genshin. |
-| M5 — WuWa, ZZZ, NTE | Um por vez: qualificar fonte, perfil/parser, percurso e aceite completo | Mesma verificação de reaproveitamento. NTE exige primeiro comprovar categoria, inglês e disponibilidade de código útil. |
-| M6/M7 — Integração e expansão | Exportação revisada ao Advisor e avaliação de novas categorias | Sem atualização automática da conta; cada categoria acrescenta seus próprios campos/percurso ao núcleo. |
+O [ROADMAP.md](ROADMAP.md) contém os marcos P0–P9, os próximos subpassos ZZZ/HSR, as condições de aceite e a participação necessária de Cristian. P0 é o levantamento concluído; P1 qualifica o candidato na prática antes de extrair o motor. Nenhum candidato passa a base aceita só por ter módulos, testes ou releases.
 
-A primeira prova tem escopo limitado. Se extrair captura/coordenadas/OCR do candidato exigir trazer sua interface inteira ou reconstruir seus módulos, revisar a fonte escolhida antes de migrar o restante. Preservar versão Git do experimento atual e evidências locais. Não apagar nada para aparentar uma migração concluída.
+A revisão de 20/10 confirmou release v1.0.8, testes específicos e fixtures, mas também incompatibilidades de contrato: fallback de estrelas para 1, classificação interna 4=S/3=A/2=B, raridade não preservada no item exportado e possibilidade de pular célula parada. Essas políticas precisam ser adaptadas e testadas para o escopo S/A.
+
+Não foi executado o scanner/testes do candidato. Dependências, runtime e catálogo devem ser fixados/conferidos durante P1. As condições documentadas do candidato e as referências públicas orientam a primeira prova; capturas atuais de Cristian confirmam compatibilidade.
 
 ## Qualidade, evidências e procedência
 
@@ -133,6 +124,6 @@ Cristian aceita licença compatível para priorizar reaproveitamento. Conferir l
 
 Verificado: documentação, commits e licenças declaradas dos candidatos; módulos de armas de quatro jogos; pontos de extensão e acoplamentos citados. A leitura adicional de captura/grade/OCR confirmou que o Youkai é uma candidata a fonte do núcleo, com trabalho explícito de separação.
 
-Não verificado: execução comparativa dos scanners externos, build/empacotamento do novo motor, precisão dos cinco jogos ou funcionamento genérico dos módulos. Nenhum scanner externo foi executado e nenhum jogo foi controlado nesta pesquisa. A revisão alterou somente esta proposta.
+Não verificado: execução comparativa dos scanners externos, build/empacotamento do novo motor, precisão dos cinco jogos ou funcionamento genérico dos módulos. Nenhum scanner externo foi executado e nenhum jogo foi controlado nesta pesquisa. A etapa atual alterou somente documentação de arquitetura, planejamento e contexto do experimento legado.
 
-**Para validar:** um motor Python compartilhado, com perfis, parsers e estratégias por jogo; reutilização seletiva do código existente; Genshin completo primeiro e HSR como primeira prova de expansão do mesmo motor.
+**Direção recomendada:** um motor Python compartilhado, com perfis, parsers e estratégias por jogo; reutilização seletiva; ZZZ completo primeiro e HSR como primeira prova de expansão. O plano permanece separado do software atualmente executável.

@@ -1,117 +1,179 @@
-# Objetivo e roadmap — Gacha OCR Lab
+# Planejamento — motor compartilhado de OCR
 
-## Objetivo e direção atual
+Atualizado em 20/10/2026. **Planejamento recomendado; o novo motor Python ainda não foi implementado.** Este documento é o plano canônico. A [arquitetura e pesquisa de fontes](architecture-proposal.md) explicam as alternativas; o [README](../README.md) descreve o software que existe hoje.
 
-Construir um scanner local de inventário para Genshin Impact, Honkai: Star Rail, Wuthering Waves, Zenless Zone Zero e Neverness to Everness. Começar por armas e equivalentes; avaliar outras categorias depois. O fluxo desejado é coletar, interpretar, revisar e exportar dados com evidências e incertezas explícitas.
+## Objetivo, prioridades e escopo
 
-**Prioridade confirmada em 17/10/2026:** entregar um scanner Genshin utilizável, da captura ao inventário revisável, antes de adicionar os três jogos restantes. Os leitores de uma imagem de Genshin e HSR já existem; não precisam ser refeitos. HSR continua como segundo jogo para receber o fluxo completo.
+Entregar um aplicativo Windows com um motor compartilhado para ler armas e equivalentes nos cinco jogos, salvar inventário local e permitir revisão. O motor cuida de janela/coordenadas, ações, captura, OCR, sessão e revisão. Cada jogo fornece perfil visual, interpretação e estratégia de percurso.
 
-Decisões confirmadas por Cristian:
+Prioridades, em ordem:
 
-- Projetos separados: executável e dados locais no `gacha-ocr-lab`; conhecimento e fatos revisados no `gacha-advisor`.
-- Windows, interface em inglês; resolução inicial declarada de jogo 1440×900 em Genshin e HSR. Verificar área útil, escala e modo de janela na coleta real.
-- Primeira versão automática: **todas as armas de 4★ e 5★ do Genshin**, preservando cópias distintas. Outras raridades e categorias ficam fora desse primeiro escopo.
-- Jogo aberto em **primeiro plano**, com uso exclusivo de mouse/teclado durante a coleta. Funcionamento minimizado ou enquanto o usuário usa outro aplicativo não é requisito dessa versão.
-- Entrega completa inicial = **coleta do escopo + JSON de inventário + revisão local**. GOOD, aplicação no Advisor, interface gráfica e instalador não são condições desse aceite.
-- Integração com o Advisor permanece uma etapa própria, com revisão e aplicação explícita. Um OCR ou arquivo exportado não atualiza a conta.
+1. Reaproveitar código existente que possamos executar e verificar.
+2. Entregar um primeiro jogo completo, com resultado útil e conferível.
+3. Demonstrar que o segundo jogo usa o mesmo núcleo, sem copiar o scanner.
+4. Completar os cinco jogos, um por vez.
+5. Exportar dados revisados ao Advisor e avaliar outras categorias.
 
-As respostas acima definem o escopo; os detalhes de implementação abaixo são a proposta técnica para revisão. M3 tem implementação experimental de captura/percurso; a validação de janela/inputs e o aceite das varreduras reais continuam pendentes por escolha de Cristian. Veja o [guia executável](genshin-scanner.md).
+**Ordem recomendada: ZZZ → HSR → Genshin → WuWa → NTE.** ZZZ usa o ambiente de origem da candidata a base; HSR verifica cedo outro percurso em Python; Genshin acrescenta 16:10 e referências já conhecidas; WuWa amplia condições visuais/OCR; NTE tem mais lacunas de fonte e idioma.
 
-## O que aprendemos e o que continua incerto
+Confirmado por Cristian:
 
-| Evidência disponível | O que permite concluir | Ressalva e tratamento |
+- Windows exclusivo, interface dos jogos em inglês e um aplicativo de entrada.
+- Resolução pode ser ajustada por jogo; primeiro ZZZ em janela 16:9 e escala Windows 100%. Perfil inicial proposto: área cliente 1280×720. Outra resolução terá validação própria.
+- **ZZZ: somente W-Engines S e A**, de todos os níveis/progressões. B só pode aparecer como evidência de exclusão ou teste negativo, nunca como item do inventário-alvo.
+- Genshin mantém armas 4/5 estrelas. Raridades dos jogos seguintes serão definidas antes de suas coletas, sem aplicar automaticamente esses filtros.
+- Jogo visível em primeiro plano e uso exclusivo dos controles durante a coleta.
+- Aceitação de licença de software livre compatível para priorizar reaproveitamento, após conferir arquivos/dependências.
+- OCR local, sem credenciais/API paga, imagens/resultados/modelos fora do Git e nenhum snapshot do Advisor atualizado automaticamente.
+
+Python e Youkai permanecem a recomendação técnica, condicionada à prova prática P1. O pedido atual autoriza o levantamento e o plano, não registra uma migração já realizada.
+
+## Levantamento concluído — P0
+
+| Evidência verificada | Consequência no plano |
+|---|---|
+| Youkai tem scanner Python de W-Engines, módulos de captura/grade/OCR, 33 arquivos de testes Python e empacotamento onedir | Reproduzir uma versão fixada antes de extrair código. Quantidade de arquivos não mede cobertura nem significa testes executados. |
+| Há release portátil v1.0.8 com arquivo de checksum, além de capturas de referência e casos de W-Engines | Podemos fazer verificações offline antes de pedir novas execuções. Referências públicas ficam no cache ignorado, não no Git do laboratório. |
+| Dependências Python usam limites amplos, como versões mínimas | Fixar versões resolvidas, Tesseract/modelo e hashes na primeira prova. Um SHA do código sozinho não congela o comportamento. |
+| README e metadados do catálogo indicam 1.4; arquivo contém 99 entradas e data de atualização própria | Conferir nomes atuais com capturas. O nome da pasta não prova catálogo desatualizado; tampouco suas 99 entradas provam completude atual. |
+| O scanner calcula raridade, mas sua saída de W-Engine não a preserva como campo do item | Expor evidência e classificação S/A/B antes de implementar nosso filtro. Não filtrar apenas pela confiança ou pelo nome. |
+| O classificador usa números internos 4=S, 3=A e 2=B | Interpretar como códigos do módulo ZZZ, não estrelas universais; não usar o corte Genshin 4/5 no ZZZ. |
+| Contagem de estrelas retorna no mínimo 1, inclusive quando não detecta estrela; há teste que espera esse comportamento | Adaptar ao contrato: falta de evidência é incerta, não progressão 1 reconhecida. Não copiar esse teste como nosso critério de qualidade. |
+| Grade trata painel repetido como possível clique perdido e possui caminho que pula uma célula permanentemente parada | Preservar cópias visualmente iguais e registrar observações falhas; não omitir posições silenciosamente. |
+| No PATH desta inspeção, Python apontou para o alias WindowsApps e Tesseract não foi localizado | Preparar runtime isolado e OCR nativo. Isso não prova ausência de instalações em outros caminhos; não exigir preparação manual de Cristian antes de verificar. |
+| Exemplos locais fornecidos: Aqua Genshin e quatro imagens HSR; não há captura pessoal ZZZ nessa pasta | Precisamos de referências reais ZZZ para confirmar compatibilidade. A pesquisa e os testes offline independentes podem avançar antes disso. |
+
+Fonte principal fixada nesta revisão: [Youkai](https://github.com/AJTDaedalus/youkai), commit 86a8b34511c86ec864d8f40c558789f7ccad4cc9. Foram lidos módulos, testes, configuração de build, avisos e metadados; **não foram executados os testes ou o scanner do Youkai**. O candidato ainda não está aceito.
+
+## Etapas e critérios de avanço
+
+| Etapa / estado | Entrega concreta | Critério para avançar |
 |---|---|---|
-| M1: captura Aqua Simulacra confirmada, 8 cartões de desenvolvimento e 4 reservados | Leitor Genshin de nome, nível e refinamento funciona no perfil documentado | Um nível reservado continua incerto. Confiança ou concordância do OCR não garantem correção. Preservar pendências. |
-| M2: 2 imagens HSR de desenvolvimento confirmadas e 2 reservadas | A infraestrutura atende a um segundo jogo com regras próprias | Uma sobreposição reservada incerta; todos os níveis reais são 80/80 e ranks somente 1/5. Não bloqueia coleta Genshin; ampliar antes do scanner HSR. |
-| 131 testes, regressões de 13 referências Genshin e 4 HSR; smoke OCR histórico | Contratos, sessão e navegação simulada verificados; leitores mantiveram estados/valores | Não validam captura/input no jogo ou inventário real completo. O smoke histórico não foi repetido em M3. |
-| PNGs incluem bordas e tamanhos diferentes da resolução declarada | Coordenadas da imagem salva não são automaticamente coordenadas da área do jogo | Medir área cliente e conversões de coordenadas na máquina real antes de clicar. |
-| Inventory Kamera fornece cartões, logs e exports | Referência útil para casos e comparação | Erros explícitos não são rótulos positivos. Saída sem erro ainda precisa de conferência; filtro/data podem diferir do inventário atual. |
-| Leitores de uma imagem retornam três campos por jogo | Base preservada para a captura controlada | Raridade, cópias e sessão pertencem ao scanner M3; sua implementação experimental ainda não prova completude real. |
+| **P0 — Concluído neste planejamento** | Escopo, pesquisa, riscos concretos, sequência e protocolo de validação | Plano documentado e decisões de uso registradas. Não equivale a software novo. |
+| **P1 — Qualificar a base ZZZ / próximo** | Instalação isolada, fonte/dependências fixadas, testes relevantes e leitura offline de W-Engines atuais | Instalação reproduzível; resultados e falhas conhecidos. Há um caminho executável para reaproveitar, sem exigir reconstruir o candidato inteiro. |
+| **P2 — Núcleo comum e primeiro perfil** | Reaproveitar captura/coordenadas/OCR, separar perfil/percurso ZZZ e salvar sessão/revisão | Fluxo por arquivo funciona; dados não lidos permanecem pendentes. Um segundo perfil de imagem, usando HSR já disponível, passa pelo mesmo processamento, sem iniciar sua automação. |
+| **P3 — ZZZ completo + executável** | Captura real, piloto, percurso S/A completo, revisão e pacote Windows | Duas coletas conferidas, cópias preservadas, escopo/contagem demonstrados e paradas testadas. Um executável de entrada inicia o fluxo. |
+| **P4 — HSR no mesmo motor** | Perfil/parser de Cones de Luz e estratégia de avanço, com reaproveitamento do código consultado | Piloto e duas coletas completas no escopo acordado; sem duplicar janela, captura, executor OCR, sessão, cancelamento ou revisão. |
+| **P5 — Genshin no mesmo motor** | Perfil 16:10, procedimentos aproveitados do Kamera e coleta 4/5 estrelas | Regredir imagens confirmadas, conferir raridade/cópias/transições e aceitar duas coletas completas. |
+| **P6 — WuWa** | Qualificação da fonte, perfil de armas, percurso e integração do OCR adequado | Um fluxo completo aceito e regressão dos anteriores; trocar OCR não duplica o motor de coleta. |
+| **P7 — NTE** | Primeiro confirmar categoria de arma, inglês, tela e fonte útil; depois imagem/piloto/coleta | Não iniciar copiando o scanner chinês de outras categorias. Definição do módulo depende desse levantamento específico. |
+| **P8 — Exportação e Advisor** | Exportações revisadas, contrato de troca e aplicação explícita | Procedência, pendências e diff preservados; ausência no scan não remove automaticamente fato da conta. |
+| **P9 — Avaliar expansão** | Decidir personagens/progressões/artefatos e equivalentes, por necessidade | Cada categoria acrescenta perfil/parser/percurso ao núcleo; não copiar todos os recursos dos projetos de origem. |
 
-**Não há impedimento conhecido para iniciar um piloto de coleta Genshin.** O risco central mudou: além de interpretar um cartão, precisamos demonstrar que cada item elegível foi visitado uma vez, que cópias não foram fundidas e que a execução terminou pelo motivo correto. Incerteza de OCR pode permanecer como pendência; perda silenciosa de item ou declaração falsa de completude impede o aceite.
+P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não estimar prazo a partir de README, número de testes ou tamanho do repositório. Estimar o bloco seguinte depois da prova de compatibilidade, usando o trabalho observado.
 
-## Marcos reorganizados
+## P1 — Prova prática da base
 
-| Marco / estado | Entrega | Critério para avançar |
+### P1.1 Preparar sem reestruturar
+
+- Conferir origem/SHA e avisos dos arquivos selecionados. Usar cache/diretório local isolado, sem tocar nos logs ou na instalação pessoal de outro scanner.
+- Verificar runtime Python real e criar ambiente isolado, fixando dependências resolvidas. Providenciar Tesseract e inglês localmente, com versões/hashes. Não instalar o aplicativo inteiro para obter apenas o scanner Python.
+- Identificar o subconjunto de módulos necessário. Interface Rust, outras categorias e pastas de referência alheias ao OCR não fazem parte da primeira entrega.
+- Executar primeiro os testes upstream relevantes para captura, grade, reconhecimento e W-Engines. Registrar pass/fail/skip e fixtures ausentes; não chamar um teste pulado de sucesso.
+
+**Saída:** roteiro de instalação reproduzível e relatório curto do que foi possível executar. Se o ambiente/build exigir reescrever a base inteira, revisar o candidato antes de migrar o laboratório.
+
+### P1.2 Conferir com imagens
+
+- Usar capturas públicas do candidato apenas como desenvolvimento/regressão, respeitando procedência.
+- Solicitar um conjunto compacto de capturas atuais de Cristian e referências dos campos. Não é necessário fornecer tudo de uma vez.
+- Comparar nome, nível/limite, progressão e raridade. Nome fora do catálogo permanece bruto/candidato; não escolher o vizinho mais próximo silenciosamente.
+- Identificar se as falhas são de instalação, regiões/layout, tratamento, catálogo ou interpretação. Não ajustar tudo ao mesmo tempo.
+
+**Saída:** uma execução de OCR real sobre imagem atual, com bruto, recortes, candidatos e estados, e decisão explícita sobre continuar com a base. Nenhuma automação completa antes dessa prova.
+
+## P2 — Extrair o motor sem multiplicar scanners
+
+### P2.1 Contrato mínimo e responsabilidades
+
+Motor comum: janela e coordenadas, emissão de ações, espera/tentativas limitadas, captura, tratamento/OCR, ciclo de observações, salvamento e revisão.
+
+Módulo: identificação da janela, perfil visual, regiões, campos, raridades, estratégia de percurso e confirmação visual específica. Parâmetros simples ficam em dados; comportamento em funções pequenas. Não criar framework de plugins ou linguagem de automação em configuração.
+
+Cada observação preserva jogo/categoria, posição/ordem, versão do leitor/perfil, imagem/hash, texto bruto ou evidência visual, candidatos, estados e decisão de escopo. Refinamento, sobreposição e códigos de raridade mantêm semântica por jogo. Separar texto OCR de classificações visuais; raridade/estrelas não são texto inventado.
+
+### P2.2 Corrigir incompatibilidades de contrato conhecidas
+
+- Falta de estrelas não vira valor mínimo reconhecido.
+- Raridade incerta vira pendência de elegibilidade, não exclusão automática.
+- Falha de célula não desaparece por não gerar um item válido.
+- Igualdade de nome, atributos ou imagem não funde cópias nem prova que o clique falhou.
+- Confiança de OCR/similaridade de catálogo não vira garantia de valor correto.
+- Cobertura, processamento OCR e aprovação humana são estados separados.
+- Arquivos anteriores e feedback humano permanecem rastreáveis, sem reescrita silenciosa.
+
+### P2.3 Provar compartilhamento cedo
+
+Ler imagem ZZZ e imagem HSR já existente pelo mesmo ciclo de recorte, reconhecimento, estados e salvamento, mudando perfil/parser. Não implementar coleta HSR ainda e não criar perfis vazios dos cinco jogos.
+
+**Critério:** não há dois executores OCR, dois armazenamentos ou duas rotinas de revisão para sustentar os dois perfis. Adaptar somente o que a leitura real exigir.
+
+## P3 — Primeiro produto completo: ZZZ
+
+### P3.1 Captura e execução local
+
+- Entrada única por executável/menu; escolher captura, piloto ou coleta, sem iniciar inputs só por abrir.
+- Preservar solicitação UAC e verificação de compatibilidade com o alvo. Elevação não demonstra aceitação de input.
+- Validar processo, área cliente, transformação de coordenadas, foco e captura. Gerar prévia com regiões/grade antes do piloto.
+- Guardar evidências no mesmo diretório da sessão e fornecer caminho do relatório. OCR pode ser repetido em disco sem controlar o jogo.
+
+### P3.2 Piloto de dez posições
+
+- Começar no inventário de W-Engines, sem exigir navegação por personagens ou outros menus.
+- Conferir ordenação/filtro S/A, seleção efetiva, espera, atualização do painel e sequência de posições.
+- Incluir nomes longos, níveis/progressões diferentes e cópias quando existirem na conta. Testes sintéticos cobrem casos que a conta não possuir, sem declarar validação real deles.
+- F8 interrompe a coleta; perda de foco ou mudança de geometria interrompe novos inputs. Sessão parcial é salva e visível.
+
+**Critério:** os cliques chegaram às posições esperadas, nenhuma captura antiga virou outro item e nenhuma cópia foi fundida. Antes de pedir nova execução, reproduzir offline o máximo possível sobre as evidências dessa sessão.
+
+### P3.3 Rolagem, escopo S/A e término
+
+- Verificar se o jogo permite filtro S/A e se o contador reflete esse filtro. Não presumir a semântica do número a partir de duas leituras OCR iguais.
+- Se o total incluir B, usá-lo apenas como total global. A quantidade S/A precisa de referência própria; registrar cobertura não confirmada quando faltar.
+- Corte na primeira raridade inferior exige ordenação comprovável e preparação documentada. Raridade incerta não autoriza corte nem sumiço da observação.
+- Verificar primeira/última posição, fronteiras de rolagem, linha final parcial, ausência de progresso e cópias idênticas.
+- Uma repetição da tela não deve gerar outra observação; uma nova cópia com atributos iguais deve gerar registro próprio.
+
+**Critério:** percurso e escopo explicáveis com evidências, sem aceitar o fim só porque não houve mudança no nome ou no hash do painel.
+
+### P3.4 Aceite e pacote
+
+- Duas coletas completas do mesmo inventário sem alterações entre elas, comparadas com contagem S/A conferida e evidências das transições.
+- Mesma quantidade e conteúdo esperado, sem omissão/fusão silenciosa observada; divergências investigadas, não corrigidas no resultado bruto.
+- Campos incertos continuam disponíveis para revisão. Inventário coletado não é inventário aprovado.
+- Testar o pacote em ambiente Windows sem Node/Python de desenvolvimento. Incluir/explicitar dependências nativas e modelos. Preferir pacote de pasta, com um exe de entrada, antes de one-file.
+- O experimento JS só sai do caminho normal depois do aceite novo. Dados e histórico permanecem intactos.
+
+## P4 — Segundo jogo e teste da arquitetura
+
+1. Definir escopo de Cones de Luz e preparar inglês/16:9. Aproveitar as imagens existentes e ampliar níveis/progressões/referências conforme lacunas.
+2. Reaproveitar configuração e interpretação HSR pertinentes. Não trazer UI ou controle virtual usado por outras categorias se o caminho de armas não precisar.
+3. Adicionar a estratégia de avanço por teclas/ações ao mesmo ciclo. Não copiar captura, OCR, sessão ou revisão.
+4. Remover o fallback de sobreposição 1 onde não houver leitura válida; preservar bruto e evidências.
+5. Fazer captura, piloto, duas coletas conferidas e paradas. Repetir regressão ZZZ após mudanças compartilhadas.
+
+**Teste decisivo:** o segundo jogo acrescenta perfil/parser/percurso e casos de teste. Se precisar de outra cópia do motor, revisar a separação antes de iniciar Genshin.
+
+## Validação com poucas idas e voltas
+
+| Momento | O que o assistente prepara | Participação necessária de Cristian |
 |---|---|---|
-| M0 — Base experimental / concluído | CLI local, imagem → OCR → interpretação → revisão → JSON | Base utilizável para medir comportamento real. |
-| M1 — OCR Genshin / concluído no perfil documentado | Uma imagem de arma; nome, nível e refinamento; evidências e revisão | Imagem-alvo confirmada; avaliação por campo e limites registrados. |
-| M2 — OCR HSR e infraestrutura compartilhada / concluído no piloto | Uma imagem de Cone de Luz; nome, nível e sobreposição; seleção explícita de jogo | Dois leitores separados por regras, com regressão Genshin preservada. Não equivale a scanner automático. |
-| **M3 — Implementado experimentalmente; aceite real pendente** | Capturar janela, percorrer armas 4★/5★, preservar cópias/evidências, salvar inventário e relatório local de pendências | Teste pequeno e duas varreduras reais completas no escopo, com cobertura conferida; parada/interrupção preservam resultados parciais. Detalhamento abaixo. |
-| M4 — Scanner HSR / planejado | Ampliar referências e adaptar coleta ao inventário de Cones de Luz, usando o leitor já existente | Fluxo completo HSR validado sem regredir Genshin; não copiar coordenadas ou regras de navegação. |
-| M5 — Completar os cinco jogos / planejado | Adicionar WuWa, ZZZ e NTE, um de cada vez: leitura de uma imagem → coleta pequena → inventário revisável | Cada jogo chega a uma entrega utilizável antes de iniciar o próximo. Ordem entre os três continua proposta, conforme necessidade e material. |
-| M6 — Exportação e integração Advisor / planejado | Export revisado por jogo; importação explícita no repositório vizinho, com diff, procedência e conflitos | Dados aprovados e pendentes distinguíveis; nenhuma ausência vira remoção automática de fato da conta. GOOD é uma opção Genshin, não contrato universal. |
-| M7 — Avaliar outras categorias / decisão futura | Considerar personagens, progressões, artefatos e equivalentes por jogo | Benefício concreto, referências e escopo próprios; não ampliar armas silenciosamente. |
+| Antes do jogo | Instalação, testes relevantes, casos sintéticos, replays e diagnóstico de arquivos salvos | Conjunto inicial de capturas ZZZ atuais e conferência dos campos |
+| Uma imagem | Folha de revisão com imagem/recortes e valores candidatos; correções salvas separadamente | Confirmar/corrigir vários exemplos juntos |
+| Piloto | Executável/comando concreto, preparação curta, parada e evidências automáticas de falha | Executar um piloto e informar a sessão; não repetir uma falha sem análise |
+| Aceite | Instruções agrupadas para duas coletas e testes de parada, relatório comparativo e pendências | Manter inventário estável, executar e conferir contagem/itens necessários |
 
-Sequência principal: **M1/M2 entregues → M3 Genshin completo → M4 HSR completo → M5 demais jogos → M6 Advisor**. Não tornar a eliminação de toda incerteza OCR uma condição para começar captura controlada. Também não expandir jogos enquanto a navegação Genshin ainda perde itens ou não sabe determinar o término.
+Conjunto inicial sugerido, não requisito para começar: 6–10 capturas diversas de W-Engines, incluindo S/A, nome longo/em duas linhas, nível abaixo do máximo, progressões diferentes e B como caso negativo se disponível. Uma captura completa atual do inventário já permite começar a conferir layout; não exigir todos os casos da conta.
 
-Correspondência com o plano anterior: M1/M2 mantêm seus IDs e evidências; a antiga coleta M4 passa a M3/M4 e à coleta por jogo em M5; a antiga expansão M3 passa a M5; antigos M5/M6 passam a M6/M7. Não existem dois roadmaps concorrentes.
+Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reservar exemplos novos antes de declarar avaliação independente. Medir por campo valores corretos, incertos/ausentes e incorretos aceitos, sem inventar porcentagem geral com amostra pequena. Dois scans iguais também não provam completude sozinhos.
 
-GOOD pode ser antecipado depois de M3 se houver necessidade concreta, em entrega própria. Exportar GOOD não deve ser tratado como renomear o JSON atual: ainda faltam mapeamento de identificadores e avaliação dos campos exigidos pelo consumidor. Essa antecipação não implica editar o Advisor nem exigir os cinco scanners prontos para produzir um arquivo revisado.
+## Materiais, limites e histórico
 
-## M3 — Próximas entregas práticas do scanner Genshin
+- Cada sessão guarda capturas, OCR bruto, candidatos, decisões de escopo, motivo de parada e relatório local. Falhas preservam posição/ação esperada, tentativas, evidência e motivo. Esse diagnóstico deve distinguir erro de clique de erro de leitura.
+- Modelos, fontes de referência em cache, imagens, saídas e temporários permanecem ignorados pelo Git. Configurar o ignore Python antes de criar ambiente/build ou incorporar código.
+- Esta etapa de planejamento não instala dependências, não executa scanner externo e não controla o jogo.
+- O experimento anterior M0/M1/M2 entregou leitores de imagem Genshin/HSR e referências confirmadas. O M3 antigo deixou scanner Genshin experimental, com captura/OCR estáticos e 135 testes JS, mas sem aceite de inventário completo. Eles não validam o novo motor.
+- Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
+- GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Definição de pronto:** Cristian prepara o inventário de armas no estado documentado, executa um comando, acompanha a varredura de 4★/5★ e recebe um JSON de inventário e um relatório local. O relatório informa escopo, cobertura, motivo de término, itens lidos, pendentes e falhas, com acesso às imagens. Uma execução interrompida é identificada como parcial. Não exige abrir cada JSON ou cada revisão Markdown individualmente para encontrar problemas.
-
-**Preparação proposta:** inventário aberto na aba Weapons, início da lista, idioma inglês, área cliente compatível com o perfil e ordenação/filtros verificáveis. Esse ponto inicial reduz navegação desnecessária no primeiro scanner. Abrir o jogo, autenticar ou navegar a partir de qualquer tela não faz parte do primeiro aceite.
-
-| ID / estado | Trabalho e artefato | Verificação necessária |
-|---|---|---|
-| **M3.1 — Contrato operacional documentado** | Formalizar estado inicial, modo/escala de janela suportados, filtro 4★/5★, ordenação, condições de parada e estrutura da sessão. | Checklist curto e reproduzível; indicar se o total visível conta todas as armas ou apenas o filtro. Não usar esse número sem verificar seu significado. |
-| **M3.2 — Captura real e OCR do arquivo conferidos; piloto pendente** | Localizar a janela e capturar a área útil real. Gerar uma imagem e sobreposição de painel/grade, com dimensões e transformação de coordenadas. Escolher a menor solução confiável de captura/input para Windows. | Com o mesmo item selecionado, captura automática passa pelo leitor existente e corresponde à leitura do PNG conferido. Verificar bordas, posição da janela, escala e quadro válido antes de habilitar cliques. |
-| **M3.3 — Código e testes; parada real pendente** | Iniciar sessão local, salvar configuração e evidências progressivamente; implementar tecla de parada e verificação de foco/posição da janela. | Interromper durante captura/espera/OCR preserva o que já foi salvo. Perda de foco ou mudança de geometria interrompe novos inputs; não continuar clicando em outro aplicativo. Reinício cria sessão distinta; retomada automática da navegação fica fora do primeiro aceite. |
-| **M3.4 — Percurso simulado; piloto real pendente** | Selecionar itens de uma grade conhecida, aguardar atualização verificável do painel e capturar cada posição. Usar esperas limitadas e evidências de seleção; não depender somente de um atraso fixo ou da mudança do nome. | Conferir ordem e contagem manualmente, incluindo duas cópias visualmente iguais. Painel antigo, seleção não confirmada ou timeout não podem virar novo item lido com sucesso. |
-| **M3.5 — 4★/5★ estáticos; corte real pendente** | Verificar filtro real da interface, se disponível, ou reconhecer estrelas/raridade com evidência suficiente. Usar ordenação para reduzir trabalho somente depois de validá-la. Guardar origem da decisão de inclusão/exclusão. | 4★ e 5★ entram, raridades inferiores ficam fora do inventário-alvo, e raridade incerta vira pendência. Não inferir raridade apenas pelo nome nem descartar um item por falha OCR. A raridade é fornecida pelo scanner; o leitor de três campos permanece separado. |
-| **M3.6 — Código e cenários simulados; rolagem real pendente** | Percorrer linhas/páginas, resolver sobreposição entre telas e última linha incompleta; registrar progresso e condições de término. Testar fim natural, filtro/limite, ausência de progresso e interrupção. | Testes com limites de página e cópias iguais; comparar contagem/primeiro/último e transições. Conteúdo repetido pode ser uma nova cópia ou uma página não avançada: hash do cartão sozinho não resolve. Se o fim/cobertura não puder ser confirmado, declarar isso. |
-| **M3.7 — Implementado e testado localmente** | Reunir observações sem confundir arma, captura e resultado OCR. Salvar identificador da observação, ordem/posição/progresso, caminho/hash da evidência e estado do processamento. Agregar os três campos sem reescrever os diagnósticos. | Repetição da tela não duplica uma observação; armas com mesmo nome/nível/refinamento não são fundidas. Falha OCR continua visível na sessão. Reprocessar capturas em disco preserva dados e pode ocorrer sem repetir cliques. IDs da sessão não prometem identificar a mesma cópia em execuções futuras. |
-| **M3.8 — Implementado e testado localmente** | Entregar um JSON de inventário e relatório com resumo, itens e pendências acessíveis. Uma página HTML estática pode facilitar a conferência; não exige servidor, framework ou aplicação gráfica. Aprovação/correção continua separada. | Conferir um inventário pela visão de sessão, abrir a evidência de cada pendência e salvar feedback rastreável. Separar cobertura da coleta, conclusão do OCR e aprovação humana; a execução terminar não aprova campos. |
-| **M3.9 — Aguarda aceite real do usuário** | Rodar piloto pequeno e depois duas varreduras completas do mesmo escopo sem alterar o inventário entre elas. Medir cobertura, duplicações, faltas, leitura por campo, pendências e duração. Fechar comando/configuração e README de uso. | Mesma quantidade de cópias elegíveis nas duas execuções, conferida com referência/manual; nenhuma omissão/fusão silenciosa observada no cenário de aceite. Testar cancelamento, perda de foco e falhas. Comparação com Inventory Kamera é auxiliar e exige mesmo filtro/estado da conta. Não declarar precisão geral ou cobertura universal. |
-
-Encadeamento: **M3.1 → M3.2 → M3.3 → M3.4 → M3.5 → M3.6 → M3.7 → M3.8 → M3.9**. A sessão mínima nasce em M3.3; M3.7 amplia sua agregação, sem esperar até o fim para salvar resultados. Referências, casos de cópias iguais e testes podem ser preparados durante essas entregas. Antes da primeira execução completa, M3.5/M3.6 precisam garantir o escopo e o percurso.
-
-### Três medidas que não podem virar um indicador único
-
-- **Cobertura:** quais posições/armas elegíveis foram visitadas, quais foram excluídas por critério comprovado e por que consideramos o percurso completo. Se não houver total elegível confiável, registrar cobertura não confirmada até conferência; não inventar um denominador.
-- **Leitura:** campos corretos, ausentes, incertos e incorretos aceitos. Retentativa limitada pode ajudar, mas não basta escolher a leitura de maior confiança.
-- **Revisão:** o que Cristian aprovou/corrigiu e o que segue pendente. Pendência de campo não apaga a existência daquela cópia; aprovação de um item não aprova o restante do inventário.
-
-Uma sessão pode terminar a navegação e continuar com pendências OCR. Pode também ter todos os campos dos itens capturados legíveis e ainda ser um inventário parcial por interrupção. O resultado precisa distinguir esses casos.
-
-### Decisões técnicas de M3
-
-- JavaScript mantém a coordenação; helper PowerShell/C# separado usa Win32/GDI, sem dependência npm nativa nova. Compilação e protocolo foram verificados; a escolha ainda exige prova de captura/input no jogo.
-- Separar captura/input, percurso do inventário e leitor de uma imagem. O CLI atual continua útil para reproduzir falhas em arquivos salvos.
-- Priorizar processamento simples, espera verificada, limites e salvamento progressivo. Medir duração e consumo antes de adicionar paralelismo, filas complexas ou busca por velocidade.
-- Não usar nome, atributos ou hash da imagem como identidade única de uma arma. Estado de navegação e evidências devem distinguir observações repetidas de cópias distintas.
-- Falhas reais conhecidas de M1/M2 podem virar desenvolvimento em uma nova iteração; deixam então de ser casos independentes. Reservar capturas novas antes de afirmar melhoria na avaliação.
-- Manter imagens/sessões/relatórios/modelos locais e ignorados pelo Git. Alterações de contrato de inventário devem ser explícitas; o JSON de um item existente não precisa ser sobrescrito.
-
-A referência Windows distingue área cliente e janela em foco: [GetClientRect](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclientrect) e [GetForegroundWindow](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getforegroundwindow), consultadas em 17/10/2026. O helper experimental usa essas APIs; foi compilado/testado sem janela anexada. Captura e inputs reais no jogo ainda não foram testados.
-
-## M4 — Próximo jogo completo: HSR
-
-HSR já tem leitor de uma imagem. A expansão deve aproveitar a experiência de uma varredura real Genshin, preservando campos e navegação próprios.
-
-| ID / estado | Próxima entrega | Evidência de aceite |
-|---|---|---|
-| **M4.1 — Planejado** | Ampliar capturas reais: níveis/limites abaixo de 80, sobreposição 2–4, nomes mais longos e campos cortados/ilegíveis. Definir raridades/filtros desejados para HSR separadamente. | Referências conferidas e novo conjunto reservado; o escopo 4★/5★ de Genshin não é imposto ao HSR sem confirmação. |
-| **M4.2 — Planejado** | Adaptar janela, grade, seleção, espera e rolagem à tela de Cones de Luz. Observar interferência/animação do fundo e estabilidade do painel. | Captura única e coleta pequena reproduzíveis; regras de Genshin não são copiadas por semelhança visual. |
-| **M4.3 — Planejado** | Executar percurso completo com identidade de observação, pendências, término e revisão de sessão. | Cópias preservadas e cobertura conferida no escopo HSR, incluindo transições e interrupções. |
-| **M4.4 — Planejado** | Avaliar reservados novos e repetir regressão Genshin após mudanças compartilhadas; documentar uso dos dois scanners. | Dois fluxos completos utilizáveis; melhorias HSR não alteram silenciosamente a navegação/interpretação Genshin. |
-
-M5–M7 ficam no nível de marcos até aprendermos com M3/M4. Não detalhar agora coordenadas, APIs, campos ou prazos dos três jogos restantes.
-
-## Evidências das entregas concluídas
-
-**M1.1–M1.8:** leitor regional Genshin, seleção explícita de painel, texto bruto, estados e pacote visual. Desenvolvimento: 8/8 corretos por campo. Primeira avaliação reservada: nome 4/4, refinamento 4/4, nível 3/4 e um candidato incerto, sem valor incorreto aceito observado nesses exemplos. Cristian confirmou a captura Aqua Simulacra (90/90, R1) e três referências adicionais; isso não aprova individualmente todo o acervo. Evidências locais: `data/datasets/genshin-weapons.json`, `data/evaluation/baseline/`, `data/evaluation/profile-freeze.json`, `data/research/m1-delivery.json` e `data/research/m1-followup/`.
-
-**M2.1–M2.7:** `--game genshin|hsr`, `itemType: weapon|light-cone` e campos específicos no schema 2. HSR desenvolvimento: firefly e sw_tricky, ambos confirmados e com três acertos. Reservados: phainon e topaz, nome 2/2, nível 2/2 e sobreposição 1/2 mais um candidato incerto. O perfil não foi ajustado sobre esse resultado. Evidências locais: `data/datasets/hsr-light-cones.json`, `data/evaluation/hsr-profile-freeze.json`, `data/reviews/m2/` e `data/research/m2/delivery.json`.
-
-A entrega M2 teve 59 testes aprovados, smoke test de OCR real e 13 referências Genshin com estados/valores inalterados. Os testes de sucesso com OCR simulado são identificados como sintéticos e não medem reconhecimento. Novos congelamentos vinculam jogo, modo, perfil, manifesto, IDs, núcleo/lock e métricas; modelos em cache/runtime não são congelados. O freeze antigo Genshin permanece histórico após mudanças compartilhadas de M2. Repetir casos já examinados é regressão, não avaliação independente.
-
-Este é o plano canônico. O [README](../README.md) descreve o programa atualmente executável; [inventory-kamera.md](inventory-kamera.md) registra a referência. Git preserva o detalhamento histórico das entregas. O Gacha Advisor permanece intacto e dados pessoais ficam fora do Git. M3 é código experimental pronto para testar, com aceite real ainda aberto.
-## Entrega técnica M3 e limite de validação
-
-131 testes automatizados aprovados, helper Windows compilado/protocolo verificado sem janela anexada, diagnóstico e replay estáticos com OCR real. Regressões: 13 Genshin e 4 HSR sem mudança nos estados/valores. Após a entrega inicial, Cristian executou a captura cliente; grade/painel e OCR da Aqua salva foram conferidos. Seleção com cliques, rolagem e varreduras reais continuam pendentes. M3.9 continua aberto e M4 não foi iniciado. Não reinterpretar as simulações como cobertura real de inventário.
-
-A implementação salva observações antes do OCR, preserva cópias e resultados parciais, recusa grade/seleção ambígua e mantém cobertura, processamento e revisão separados. Sem contagem independente 4★/5★, a cobertura permanece não confirmada. `--at-top` é declaração explícita só para evidência ausente/incerta; não sobrepõe uma barra reconhecida fora do topo. [genshin-scanner.md](genshin-scanner.md) é o guia operacional e registro das decisões; este roadmap continua canônico para os marcos.
+**Próximo bloco recomendado:** P1.1 preparação isolada e testes offline, seguido de P1.2 com uma captura atual ZZZ. Não começar extração geral ou pedir varreduras completas antes dessa prova.

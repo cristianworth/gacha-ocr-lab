@@ -39,7 +39,7 @@ Um log local registra nome de arma inválido. Portanto, `weapon.json` de logging
 
 ## Uso da referência no próximo marco
 
-M1/M2 já entregaram leitura regional de uma imagem. A próxima entrega planejada é a coleta Genshin de armas 4★/5★, com JSON e revisão local, conforme o [roadmap](ROADMAP.md). A navegação M3 agora tem implementação experimental própria, ainda sem aceite de captura/inputs no jogo. Veja o [guia do scanner](genshin-scanner.md).
+M1/M2 entregaram leitura regional de uma imagem e o antigo M3 deixou uma coleta Genshin experimental sem aceite completo. O [planejamento atual](ROADMAP.md) prioriza qualificar ZZZ e extrair um motor Python compartilhado, seguido de HSR e Genshin. O Kamera continua fonte de procedimentos/recortes para o módulo Genshin; o [guia legado](genshin-scanner.md) preserva as evidências anteriores.
 
 O [Navigation.cs](https://github.com/taiwenlee/Inventory_Kamera/blob/a5d1c776301f688793d42f52c4c44c718f20c4a7/InventoryKamera/game/Navigation.cs) consultado mede a área cliente/posição da janela e separa captura de regiões e simulação de entrada. O [WeaponScraper.cs](https://github.com/taiwenlee/Inventory_Kamera/blob/a5d1c776301f688793d42f52c4c44c718f20c4a7/InventoryKamera/scraping/WeaponScraper.cs) percorre posições, conta itens e rola a lista. Essas separações são úteis para o desenho; seus offsets e esperas não são configuração comprovada para o laboratório.
 
@@ -47,4 +47,4 @@ Medir captura, foco, geometria, seleção e término no perfil real antes de reu
 
 ## Planejamento do projeto
 
-O objetivo completo, a arquitetura acordada e os marcos estão em [ROADMAP.md](ROADMAP.md). Os leitores de uma imagem de Genshin/HSR são a base já entregue. A ordem agora prioriza um scanner Genshin utilizável antes de ampliar os jogos. Este documento mantém apenas a pesquisa do Inventory Kamera e a origem das referências, evitando dois roadmaps concorrentes.
+O objetivo completo, a arquitetura acordada e os marcos estão em [ROADMAP.md](ROADMAP.md). Os leitores de uma imagem Genshin/HSR e os dados confirmados são referências já entregues. A ordem recomendada agora é ZZZ, HSR, Genshin, WuWa e NTE, com um motor comum. Este documento mantém apenas a pesquisa do Inventory Kamera e a origem das referências, evitando dois roadmaps concorrentes.

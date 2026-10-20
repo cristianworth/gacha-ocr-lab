@@ -1,4 +1,6 @@
-# Scanner Genshin — M3 experimental
+# Scanner Genshin — M3 experimental legado
+
+Este guia descreve o scanner JavaScript anterior e suas evidências. O próximo ciclo recomendado usa motor Python compartilhado e começa por ZZZ; acompanhe o [planejamento atual](ROADMAP.md). O novo ciclo ainda não foi implementado.
 
 A implementação está disponível para teste; **o aceite M3.9 está pendente**. A captura cliente real feita por Cristian em 18/10 foi conferida, incluindo grade, painel e OCR da Aqua salva. Piloto com seleção, rolagem, paradas e varreduras completas ainda aguardam validação no jogo; simulações e OCR de imagens salvas não substituem esse aceite.
 
