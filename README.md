@@ -2,7 +2,7 @@
 
 Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem de arma do Genshin ou Cone de Luz do HSR → OCR por regiões → campos interpretados → revisão visual → JSON**. Windows e interface em inglês; perfis iniciais desenvolvidos com resolução de jogo declarada de 1440×900 (16:10).
 
-**Planejamento atualizado:** um motor Python compartilhado, com perfis e estratégias por jogo. Ordem recomendada: **ZZZ → HSR → Genshin → WuWa → NTE**, começando por W-Engines **S/A**. A etapa atual é o piloto ZZZ adaptado, com implementação pronta e aceite real de dez posições pendente. Veja o [planejamento em etapas](docs/ROADMAP.md) e a [arquitetura pesquisada](docs/architecture-proposal.md).
+**Planejamento atualizado:** um motor Python compartilhado, com perfis e estratégias por jogo. Ordem recomendada: **ZZZ → HSR → Genshin → WuWa → NTE**, começando por W-Engines **S/A**. A etapa atual é o piloto ZZZ adaptado, com dez posições reais conferidas e testes de parada em curso pendentes. Veja o [planejamento em etapas](docs/ROADMAP.md) e a [arquitetura pesquisada](docs/architecture-proposal.md).
 
 **Software disponível hoje:** Genshin/HSR continuam em JavaScript; o piloto ZZZ usa Python isolado. Há captura/coleta Genshin 4★/5★ e lançador Windows, com **aceite de inventário completo pendente**. O [guia do scanner Genshin](docs/genshin-scanner.md) documenta esse caminho legado; os comandos abaixo ainda pertencem a ele. O motor compartilhado ainda não foi extraído; o piloto Python ZZZ está disponível em comando próprio. A [reprodução isolada P1.1 do Youkai](docs/youkai-qualification.md) executou 273 testes upstream e duas referências públicas, com limitações explícitas; esses testes não validam percurso ou inventário completo. Os repositórios do laboratório e Advisor permanecem separados.
 
@@ -12,7 +12,7 @@ Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem
 
 **Seleção ZZZ (P1.3):** o [ensaio limitado de três posições](docs/youkai-selection.md) reutiliza o navegador original, com F8 explícito, guardas e rolagem bloqueada. Os 31 testes de seleção/captura passaram em simulação. Após o bloqueio inicial por integridade, Cristian executou no nível do jogo: três seleções reais conferidas, nomes/níveis corretos, sem rolagem. Lock e estabilização do painel ainda exigem adaptação; parada em curso e piloto de dez posições continuam pendentes.
 
-**Piloto ZZZ (P2):** o [comando de dez posições e leitor adaptado](docs/zzz-pilot.md) já gera JSON e revisão HTML. Nas três referências humanas, nome/nível/raridade/progressão conferem; progressão foi corrigida para 4/2/1. O piloto espera seleção/painel estáveis, preserva cópias e mantém incertezas. O ensaio real de dez posições e das paradas ainda precisa ser executado; não há inventário completo aceito.
+**Piloto ZZZ (P2):** o [comando de dez posições e leitor adaptado](docs/zzz-pilot.md) já gera JSON e revisão HTML. Nas três referências humanas, nome/nível/raridade/progressão conferem; progressão foi corrigida para 4/2/1. O piloto espera seleção/painel estáveis, preserva cópias e mantém incertezas. O primeiro ensaio real percorreu dez posições, preservando duas cópias. Quatro nomes truncados ficaram incertos e receberam correção offline no perfil v2. As paradas em curso ainda precisam de teste real; não há inventário completo aceito.
 
 ## Instalar e executar
 

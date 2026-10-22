@@ -219,3 +219,46 @@ def test_single_line_title_requires_a_literal_independent_line_read(tmp_path,mon
     assert result['fields']['name']['evidence']['raw']=='Steel Cushion\na An ere'
     assert result['fields']['name']['evidence']['fullCropScore']==95
     assert (tmp_path/'name-line.png').exists()
+
+
+def test_uncertain_truncated_title_uses_wide_white_read_without_fuzzy_acceptance(tmp_path,monkeypatch):
+    import youkai_ocr.normalizer as normalizer
+    import youkai_ocr.wengine_scanner as scanner
+    frame=make_frame()
+    recognizer=SimpleNamespace(read_text=Mock(side_effect=['The Restrainec','The Restrained .']),
+                               read_line=Mock(side_effect=['Lv. 60/60','T Unlock']))
+    monkeypatch.setattr(normalizer,'normalize_engine',lambda text:('TheRestrained',100 if 'Restrained' in text else 92))
+    monkeypatch.setattr(scanner,'scan_single_frame_engine',lambda *args,**kwargs:(None,{}))
+    result=read_frame(frame,calibrate(frame),tmp_path,recognizer=recognizer)
+    name=result['fields']['name']
+    assert name['value']=='TheRestrained' and name['evidence']['raw']=='The Restrainec'
+    assert name['evidence']['additionalReads'][0]['exact'] is True
+    assert (tmp_path/'name-wide-mask.png').exists()
+
+
+def test_wrapped_title_expands_second_line_without_discarding_letters_as_noise(tmp_path,monkeypatch):
+    import youkai_ocr.normalizer as normalizer
+    import youkai_ocr.wengine_scanner as scanner
+    from zzz_pilot import exact_name
+    frame=make_frame()
+    recognizer=SimpleNamespace(read_text=Mock(side_effect=['Ode of\nResurrected Win:',
+                   'Ode of cee\nResurrected Wings','Resurrected Wings']),
+                   read_line=Mock(side_effect=['Lv. 60/60','T Unlock']))
+    def normalize(text):
+        return ('OdeOfResurrectedWings',100 if text=='Ode of Resurrected Wings' else 95)
+    monkeypatch.setattr(normalizer,'normalize_engine',normalize)
+    monkeypatch.setattr(scanner,'scan_single_frame_engine',lambda *args,**kwargs:(None,{}))
+    result=read_frame(frame,calibrate(frame),tmp_path,recognizer=recognizer)
+    assert result['fields']['name']['value']=='OdeOfResurrectedWings'
+    assert result['fields']['name']['evidence']['additionalReads'][0]['exact'] is False
+    assert result['fields']['name']['evidence']['additionalReads'][1]['exact'] is True
+    assert exact_name('Ode of extra Resurrected Wings',normalize)[2] is False
+
+
+def test_literal_catalog_candidate_beats_case_sensitive_fuzzy_mismatch():
+    from zzz_pilot import exact_name
+    normalizer=lambda text:('FlightOfFancy',85.5)
+    candidate=('OdeOfResurrectedWings',95.65)
+    key,score,exact=exact_name('Ode of Resurrected WINGS � .',normalizer,candidate)
+    assert (key,score,exact)==('OdeOfResurrectedWings',95.65,True)
+    assert exact_name('Ode of extra Resurrected WINGS',normalizer,candidate)[2] is False

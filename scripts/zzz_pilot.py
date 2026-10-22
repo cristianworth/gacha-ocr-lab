@@ -11,11 +11,13 @@ import numpy as np
 # Coordinates belong to the measured 1920x1080 Youkai layout, scaled by its API.
 NAME = (1421, 270, 1655, 333)
 NAME_LINE = (1421, 270, 1655, 306)
+NAME_WIDE = (1421, 270, 1760, 333)
+NAME_SECOND_LINE = (1421, 303, 1760, 333)
 LEVEL = (1464, 398, 1637, 440)
 RARITY = (1421, 402, 1452, 436)
 STARS = (1652, 399, 1810, 440)
 LOCK_ACTION = (1630, 1015, 1905, 1058)
-PROFILE = "zzz-wengine-1280x720-v1"
+PROFILE = "zzz-wengine-1280x720-v2"
 
 
 class PanelNotReady(RuntimeError):
@@ -77,6 +79,23 @@ def scope_for(rank):
     return "included" if rank["value"] in ("S", "A") else "excluded-B" if rank["value"] == "B" else "pending-rarity"
 
 
+def title_mask(image):
+    from PIL import Image
+    pixels = np.array(image.convert("RGB"), dtype=int)
+    white = (pixels.min(axis=2) >= 205) & (pixels.max(axis=2) - pixels.min(axis=2) <= 25)
+    return Image.fromarray((white * 255).astype("uint8"))
+
+
+def exact_name(text, normalizer, candidate=None):
+    key, score = normalizer(text.replace("\n", " ").strip())
+    identity = lambda value: re.sub(r"[^a-z0-9]", "", value.lower())
+    if candidate and candidate[0] and identity(text) == identity(candidate[0]):
+        # Literal agreement with a catalog key is stronger evidence than the
+        # case-sensitive fuzzy scorer, which can prefer a different item for WINGS.
+        return candidate[0], candidate[1], True
+    return key, score, bool(key) and score == 100 and identity(text) == identity(key)
+
+
 def read_frame(frame, calibration, output, *, recognizer=None):
     from youkai_ocr.matchers import detect_rarity
     from youkai_ocr.normalizer import normalize_engine
@@ -112,9 +131,36 @@ def read_frame(frame, calibration, output, *, recognizer=None):
         exact = line_key == key and line_score == 100 and re.sub(r"[^a-z0-9]", "", title_line.lower()) == key_identity
         if exact:
             score = line_score
+    extra_attempts = []
+    if not exact:
+        # Widen only uncertain titles. White glyphs suppress coloured engine art;
+        # exact literal agreement is still required after each independent read.
+        wide = crop(frame, calibration, NAME_WIDE)
+        wide.save(output / "name-wide.png")
+        masked = title_mask(wide)
+        masked.save(output / "name-wide-mask.png")
+        wide_raw = recognizer.read_text(masked, "white_text_on_dark")
+        wide_key, wide_score, wide_exact = exact_name(wide_raw, normalize_engine, (key, score))
+        extra_attempts.append({"kind": "wide-white-title", "raw": wide_raw, "candidate": wide_key,
+                               "score": wide_score, "exact": wide_exact, "bbox": NAME_WIDE})
+        if wide_exact:
+            key, score, exact = wide_key, wide_score, True
+        elif len(raw_name.splitlines()) >= 2:
+            # Wrapped titles can overlap art on the right of the first line.
+            # Keep that line from the narrow read; expand only the second line.
+            second = title_mask(crop(frame, calibration, NAME_SECOND_LINE))
+            second.save(output / "name-second-line-mask.png")
+            second_raw = recognizer.read_text(second, "white_text_on_dark")
+            joined = raw_name.splitlines()[0] + " " + second_raw
+            joined_key, joined_score, joined_exact = exact_name(joined, normalize_engine, (key, score))
+            extra_attempts.append({"kind": "narrow-first-wide-second", "firstRaw": raw_name.splitlines()[0],
+                                   "secondRaw": second_raw, "raw": joined, "candidate": joined_key,
+                                   "score": joined_score, "exact": joined_exact, "bbox": NAME_SECOND_LINE})
+            if joined_exact:
+                key, score, exact = joined_key, joined_score, True
     name = field(key if exact else None,
                  candidates=[{"key": key, "score": score}] if key else [],
-                 evidence={"raw": raw_name, "isolatedTitleLine": title_line, "fullCropScore": full_crop_score, "normalizerScore": score,
+                 evidence={"raw": raw_name, "additionalReads": extra_attempts, "isolatedTitleLine": title_line, "fullCropScore": full_crop_score, "normalizerScore": score,
                            "scoreIsCalibratedProbability": False})
     pixels = np.array(crops["rarity"].convert("RGB")).reshape(-1, 3)
     color = np.percentile(pixels, 75, axis=0)

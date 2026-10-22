@@ -170,8 +170,9 @@ def main():
               "liveInputTested": False, "captureComplete": False, "inventoryAccepted": False,
               "observations": [{"position": i, "row": 0, "column": i, "status": "not-visited"} for i in range(args.limit)]}
     if args.pilot:
+        from zzz_pilot import PROFILE
         report.update({"mode": "zzz-pilot-image" if args.image else "zzz-pilot", "game": "zzz", "itemType": "w-engine",
-                       "readerVersion": "zzz-wengine-1280x720-v1", "requestedPositions": 1 if args.image else args.limit,
+                       "readerVersion": PROFILE, "requestedPositions": 1 if args.image else args.limit,
                        "requiresManualReview": True})
         report["observations"] = [{"position": i, "row": i // 9, "column": i % 9, "status": "not-visited"}
                                   for i in range(1 if args.image else args.limit)]

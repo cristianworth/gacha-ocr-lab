@@ -1,6 +1,6 @@
 # Planejamento — motor compartilhado de OCR
 
-Atualizado em 22/10/2026. **Piloto Python ZZZ implementado; aceite real de dez posições pendente. O motor compartilhado ainda não foi extraído.** Este documento é o plano canônico. A [arquitetura e pesquisa de fontes](architecture-proposal.md) explicam as alternativas; o [README](../README.md) descreve o software que existe hoje.
+Atualizado em 22/10/2026. **Piloto Python ZZZ implementado; dez posições reais conferidas; paradas em curso pendentes. O motor compartilhado ainda não foi extraído.** Este documento é o plano canônico. A [arquitetura e pesquisa de fontes](architecture-proposal.md) explicam as alternativas; o [README](../README.md) descreve o software que existe hoje.
 
 ## Objetivo, prioridades e escopo
 
@@ -114,7 +114,7 @@ P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não 
 
 ## P2 — Adaptação mínima e piloto ZZZ
 
-**Implementação entregue em 22/10/2026:** [comando de dez posições, leitor adaptado e revisão HTML](zzz-pilot.md). Nome/nível/raridade/progressão conferem nas três referências humanas; estrelas corrigidas para 4/2/1, lock derivado do rótulo de ação, incertezas preservadas, estabilidade e recuperação de cópias com evidência de seleção testadas em simulação. P2.1/P2.2 prontos; P2.3 e paradas reais ainda pendentes. Não equivale a inventário aceito.
+**Implementação entregue em 22/10/2026:** [comando de dez posições, leitor adaptado e revisão HTML](zzz-pilot.md). Nome/nível/raridade/progressão conferem nas três referências humanas; estrelas corrigidas para 4/2/1, lock derivado do rótulo de ação, incertezas preservadas, estabilidade e recuperação de cópias com evidência de seleção testadas em simulação. P2.1/P2.2 prontos; primeiro percurso P2.3 de dez posições conferido posteriormente nesta data. Paradas reais em curso ainda pendentes. Não equivale a inventário aceito.
 
 ### P2.1 Reutilizar antes de reorganizar
 
@@ -136,6 +136,8 @@ Cada observação mantém jogo/categoria, posição/ordem na sessão, versão do
 - Separar término do percurso, cobertura, processamento e revisão humana. Salvar a sessão parcial em falhas/parada.
 
 ### P2.3 Prova real em dez posições
+
+**Executado e conferido em 22/10/2026:** dez posições reais, segunda linha atingida, 11 cliques normais, sem rolagem; níveis/raridades/progressões/locks conferem visualmente. Duas cópias Weeping Cradle preservadas. Seis nomes reconhecidos e quatro incertos no leitor v1; recortes corrigidos em v2 e reprocessados offline, sem reescrever a sessão. [Evidências e limites](zzz-pilot.md#primeiro-piloto-real--22102026). F8 antes dos inputs foi observado; interrupção durante execução e perdas de foco/geometria seguem pendentes.
 
 - Primeiro conferir captura cliente e sobreposição de regiões/grade. Só iniciar inputs após verificar foco, geometria e mecanismo de parada.
 - Executar dez posições (ou as disponíveis), incluindo repetição visual quando houver. Confirmar que ações chegam ao alvo e o painel corresponde à posição esperada.
@@ -206,4 +208,4 @@ Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reserv
 - Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
 - GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Próximo bloco:** executar e revisar o piloto P2.3 já implementado, com dez posições, estabilização e campos adaptados. Agrupar a interrupção real ainda pendente de P1.3 e as recusas de foco/geometria em ensaios curtos com sessões preservadas. Depois corrigir divergências reais e, com o aceite P2, iniciar percurso completo P3. Nova arquitetura geral só se a prova trouxer uma razão concreta.
+**Próximo bloco:** concluir P2 com ensaios curtos de F8 em curso e recusa de novos inputs em perda de foco/geometria, mantendo sessões parciais. O piloto real de dez posições e seu replay corrigido já foram conferidos; não repetir por rotina. Regressar novos casos antes de aceitar P2 e iniciar percurso completo P3. Nova arquitetura geral só se a prova trouxer uma razão concreta.
