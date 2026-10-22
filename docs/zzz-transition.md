@@ -1,6 +1,6 @@
 # P3.2 — uma transição de grade ZZZ
 
-Implementado em **22/10/2026**, após o [piloto de dez posições](zzz-pilot.md). **Implementação verificada em simulação; transição real ainda pendente.** O segundo F8 de P2 foi confirmado na pausa após a primeira leitura; a perda de foco também foi confirmada; o ensaio real de geometria permanece pendente. Este recorte não implementa coleta completa, contagem S/A, término de inventário ou executável independente.
+Implementado em **22/10/2026**, após o [piloto de dez posições](zzz-pilot.md). **Implementação verificada em simulação; transição real ainda pendente.** F8, perda de foco e movimentação da janela em P2 foram confirmados em sessões reais. O próximo passo é executar a transição limitada já preparada. Este recorte não implementa coleta completa, contagem S/A, término de inventário ou executável independente.
 
 ## Comportamento limitado
 
@@ -17,7 +17,7 @@ Não chama métodos privados do navegador nem modifica fonte upstream. A decisã
 
 ## Antes do ensaio real
 
-O [teste explícito de F8](zzz-pilot.md#segundo-f8-confirmado--22102026) foi aprovado na sessão `20261022-113802-38781f4a-selection`: segunda tecla recebida após a primeira leitura, parcial salva e nenhum novo pressionamento após o sinal. A perda de foco foi confirmada na sessão `20261022-115151-d35db31b-selection`. Concluir o [ensaio de geometria com pausa](zzz-pilot.md#próximo-ensaio-mudança-de-geometria-com-pausa) antes de ampliar o percurso; não repetir F8/foco por rotina.
+O [teste explícito de F8](zzz-pilot.md#segundo-f8-confirmado--22102026) foi aprovado na sessão `20261022-113802-38781f4a-selection`: segunda tecla recebida após a primeira leitura, parcial salva e nenhum novo pressionamento após o sinal. A perda de foco foi confirmada na sessão `20261022-115151-d35db31b-selection`. A [movimentação da janela](zzz-pilot.md#movimentação-da-janela-confirmada--22102026) foi confirmada em `20261022-120911-985f905a-selection`, sem novos inputs após a detecção. As guardas previstas têm evidência real no ambiente inicial; não repetir esses ensaios por rotina.
 
 Preparação para a transição: W-Engines no topo, inglês, cliente 1280×720, escala 100%, quatro linhas preenchidas e itens além delas. Usar PowerShell **como Administrador**, no mesmo nível do jogo. Reservar os controles e manter o jogo em primeiro plano. O comando só deve ser executado como ensaio limitado combinado, não como coleta completa.
 
@@ -31,6 +31,22 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\s
 No ensaio real, pressionar/soltar F8 quando solicitado confirma o listener. Após cinco segundos, o programa solicita foco, prepara a captura, faz o único clique e verifica o resultado. F8 novamente interrompe. Não há elevação automática.
 
 **Resultado esperado:** uma linha avançada e um item lido; relatório `status: transition-read`, `transition.verified: true`. Se não houver comprovação, deve encerrar com motivo e evidências, sem inventar posição nem fim de inventário. O comportamento nativo da rolagem ainda será medido; uma recusa será analisada a partir da sessão antes de pedir repetição.
+
+## Roteiro do primeiro ensaio
+
+1. Abrir W-Engines no topo da lista, em inglês, janela 1280×720 e escala Windows 100%. Manter quatro linhas preenchidas e itens além delas. A posição da janela pode ser a atual: o comando faz nova calibração.
+2. No PowerShell como Administrador, executar somente o comando real abaixo:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\scripts\transition-zzz.ps1" -Run
+```
+
+3. Pressionar e soltar F8 na confirmação inicial. Após cinco segundos, o programa pede foco ao jogo.
+4. Deixar os controles livres e o jogo em primeiro plano. O scanner deve clicar **uma vez no primeiro cartão da quarta linha**. Esperamos que a grade suba uma linha e que esse cartão apareça selecionado na terceira linha.
+5. O comando confere movimento, espera o painel estabilizar, lê esse único item e encerra. Não há beep/pausa para uma ação humana neste ensaio. Aguardar cerca de 15 segundos após o clique antes de voltar ao terminal; o limite de novos inputs é 30 segundos, sem interromper à força um OCR já iniciado.
+6. Enviar o caminho de `session.json`, inclusive se houver recusa. Se houver qualquer ação inesperada, F8 interrompe; informar isso ao enviar a sessão. Não repetir sem análise.
+
+**Esperado no relatório:** `status: transition-read`, `transition.verified: true`, um pressionamento e uma leitura. Isso comprova uma transição, sem afirmar índice global, cobertura ou fim de inventário.
 
 ## O que enviar
 
@@ -48,4 +64,4 @@ Os arquivos ficam em nova pasta `.cache/youkai-p1/runs/<data-hora-id>-selection/
 - Medições sobre a captura real já salva: scrollbar em 238,5, nove recortes da última linha com variação visual suficiente, e duas imagens sem rolagem corretamente recusadas como avanço. Isso não é execução real de rolagem.
 - Preflight do comando no Windows PowerShell 5.1: `.cache/youkai-p1/runs/20261022-111906-40763847-selection/session.json`. Recusou integridade inferior do helper antes de captura/foco/inputs. O processo deste chat não recebeu elevação Windows por executar ferramentas fora do sandbox.
 
-Depois da transição aceita: exercitar linha final parcial, verificar filtro/contador S/A e estratégia de término em P3.3. Em P3.4, duas coletas conferidas e pacote Windows. O F8 já tem prova real separada; foco também foi conferido; geometria permanece pendente e não é encerrada por testes simulados.
+Depois da transição aceita: exercitar linha final parcial, verificar filtro/contador S/A e estratégia de término em P3.3. Em P3.4, duas coletas conferidas e pacote Windows. O F8 já tem prova real separada; foco e movimentação da janela também foram conferidos. Mudança real de tamanho/DPI não foi exercitada; a transição real continua sendo o próximo passo.

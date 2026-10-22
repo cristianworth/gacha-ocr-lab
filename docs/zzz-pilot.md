@@ -99,12 +99,12 @@ O replay separado do perfil v2 reconheceu os dez nomes, e os cinco campos confer
 
 A revisão separada `pilot-review.json` é vinculada ao SHA-256 do `session.json`. O manifesto e os frames originais são preservados; a correção não é apresentada como nova execução ao vivo. Relatório local do replay: `.cache/youkai-p1/p2-live-pilot-replay.json`, com nova sessão/HTML separados. Conferência dos campos por assistente não é aprovação humana da conta nem aceite do inventário inteiro.
 
-O piloto demonstra percurso limitado e legibilidade neste ambiente, com cópias reais preservadas. Essa coleta de dez posições não exercitou F8/foco/geometria durante o fluxo. O F8 foi conferido posteriormente na sessão registrada abaixo. A perda de foco também foi conferida posteriormente. Geometria, filtro B em imagem real, percurso completo e outras resoluções continuam pendentes.
+O piloto demonstra percurso limitado e legibilidade neste ambiente, com cópias reais preservadas. Essa coleta de dez posições não exercitou F8/foco/geometria durante o fluxo. O F8 foi conferido posteriormente na sessão registrada abaixo. A perda de foco também foi conferida posteriormente. Movimentação da janela também foi conferida posteriormente. Filtro B em imagem real, percurso completo, mudança real de tamanho/DPI e outras resoluções continuam pendentes.
 
 ## Próximo aceite
 
 1. Concluir o aceite a partir da sessão já conferida e de seu replay corrigido. Não repetir as dez posições sem uma divergência que exija isso.
-2. F8 em curso e perda de foco confirmados em sessões separadas. Validar mudança de geometria com `-Run -TestGeometry`. Analisar a sessão antes de repetir.
+2. F8 em curso, perda de foco e movimentação da janela confirmados em sessões separadas. Não repetir por rotina; seguir para a transição limitada P3.2.
 3. Regressar casos novos e corrigir divergências. Obter referências reais de B, nível intermediário, progressão 5 e lock destravado antes de generalizar precisão.
 4. Com P2 aceito, iniciar P3: rolagem/fim, contagem S/A independente, duas coletas conferidas e pacote Windows. Consolidação com HSR permanece em P4.
 
@@ -149,7 +149,7 @@ Os dez hashes de frames foram conferidos, assim como 260 arquivos upstream contr
 
 Esse relatório histórico não tem instante/snapshot da mudança de foco; confirma o caminho de parada e o log final de ações, sem medir latência ou o instante exato do Alt+Tab. As próximas sessões registram `guardStop`: motivo, instante monotônico e contagens de pressionamentos/movimentos observados na primeira recusa, além da comparação dessas contagens no encerramento. Isso continua sendo observação de software, sem tornar atômicas a consulta de janela e a emissão nativa de input.
 
-## Próximo ensaio: mudança de geometria com pausa
+## Mudança de geometria com pausa — roteiro já validado
 
 **Objetivo:** recusar continuar com coordenadas antigas após mover a janela. O scanner espera parado depois de ler o primeiro item; não é necessário disputar o mouse durante as seleções.
 
@@ -168,4 +168,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\s
 
 Alt+Tab, F8, listener indisponível ou nenhuma mudança em 30 segundos encerram sem aprovar este teste. Se houver qualquer comportamento inesperado, usar F8 e enviar a sessão com essa informação. Não repetir sem análise. Mover a janela é o caso real pedido; mudança de tamanho/DPI tem cobertura simulada, sem alegar validação ao vivo de todos os casos.
 
-Implementação conferida por **102 testes aprovados**, incluindo os 89 anteriores e 13 casos adicionais: posição/tamanho/DPI pelo fluxo com Win32 simulado, foco/F8 distintos de geometria, tempo esgotado, sessão parcial, restrição de argumentos e registro da primeira recusa. Nenhum input nativo foi emitido pelos testes. A validação real de geometria segue pendente. Depois dela, executar a transição limitada de [P3.2](zzz-transition.md); P3.3 depende dessa evidência.
+Implementação conferida por **102 testes aprovados**, incluindo os 89 anteriores e 13 casos adicionais: posição/tamanho/DPI pelo fluxo com Win32 simulado, foco/F8 distintos de geometria, tempo esgotado, sessão parcial, restrição de argumentos e registro da primeira recusa. Nenhum input nativo foi emitido pelos testes. A movimentação real da janela foi validada na sessão abaixo. Executar agora a transição limitada de [P3.2](zzz-transition.md); P3.3 depende dessa evidência.
+
+## Movimentação da janela confirmada — 22/10/2026
+
+Sessão `.cache/youkai-p1/runs/20261022-120911-985f905a-selection/`, leitor do commit `94d1158`: `geometryTest.passed: true`, `status: stopped`, motivo `game-geometry-or-DPI-changed`. A guarda detectou a origem cliente saindo de `(320,191)` para `(328,193)`, mantendo 1280×720 e DPI 96. Após a observação, as contagens permaneceram em dois pressionamentos e 71 movimentos de mouse solicitados pelo scanner. Houve dois pares de pressionamento/liberação anteriores à pausa e nenhum erro de cleanup. A parada pode ocorrer no primeiro deslocamento do arraste; não é necessário completar um movimento grande para a guarda recusar continuar. O relatório não mede latência desde o início da ação humana.
+
+Uma leitura permaneceu salva: Steel Cushion, S, 60/60, progressão 1, travado, com destaque na primeira célula; campos conferidos visualmente pelo assistente. A posição `captured-pending` é do clique de preparação anterior. Foram conferidos 13 hashes de frames, a imagem da posição, os hashes dos módulos do leitor e 260 arquivos upstream. A revisão separada `geometry-test-review.json` está vinculada ao SHA-256 `920636a381be21ece785e457267e1bfc5f870c1b08f0c6b093fcd3b323dd8af3` do manifesto, preservado.
+
+Com essa evidência, os ensaios reais de F8, foco e origem das coordenadas estão conferidos no ambiente inicial. Mudança de tamanho/DPI continua simulada; não há aprovação humana de inventário nem percurso completo aceito. Não repetir os ensaios por rotina. O próximo passo é a [primeira transição real](zzz-transition.md), sem implementação adicional antes de medir seu comportamento.
