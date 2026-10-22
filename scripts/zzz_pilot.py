@@ -245,6 +245,12 @@ def wait_for_panel(grab, calibration, grid, limit, expected, check, record, *, t
 
 
 def render_review(path, report):
+    summary = ""
+    if "stopTest" in report:
+        result = "PASSED" if report["stopTest"].get("passed") else "NOT PASSED" if report["status"] == "stopped" else "PENDING"
+        summary += f"<p>Stop test: {result}. Full details are in session.json.</p>"
+    if report.get("mode") == "zzz-transition":
+        summary += "<p>One viewport transition. Selected cell after movement: row 3, column 1. Absolute inventory position and inventory end remain unconfirmed.</p>"
     rows = []
     for observation in report.get("observations", []):
         reading = observation.get("reading", {})
@@ -258,9 +264,9 @@ def render_review(path, report):
                     f'<td>{html.escape(reading.get("scope", "pending"))}<pre>{html.escape(json.dumps(fields, ensure_ascii=False, indent=2))}</pre>'
                     f'{html.escape(observation.get("reason", ""))}'
                     f'<details><summary>Raw OCR / original comparison</summary><pre>{html.escape(json.dumps(reading, ensure_ascii=False, indent=2))}</pre></details></td><td>{image}</td></tr>')
-    path.write_text('<!doctype html><meta charset="utf-8"><title>ZZZ pilot review</title>'
+    path.write_text('<!doctype html><meta charset="utf-8"><title>ZZZ session review</title>'
                     '<style>body{font:14px sans-serif;background:#202020;color:#eee}td{padding:12px;border:1px solid #666;vertical-align:top}img{max-width:55vw}</style>'
-                    f'<h1>ZZZ pilot — {html.escape(report["status"])}</h1>'
+                    f'<h1>{html.escape(report.get("mode", "ZZZ"))} — {html.escape(report["status"])}</h1>{summary}'
                     '<p>Unreviewed diagnostic. A pilot is not a complete or approved inventory. B-rank observations are excluded; uncertain rank remains pending.</p>'
                     '<p><a href="session.json">Full session JSON</a></p><table><tr><th>Position</th><th>Status</th><th>Fields / scope</th><th>Original frame</th></tr>'
                     + ''.join(rows) + '</table>', encoding='utf-8')

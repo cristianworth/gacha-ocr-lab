@@ -16,11 +16,34 @@ class ProbeStopped(RuntimeError):
     pass
 
 
+class StopTrialFinished(ProbeStopped):
+    def __init__(self, passed):
+        self.passed = passed
+        super().__init__("F8" if passed else "stop-test-no-second-F8-within-30-seconds")
+
+
+def await_stop_trial(event, guard, report, save, *, timeout=30, notify=None):
+    report["stopTest"].update({"checkpointReached": True, "pressRequestsAtCheckpoint": guard.presses})
+    save()
+    print("STOP TEST PAUSED after first reading. Press and release F8 AGAIN now (30 seconds). No more clicks while waiting.", flush=True)
+    if notify is not None:
+        try:
+            report["stopTest"]["audibleCueSucceeded"] = bool(notify())
+        except Exception as exc:
+            report["stopTest"]["audibleCueError"] = str(exc)
+        save()
+    observed = event.wait(timeout)
+    report["stopTest"].update({"signalObservedAtCheckpoint": observed, "passed": observed,
+                              "pressRequestsAtSignalObservation": guard.presses if observed else None})
+    save()
+    raise StopTrialFinished(observed)
+
+
 def save_report(path, report):
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
-    if report.get("mode", "").startswith("zzz-pilot"):
+    if report.get("mode", "").startswith("zzz-"):
         from zzz_pilot import render_review
         render_review(path.with_name("review.html"), report)
 
@@ -107,6 +130,8 @@ def collect_prefix(navigator, limit, consume, observations, *, columns=None):
         observation["status"] = "captured"
         try:
             consume(index, frame, observation)
+        except StopTrialFinished:
+            raise
         except Exception as exc:
             observation.update({"status": "failed", "reason": str(exc)})
             raise
@@ -155,6 +180,8 @@ def main():
     parser.add_argument("--stop-receipt", type=Path)
     parser.add_argument("--limit", type=int, choices=(2, 3, 10), default=3)
     parser.add_argument("--pilot", action="store_true")
+    parser.add_argument("--test-stop", action="store_true")
+    parser.add_argument("--transition", action="store_true")
     parser.add_argument("--image", type=Path)
     parser.add_argument("--client")
     args = parser.parse_args()
@@ -162,6 +189,12 @@ def main():
         parser.error("ten positions require --pilot")
     if args.image is not None and (not args.pilot or args.run or args.check_stop or not args.client):
         parser.error("--image requires --pilot --client and cannot emit live inputs")
+    if args.test_stop and (not args.run or not args.pilot or args.transition or args.image):
+        parser.error("--test-stop requires a live pilot, without image/transition")
+    if args.transition:
+        if not args.pilot or args.image or args.check_stop:
+            parser.error("--transition requires --pilot, without image/check-stop")
+        args.limit = 1
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     report_path = output / "session.json"
@@ -176,6 +209,11 @@ def main():
                        "requiresManualReview": True})
         report["observations"] = [{"position": i, "row": i // 9, "column": i % 9, "status": "not-visited"}
                                   for i in range(1 if args.image else args.limit)]
+    if args.test_stop:
+        report["stopTest"] = {"requested": True, "checkpointReached": False, "passed": False}
+    if args.transition:
+        report.update({"mode": "zzz-transition", "coverageConfirmed": False, "endOfInventory": None})
+        report["observations"] = [{"position": 0, "row": 2, "column": 0, "status": "not-visited"}]
     listener = None
     event = None
     guarded_mouse = None
@@ -195,7 +233,7 @@ def main():
         report["unchangedSourceFiles"] = offline.verify_source(args.cache, args.cache / f"youkai-{offline.SHA}")
         if args.pilot:
             report["readerSourceSha256"] = {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-                                             for name in ("zzz_pilot.py", "youkai_selection.py")}
+                                             for name in (("zzz_pilot.py", "youkai_selection.py", "zzz_transition.py") if args.transition else ("zzz_pilot.py", "youkai_selection.py"))}
         if args.image is not None:
             from PIL import Image
             from zzz_pilot import read_frame
@@ -277,7 +315,10 @@ def main():
             save_report(receipt_path, receipt)
             report["stopReceipt"] = str(receipt_path)
             event.clear()
-        print(f"F8 verified. Release it. {args.limit}-position proof in 5 seconds; F8/Ctrl+C now stops. Exclusive controls.", flush=True)
+        if args.test_stop:
+            print("This is a STOP TEST: after the first reading, wait for the pause and press F8 a second time.", flush=True)
+        purpose = "One-transition test" if args.transition else f"{args.limit}-position proof"
+        print(f"F8 verified. Release it. {purpose} in 5 seconds; F8/Ctrl+C now stops. Exclusive controls.", flush=True)
         time.sleep(5)
         if event.is_set():
             raise ProbeStopped("stopped-before-focus")
@@ -317,8 +358,11 @@ def main():
 
         targets = [calibration.to_screen(*grid.DEFAULT_GRID.cell_center(i % grid.DEFAULT_GRID.columns,
                    i // grid.DEFAULT_GRID.columns if args.pilot else 0)) for i in range(args.limit)]
+        if args.transition:
+            targets = [calibration.to_screen(*grid.DEFAULT_GRID.cell_center(0, 3))]
         guard = InputGuard(check_window, lambda: event.is_set() or not listener.is_alive(), targets,
-                           1 + args.limit * (1 + grid.PANEL_STUCK_RECLICKS), timeout=180 if args.pilot else 60)
+                           (1 if args.transition else 1 + args.limit * (1 + grid.PANEL_STUCK_RECLICKS)),
+                           timeout=30 if args.transition else 180 if args.pilot else 60)
         report["targets"] = targets
         report["pressBudget"] = guard.max_presses
         report["frames"] = []
@@ -369,6 +413,17 @@ def main():
 
         raw_mouse = pynput.mouse.Controller()
         guarded_mouse = GuardedMouse(raw_mouse, guard)
+        if args.transition:
+            from zzz_transition import run_transition
+            report["status"] = "running"
+            save_report(report_path, report)
+            def record_transition(frame, evidence):
+                capture_and_record(frame=frame)
+                report["frames"][-1]["transitionCheck"] = evidence
+                save_report(report_path, report)
+            run_transition(calibration, original_grab, guarded_mouse, guard, record_transition,
+                           report, output, lambda: save_report(report_path, report), grid.DEFAULT_GRID)
+            return 0
         navigator = grid.GridNavigator(guarded_capture, calibration, kill_event=event, debug_dir=output / "upstream-debug")
         def consume(index, frame, observation):
             guard.check()
@@ -389,6 +444,9 @@ def main():
                 observation.update({"reading": read_frame(frame, calibration, output / f"reading-{index:02d}"),
                                     "status": "read", "selectionVerified": True, "humanApproved": False})
                 save_report(report_path, report)
+                if args.test_stop and index == 0:
+                    await_stop_trial(event, guard, report, lambda: save_report(report_path, report),
+                                     notify=lambda: ctypes.windll.kernel32.Beep(880, 200))
                 return
             item, confidence = scan_single_frame_engine(frame, calibration, archive_dir=output / f"ocr-{index:02d}")
             observation.update({"status": "read" if item else "ocr-failed", "originalOutput": item.to_dict() if item else None,
@@ -416,10 +474,19 @@ def main():
         if event.is_set():
             report["reason"] = "F8"
         result_code = 0
+    except StopTrialFinished as exc:
+        report.update({"status": "stopped", "reason": str(exc)})
+        result_code = 0 if exc.passed else 1
     except KeyboardInterrupt:
         report.update({"status": "stopped", "reason": "Ctrl+C"})
     except Exception as exc:
         report.update({"status": "stopped", "reason": str(exc)})
+        if args.transition and report["observations"][0]["status"] != "read":
+            report["observations"][0].update({"status": "failed", "reason": str(exc)})
+        if args.test_stop and event is not None and event.is_set() and guard is not None and guard.presses > 0:
+            report["stopTest"].update({"passed": True, "signalObservedBeforeCheckpoint": True})
+            report["reason"] = "F8"
+            result_code = 0
         print(f"Probe stopped: {exc}")
     finally:
         cleanup_errors = []
@@ -440,10 +507,25 @@ def main():
                            "selectionDeliveryVerified": False})
         if cleanup_errors:
             report["cleanupErrors"] = cleanup_errors
+            if args.test_stop:
+                report["stopTest"]["passed"] = False
+                result_code = 1
+        if args.test_stop and report["stopTest"].get("pressRequestsAtSignalObservation") is not None:
+            unchanged = guard.presses == report["stopTest"]["pressRequestsAtSignalObservation"]
+            report["stopTest"]["noPressesAfterSignalObservation"] = unchanged
+            report["stopTest"]["passed"] = report["stopTest"]["passed"] and unchanged
         if event is not None and args.run:
             report["stopObservedDuringRun"] = event.is_set()
+        if args.pilot:
+            report["processedPositions"] = sum(o["status"] == "read" for o in report["observations"])
+            report["scopeCounts"] = {scope: sum(o.get("reading", {}).get("scope") == scope for o in report["observations"])
+                                     for scope in ("included", "excluded-B", "pending-rarity")}
+            if not args.transition and args.image is None:
+                report["pilotTraversalComplete"] = report["processedPositions"] == args.limit and not args.test_stop
         report["endedAt"] = datetime.now(timezone.utc).isoformat()
         save_report(report_path, report)
+        if args.test_stop:
+            print("STOP TEST PASSED" if report["stopTest"]["passed"] else "STOP TEST NOT PASSED")
         print(f"Qualification report: {report_path}")
     return result_code
 

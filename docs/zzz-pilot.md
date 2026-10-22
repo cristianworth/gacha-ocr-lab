@@ -35,7 +35,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\s
 
 Pressione e solte F8 quando solicitado. Após cinco segundos, o processo pede foco ao jogo. Reserve os controles; F8 novamente interrompe. O terminal informa `session.json`; abra `review.html` na mesma pasta e confira destaque, painel e campos. Envie o caminho da sessão para análise.
 
-Sem `-Run` e sem imagem, só confere metadados/acesso, sem captura/foco/inputs. `-Run -Limit 3` permite ensaio deliberado de interrupção, sem repetir a prova anterior como resultado novo.
+Sem `-Run` e sem imagem, só confere metadados/acesso, sem captura/foco/inputs. `-Run -Limit 3` continua sendo uma coleta normal curta. Para validar interrupção, use o modo explícito `-Run -TestStop` abaixo.
 
 Para arquivo salvo, sem jogo aberto ou elevação:
 
@@ -44,6 +44,26 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\s
 ```
 
 Captura cliente sem borda usa `-ClientArea "0,0,1280,720"`. O recorte explícito deve caber na imagem e ter 1280×720; não há redimensionamento. `read-youkai-image.ps1` continua disponível para comparação original.
+
+## Teste explícito de parada F8
+
+**Objetivo:** interromper uma sessão que já começou, antes dos itens seguintes. Existem dois momentos distintos de F8.
+
+1. Deixar ZZZ em W-Engines, no topo, inglês, janela 1280×720/100%. Abrir PowerShell como Administrador.
+2. Executar:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\scripts\pilot-zzz.ps1" -Run -TestStop
+```
+
+3. Na primeira solicitação, pressionar e soltar **F8 uma vez**. Isso apenas confirma que a tecla é detectada.
+4. Esperar os cinco segundos e a seleção/leitura do primeiro item. O processo então **para de clicar e aguarda**, imprime `STOP TEST PAUSED` e solicita um beep curto. Manter o jogo em primeiro plano; não usar Alt+Tab para procurar a mensagem no terminal. Se não ouvir o som, a pausa no primeiro item continua sendo a indicação visual.
+5. Nessa pausa, pressionar e soltar **F8 novamente**, em até 30 segundos. A sessão deve encerrar com resultado parcial, sem continuar para as próximas leituras. O clique de preparação original acontece antes da primeira leitura.
+6. Enviar **só o caminho de `session.json`** informado ao final. Se não houver caminho, enviar a mensagem de erro.
+
+**Resultado esperado:** terminal mostra `STOP TEST PASSED`; relatório com `status: stopped`, `stopObservedDuringRun: true`, `stopTest.passed: true`, prefixo incompleto e nenhum novo pressionamento após a observação do sinal. A primeira leitura já salva permanece disponível. O comando não exige acertar uma janela curta entre cliques; ele espera o segundo sinal. Se houver apenas o F8 inicial, após 30 segundos registra `stopTest.passed: false` e o motivo, sem transformar uma coleta normal em prova de parada.
+
+Esse teste comprova F8; perdas de foco/geometria exigem ensaios próprios. O beep foi testado com API simulada; não depende dele para detectar a tecla.
 
 ## Saídas e estados
 
@@ -87,3 +107,11 @@ O piloto demonstra percurso limitado e legibilidade neste ambiente, com cópias 
 2. Em ensaio curto separado, testar F8 em curso e recusa de novos inputs ao perder foco/mudar geometria. Analisar cada sessão antes de repetir.
 3. Regressar casos novos e corrigir divergências. Obter referências reais de B, nível intermediário, progressão 5 e lock destravado antes de generalizar precisão.
 4. Com P2 aceito, iniciar P3: rolagem/fim, contagem S/A independente, duas coletas conferidas e pacote Windows. Consolidação com HSR permanece em P4.
+
+## Sessão curta posterior — 22/10/2026
+
+Sessão `.cache/youkai-p1/runs/20261022-105744-926f1c32-selection/`: três posições concluídas, quatro pares de pressionamento/liberação, todos os campos conferidos visualmente pelo assistente e 22 hashes de frames verificados. Os nomes do perfil v2 conferem sem correção adicional. O relatório registra `prefix-read`, prefixo completo e `stopObservedDuringRun: false`.
+
+Cristian esclareceu que apertou apenas o F8 inicial. Portanto foi uma coleta normal bem-sucedida, e não um teste de interrupção nem uma falha demonstrada do listener. A revisão `session-review.json` é separada e vinculada ao hash do manifesto. Os hashes do código correspondem ao commit `66fc626` com finais de linha CRLF. Não houve alteração do manifesto original nem aprovação humana dos campos.
+
+Foi criado `-TestStop` para tornar o segundo sinal explícito e aguardá-lo. O primeiro recorte de implementação P3.2, [uma transição de grade](zzz-transition.md), também foi preparado; sua execução real continua pendente.

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param([switch]$CheckStop, [switch]$Run, [string]$StopReceipt, [ValidateSet(2,3,10)][int]$Limit = 3,
-      [switch]$Pilot, [string]$ImagePath, [string]$ClientArea)
+      [switch]$Pilot, [string]$ImagePath, [string]$ClientArea, [switch]$TestStop, [switch]$Transition)
 
 $ErrorActionPreference = 'Stop'
 if ($CheckStop -and $Run) { throw 'Choose CheckStop or Run.' }
@@ -30,6 +30,8 @@ foreach ($name in $environment.Keys) {
 try {
     $probeArgs = @((Join-Path $PSScriptRoot 'youkai_selection.py'), $cacheRoot, $runRoot, '--limit', $Limit)
     if ($Pilot) { $probeArgs += '--pilot' }
+    if ($TestStop) { $probeArgs += '--test-stop' }
+    if ($Transition) { $probeArgs += '--transition' }
     if ($ImagePath) { $probeArgs += @('--image', (Resolve-Path -LiteralPath $ImagePath).Path, '--client', $ClientArea) }
     if ($CheckStop) { $probeArgs += '--check-stop' }
     if ($Run) {

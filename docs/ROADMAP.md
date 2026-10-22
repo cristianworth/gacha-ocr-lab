@@ -155,6 +155,8 @@ Preservar a entrada, a captura, as paradas e o diagnóstico exercitados em P2. A
 
 ### P3.2 Ampliar uma transição de cada vez
 
+**Primeiro recorte implementado em 22/10/2026:** [ensaio de uma transição](zzz-transition.md), limitado a um clique na última linha, capturas antes/depois, scrollbar e sobreposição de miniaturas para confirmar avanço de exatamente uma linha. Leitura só após prova positiva; não infere índice global, cobertura ou término. Implementado/testado em simulação; primeira transição real e linha final parcial ainda pendentes. O modo pilot-zzz.ps1 -Run -TestStop torna a validação de F8 explícita antes desse ensaio.
+
 Exercitar uma passagem entre telas/linhas e a linha final parcial com limites pequenos antes da coleta completa. Reutilizar evidências de P2; não exigir novo piloto idêntico quando o comportamento já tiver sido conferido. Casos sintéticos cobrem estados indisponíveis na conta, com essa limitação explícita.
 
 ### P3.3 Rolagem, escopo S/A e término
@@ -208,4 +210,4 @@ Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reserv
 - Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
 - GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Próximo bloco:** concluir P2 com ensaios curtos de F8 em curso e recusa de novos inputs em perda de foco/geometria, mantendo sessões parciais. O piloto real de dez posições e seu replay corrigido já foram conferidos; não repetir por rotina. Regressar novos casos antes de aceitar P2 e iniciar percurso completo P3. Nova arquitetura geral só se a prova trouxer uma razão concreta.
+**Próximo bloco:** executar o teste F8 com pausa explícita e os ensaios de perda de foco/geometria, mantendo sessões parciais. A sessão curta posterior concluiu três leituras porque só houve confirmação F8 inicial; não comprova interrupção. P3.2 já tem implementação de uma transição, a validar no jogo após as paradas. Depois ampliar fronteiras/linha final, escopo S/A e término em P3.3. O piloto de dez posições já foi conferido; não repetir por rotina.

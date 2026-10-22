@@ -14,6 +14,8 @@ Laboratório de OCR local para inventários de gachas. Disponível: **uma imagem
 
 **Piloto ZZZ (P2):** o [comando de dez posições e leitor adaptado](docs/zzz-pilot.md) já gera JSON e revisão HTML. Nas três referências humanas, nome/nível/raridade/progressão conferem; progressão foi corrigida para 4/2/1. O piloto espera seleção/painel estáveis, preserva cópias e mantém incertezas. O primeiro ensaio real percorreu dez posições, preservando duas cópias. Quatro nomes truncados ficaram incertos e receberam correção offline no perfil v2. As paradas em curso ainda precisam de teste real; não há inventário completo aceito.
 
+**Parada e primeira transição:** o piloto oferece [teste F8 com pausa explícita](docs/zzz-pilot.md#teste-explícito-de-parada-f8), para aguardar o segundo sinal após a primeira leitura. P3.2 tem [comando de uma transição](docs/zzz-transition.md), com um clique e verificação de deslocamento por sobreposição/scrollbar. Os novos fluxos foram testados em simulação; paradas e rolagem reais ainda precisam de ensaio.
+
 ## Instalar e executar
 
 Node.js **22+** e npm; verificado no Windows/Node 24.20.0. Sem API paga ou credenciais para OCR.
