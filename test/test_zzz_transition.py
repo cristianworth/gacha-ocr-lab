@@ -52,10 +52,10 @@ def test_scrollbar_geometry_matches_observed_top_and_direction():
     assert scrollbar_top(after,calibration)>scrollbar_top(before,calibration)
 
 
-def transition_fixture(tmp_path,monkeypatch,*,shift=1,thumb=162,count=100):
+def transition_fixture(tmp_path,monkeypatch,*,shift=1,thumb=162,count=100,selected=9):
     import zzz_transition
-    before=viewport();after=viewport(shift,18,thumb)
-    clicked=[False];records=[]
+    before=viewport();primed=viewport(selected=18);after=viewport(shift,selected,thumb)
+    clicked=[False];wheeled=[False];records=[]
     guard=SimpleNamespace(check=Mock())
     # Time is simulated; capture/selection checks still inspect synthetic frames.
     now=[0.0]
@@ -65,19 +65,25 @@ def transition_fixture(tmp_path,monkeypatch,*,shift=1,thumb=162,count=100):
     monkeypatch.setattr(zzz_transition,'wait_for_panel',wait)
     report={'globalCountCandidate':count,'observations':[{'position':0,'status':'not-visited'}]}
     def click(mouse,x,y):
-        assert (x,y)==calibrate(before).to_screen(*DEFAULT_GRID.cell_center(0,3))
+        assert (x,y)==calibrate(before).to_screen(*DEFAULT_GRID.cell_center(0,2))
         assert not clicked[0]
         clicked[0]=True
     reader=Mock(return_value={'scope':'included','fields':{}})
-    args=(calibrate(before),lambda:after if clicked[0] else before,object(),guard,
+    def wheel(dx,dy):
+        assert clicked[0] and not wheeled[0] and (dx,dy)==(0,-1)
+        wheeled[0]=True
+    mouse=SimpleNamespace(position=(0,0),scroll=Mock(side_effect=wheel))
+    args=(calibrate(before),lambda:after if wheeled[0] else primed if clicked[0] else before,mouse,guard,
           lambda frame,evidence:records.append(evidence),report,tmp_path,Mock(),DEFAULT_GRID)
     return args,dict(click=click,reader=reader),clicked,records,report,guard,reader
 
 
-def test_single_bottom_click_reads_one_post_transition_item_and_keeps_coverage_unknown(tmp_path,monkeypatch):
+def test_single_selection_and_wheel_read_one_item_and_keep_coverage_unknown(tmp_path,monkeypatch):
     args,kwargs,clicked,records,report,guard,reader=transition_fixture(tmp_path,monkeypatch)
     run_transition(*args,**kwargs)
     assert clicked==[True] and reader.call_count==1
+    args[2].scroll.assert_called_once_with(0,-1)
+    assert args[2].position==calibrate(viewport()).to_screen(*DEFAULT_GRID.cell_center(4,1))
     assert report['transition']['verified'] is True
     assert report['status']=='transition-read'
     assert report['coverageConfirmed'] is False and report['endOfInventory'] is None
@@ -141,7 +147,7 @@ def test_successful_read_is_preserved_when_stop_trial_aborts_the_iterator():
     assert [entry['status'] for entry in observations]==['read','not-visited','not-visited']
 
 
-@pytest.mark.parametrize('trial,outcome', [('stop','signal'),('stop','timeout'),('geometry','position'),('geometry','size'),('geometry','dpi'),('geometry','focus'),('geometry','f8')])
+@pytest.mark.parametrize('trial,outcome', [('stop','signal'),('stop','timeout'),('geometry','position'),('geometry','size'),('geometry','dpi'),('geometry','focus'),('geometry','f8'),('transition','one-row'),('transition','stationary'),('transition','focus-after-wheel')])
 def test_paused_trial_cli_preserves_reading_and_distinguishes_stop_causes(tmp_path,monkeypatch,capsys,trial,outcome):
     import ctypes
     import json
@@ -152,7 +158,7 @@ def test_paused_trial_cli_preserves_reading_and_distinguishes_stop_causes(tmp_pa
     import zzz_pilot
     from youkai_ocr import capture,grid,recognize,wengine_scanner
     repo=Path(__file__).resolve().parents[1]
-    frame=make_frame(selected=0);calibration=calibrate(frame)
+    frame=viewport(selected=0) if trial=='transition' else make_frame(selected=0);calibration=calibrate(frame)
     window={'hwnd':1,'title':'ZenlessZoneZero','left':0,'top':0,'w':1280,'h':720}
     monkeypatch.setattr(ctypes.windll.user32,'SetProcessDPIAware',Mock())
     current={'position':(0,0),'size':(1280,720),'dpi':96,'foreground':1}
@@ -175,7 +181,12 @@ def test_paused_trial_cli_preserves_reading_and_distinguishes_stop_causes(tmp_pa
     monkeypatch.setattr(win32process,'GetWindowThreadProcessId',lambda hwnd:(1,42))
     monkeypatch.setattr(selection,'integrity_level',lambda *args:12288)
     monkeypatch.setattr(capture,'list_game_windows',lambda:[window])
-    monkeypatch.setattr(capture,'calibrate_window',lambda:(calibration,lambda:frame))
+    def grab():
+        if trial!='transition':return frame
+        if 'scroll' in native_events:
+            return viewport(1,9,162) if outcome=='one-row' else viewport(selected=18)
+        return viewport(selected=18) if 'press' in native_events else frame
+    monkeypatch.setattr(capture,'calibrate_window',lambda:(calibration,grab))
     monkeypatch.setattr(selection,'capture_once',lambda *args,**kwargs:(frame,calibration,window))
     monkeypatch.setattr(selection.time,'sleep',lambda seconds:None)
     class Event:
@@ -194,7 +205,10 @@ def test_paused_trial_cli_preserves_reading_and_distinguishes_stop_causes(tmp_pa
         position=(0,0)
         def press(self,button):native_events.append('press')
         def release(self,button):native_events.append('release')
-        def scroll(self,*args):raise AssertionError('native scroll forbidden')
+        def scroll(self,dx,dy):
+            assert trial=='transition' and (dx,dy)==(0,-1)
+            native_events.append('scroll')
+            if outcome=='focus-after-wheel':current['foreground']=2
     monkeypatch.setattr(pynput.mouse,'Controller',Mouse)
     class Navigator:
         incomplete=None
@@ -211,14 +225,39 @@ def test_paused_trial_cli_preserves_reading_and_distinguishes_stop_causes(tmp_pa
     def header(frame,calib,reader):
         reader.read_line(frame,'white_text_on_dark');return 1567
     monkeypatch.setattr(wengine_scanner,'read_engine_count',header)
+    real_panel_wait=zzz_pilot.wait_for_panel
     def wait(grab,calib,grid,limit,expected,check,record):
+        if trial=='transition':
+            now=[0.0]
+            return real_panel_wait(grab,calib,grid,limit,expected,check,record,clock=lambda:now[0],sleep=lambda seconds:now.__setitem__(0,now[0]+seconds))
         check();image=grab();record(image,{'expectedPosition':expected,'selectedPositions':[expected],'settled':True});return image
     monkeypatch.setattr(zzz_pilot,'wait_for_panel',wait)
+    if trial=='transition':
+        import zzz_transition
+        monkeypatch.setattr(zzz_transition,'wait_for_panel',wait)
+        monkeypatch.setattr(zzz_transition,'read_frame',lambda *args:{'scope':'included','fields':{}})
     monkeypatch.setattr(zzz_pilot,'read_frame',lambda *args:{'scope':'included','fields':{}})
     monkeypatch.setattr(sys,'argv',['youkai_selection.py',str(repo/'.cache/youkai-p1'),str(tmp_path),
-                                   '--pilot','--run','--limit','3',f'--test-{trial}'])
+                                   '--pilot','--run','--limit','3',('--transition' if trial=='transition' else f'--test-{trial}')])
     result=selection.main()
     report=json.loads((tmp_path/'session.json').read_text())
+    if trial=='transition':
+        assert report['pressRequests']==report['scrollRequests']==1
+        assert report['scrollBudget']==1 and native_events==['press','release','scroll']
+        assert report['captureComplete'] is False and report['inventoryAccepted'] is False
+        if outcome=='one-row':
+            assert result==0 and report['status']=='transition-read'
+            assert report['transition']['verified'] is True and report['processedPositions']==1
+            assert report['observations'][0]['row']==1
+        else:
+            assert result==1 and report['status']=='stopped' and report['processedPositions']==0
+            if outcome=='stationary':
+                assert report['transition']['selectionSettled'] is False
+                assert Path(report['observations'][0]['frame']).exists()
+            else:
+                assert report['reason']=='game-focus-lost'
+                assert report['guardStop']['noScrollsAfterObservation'] is True
+        return
     passed=outcome in ('signal','position','size','dpi')
     assert result==(0 if passed else 1)
     assert report['status']=='stopped' and report[f'{trial}Test']['passed'] is passed
@@ -283,3 +322,24 @@ def test_invalid_geometry_cli_combinations_fail_before_creating_session(tmp_path
     monkeypatch.setattr(sys,'argv',['youkai_selection.py',str(tmp_path/'cache'),str(tmp_path/'output'),*flags])
     with pytest.raises(SystemExit) as caught:selection.main()
     assert caught.value.code==2 and not (tmp_path/'output').exists()
+
+
+def test_wheel_without_movement_preserves_last_frame_and_motion_diagnostics(tmp_path,monkeypatch):
+    args,kwargs,clicked,records,report,guard,reader=transition_fixture(tmp_path,monkeypatch,shift=0,thumb=159,selected=18)
+    with pytest.raises(TransitionRejected,match='post-wheel-selection'):
+        run_transition(*args,**kwargs)
+    args[2].scroll.assert_called_once_with(0,-1)
+    assert reader.call_count==0 and report['transition']['verified'] is False
+    assert report['transition']['selectionSettled'] is False
+    assert report['transition']['overlap']['candidates'][0]['medianError']<1
+    assert Path(report['observations'][0]['frame']).exists()
+
+
+def test_focus_loss_after_wheel_blocks_capture_and_read(tmp_path,monkeypatch):
+    args,kwargs,clicked,records,report,guard,reader=transition_fixture(tmp_path,monkeypatch)
+    def check():
+        if args[2].scroll.called:raise RuntimeError('focus-lost')
+    guard.check.side_effect=check
+    with pytest.raises(RuntimeError,match='focus-lost'):run_transition(*args,**kwargs)
+    args[2].scroll.assert_called_once_with(0,-1)
+    assert reader.call_count==0 and all(record['stage']!='after' for record in records)

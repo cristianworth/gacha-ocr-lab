@@ -82,7 +82,8 @@ def save_report(path, report):
 
 
 class InputGuard:
-    def __init__(self, check_window, stopped, targets, max_presses, *, timeout=60, clock=time.monotonic):
+    def __init__(self, check_window, stopped, targets, max_presses, *, timeout=60, clock=time.monotonic,
+                 scroll_target=None, max_scrolls=0):
         self.check_window = check_window
         self.stopped = stopped
         self.targets = targets
@@ -91,6 +92,9 @@ class InputGuard:
         self.deadline = clock() + timeout
         self.presses = 0
         self.moves = 0
+        self.scrolls = 0
+        self.scroll_target = scroll_target
+        self.max_scrolls = max_scrolls
         self.events = []
         self.failure = None
 
@@ -104,7 +108,7 @@ class InputGuard:
         except ProbeStopped as exc:
             if self.failure is None:
                 self.failure = {"reason": str(exc), "at": self.clock(), "pressRequests": self.presses,
-                                "mouseMoves": self.moves}
+                                "mouseMoves": self.moves, "scrollRequests": self.scrolls}
             raise
 
     def press(self, point):
@@ -116,6 +120,20 @@ class InputGuard:
         self.presses += 1
         self.events.append({"event": "press-requested", "number": self.presses, "position": list(point),
                             "at": self.clock()})
+
+    def scroll(self, point, dx, dy):
+        self.check()
+        if not self.max_scrolls or self.scroll_target is None:
+            raise ProbeStopped("scroll-blocked: prepare the viewport at the top manually")
+        if (dx, dy) != (0, -1):
+            raise ProbeStopped("only-one-downward-wheel-step-is-allowed")
+        if any(abs(value - target) > 3 for value, target in zip(point, self.scroll_target)):
+            raise ProbeStopped("scroll-outside-approved-target")
+        if self.scrolls >= self.max_scrolls:
+            raise ProbeStopped("scroll-budget-exhausted")
+        self.scrolls += 1
+        self.events.append({"event": "scroll-requested", "number": self.scrolls, "position": list(point),
+                            "dx": dx, "dy": dy, "at": self.clock()})
 
 
 class GuardedMouse:
@@ -152,8 +170,8 @@ class GuardedMouse:
             self.guard.events.append({"event": "release", "at": self.guard.clock()})
 
     def scroll(self, dx, dy):
-        self.guard.check()
-        raise ProbeStopped("scroll-blocked: prepare the viewport at the top manually")
+        self.guard.scroll(self.mouse.position, dx, dy)
+        self.mouse.scroll(dx, dy)
 
     def close(self):
         for button in tuple(self.held):
@@ -261,7 +279,8 @@ def main():
         report["geometryTest"] = {"requested": True, "checkpointReached": False, "passed": False}
     if args.transition:
         report.update({"mode": "zzz-transition", "coverageConfirmed": False, "endOfInventory": None})
-        report["observations"] = [{"position": 0, "row": 2, "column": 0, "status": "not-visited"}]
+        from zzz_transition import RESULT_CELL
+        report["observations"] = [{"position": 0, "row": RESULT_CELL[1], "column": RESULT_CELL[0], "status": "not-visited"}]
     listener = None
     event = None
     guarded_mouse = None
@@ -367,6 +386,8 @@ def main():
             print("This is a STOP TEST: after the first reading, wait for the pause and press F8 a second time.", flush=True)
         if args.test_geometry:
             print("This is a GEOMETRY TEST: after the first reading, wait for the pause, then move the game window using its title bar.", flush=True)
+        if args.transition:
+            print("One middle-row selection, then ONE downward wheel step inside the grid. No automatic retry.", flush=True)
         purpose = "One-transition test" if args.transition else f"{args.limit}-position proof"
         print(f"F8 verified. Release it. {purpose} in 5 seconds; F8/Ctrl+C now stops. Exclusive controls.", flush=True)
         time.sleep(5)
@@ -377,7 +398,7 @@ def main():
         report["window"] = window
         initial_identity = (window["left"], window["top"], window["w"], window["h"])
         report["limit"] = args.limit
-        report["scrollAllowed"] = False
+        report["scrollAllowed"] = args.transition
         report["upstreamCountArgumentMeaning"] = "qualification-prefix-only; not the inventory total"
         header_reads = []
         recognizer = make_recognizer("tesseract")
@@ -411,13 +432,19 @@ def main():
 
         targets = [calibration.to_screen(*grid.DEFAULT_GRID.cell_center(i % grid.DEFAULT_GRID.columns,
                    i // grid.DEFAULT_GRID.columns if args.pilot else 0)) for i in range(args.limit)]
+        scroll_target = None
         if args.transition:
-            targets = [calibration.to_screen(*grid.DEFAULT_GRID.cell_center(0, 3))]
+            from zzz_transition import SOURCE_CELL, SCROLL_CELL
+            targets = [calibration.to_screen(*grid.DEFAULT_GRID.cell_center(*SOURCE_CELL))]
+            scroll_target = calibration.to_screen(*grid.DEFAULT_GRID.cell_center(*SCROLL_CELL))
         guard = InputGuard(check_window, lambda: event.is_set() or not listener.is_alive(), targets,
                            (1 if args.transition else 1 + args.limit * (1 + grid.PANEL_STUCK_RECLICKS)),
-                           timeout=30 if args.transition else 180 if args.pilot else 60)
+                           timeout=30 if args.transition else 180 if args.pilot else 60,
+                           scroll_target=scroll_target, max_scrolls=1 if args.transition else 0)
         report["targets"] = targets
         report["pressBudget"] = guard.max_presses
+        report["scrollBudget"] = guard.max_scrolls
+        report["scrollTarget"] = list(scroll_target) if scroll_target is not None else None
         report["frames"] = []
         frame_dir = output / "frames"
         frame_dir.mkdir()
@@ -558,12 +585,13 @@ def main():
             except Exception as exc:
                 cleanup_errors.append(f"listener cleanup: {exc}")
         if guard is not None:
-            report.update({"pressRequests": guard.presses, "mouseMoves": guard.moves,
+            report.update({"pressRequests": guard.presses, "scrollRequests": guard.scrolls, "mouseMoves": guard.moves,
                            "inputEvents": guard.events, "liveInputTested": guard.presses > 0,
                            "selectionDeliveryVerified": False})
         if guard is not None and guard.failure is not None:
             report["guardStop"] = {**guard.failure, "noPressesAfterObservation": guard.presses == guard.failure["pressRequests"],
-                                   "noMouseMovesAfterObservation": guard.moves == guard.failure["mouseMoves"]}
+                                   "noMouseMovesAfterObservation": guard.moves == guard.failure["mouseMoves"],
+                                   "noScrollsAfterObservation": guard.scrolls == guard.failure["scrollRequests"]}
         if cleanup_errors:
             report["cleanupErrors"] = cleanup_errors
             if args.test_stop:

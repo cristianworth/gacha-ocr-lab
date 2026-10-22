@@ -178,3 +178,34 @@ def test_original_navigator_reads_three_cells_using_only_guarded_public_mouse_ap
     assert click_columns == [1, 0, 1, 2]  # upstream prime, then the three positions
     assert guard.presses == 4
     assert not mouse.held
+
+
+@pytest.mark.parametrize('failure', ['stopped','window','wrong-target','up','horizontal','two-steps','budget'])
+def test_transition_wheel_guard_blocks_unapproved_native_scroll(failure):
+    check=Mock(side_effect=ProbeStopped('game-focus-lost')) if failure=='window' else Mock()
+    guard=InputGuard(check,lambda:failure=='stopped',[],0,clock=lambda:0,scroll_target=(100,200),max_scrolls=1)
+    raw=Mock();raw.position=(104,200) if failure=='wrong-target' else (100,200)
+    mouse=GuardedMouse(raw,guard)
+    delta={'up':(0,1),'horizontal':(1,-1),'two-steps':(0,-2)}.get(failure,(0,-1))
+    if failure=='budget':
+        mouse.scroll(0,-1)
+        raw.scroll.reset_mock()
+    with pytest.raises(ProbeStopped):mouse.scroll(*delta)
+    raw.scroll.assert_not_called()
+
+
+def test_transition_allows_one_downward_wheel_request_at_approved_point():
+    guard=InputGuard(Mock(),lambda:False,[],0,clock=lambda:0,scroll_target=(100,200),max_scrolls=1)
+    raw=Mock();raw.position=(100,200);mouse=GuardedMouse(raw,guard)
+    mouse.scroll(0,-1)
+    raw.scroll.assert_called_once_with(0,-1)
+    assert guard.scrolls==1 and guard.events[0]['event']=='scroll-requested'
+
+
+def test_stop_after_wheel_prevents_further_native_scroll():
+    guard=InputGuard(Mock(),lambda:False,[],0,clock=lambda:0,scroll_target=(100,200),max_scrolls=2)
+    raw=Mock();raw.position=(100,200);mouse=GuardedMouse(raw,guard)
+    mouse.scroll(0,-1);guard.stopped=lambda:True
+    with pytest.raises(ProbeStopped):mouse.scroll(0,-1)
+    assert raw.scroll.call_count==1 and guard.scrolls==1
+    assert guard.failure['scrollRequests']==1

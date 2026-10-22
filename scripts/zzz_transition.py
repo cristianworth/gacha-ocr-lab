@@ -3,10 +3,13 @@
 import hashlib
 import numpy as np
 
-from zzz_pilot import crop, read_frame, wait_for_panel
+from zzz_pilot import PanelNotReady, crop, read_frame, wait_for_panel
 
 # Same measured scrollbar geometry as pinned Youkai; no private API calls.
 SCROLLBAR = (1358, 232, 1373, 872)
+SOURCE_CELL = (0, 2)
+RESULT_CELL = (0, 1)
+SCROLL_CELL = (4, 1)
 
 
 class TransitionRejected(RuntimeError):
@@ -58,8 +61,9 @@ def run_transition(calibration, grab, mouse, guard, record, report, output, save
     click = click or natural_click
     reader = reader or read_frame
     report["transition"] = {"status": "preparing", "verified": False,
-                            "sourceViewportCell": {"row": 3, "column": 0},
-                            "resultViewportCell": {"row": 2, "column": 0},
+                            "method": "one middle-row selection plus one downward wheel step",
+                            "sourceViewportCell": {"row": SOURCE_CELL[1], "column": SOURCE_CELL[0]},
+                            "resultViewportCell": {"row": RESULT_CELL[1], "column": RESULT_CELL[0]},
                             "absoluteInventoryPositionConfirmed": False}
     save()
     if report["globalCountCandidate"] <= grid.columns * grid.rows_visible:
@@ -78,24 +82,47 @@ def run_transition(calibration, grab, mouse, guard, record, report, output, save
         "beforeFrameSha256": hashlib.sha256(before_path.read_bytes()).hexdigest()})
     save()
     guard.check()
-    # This is the same public natural_click + bottom-row cell used by Youkai's
-    # original scroll strategy, bounded here to a single transition.
-    click(mouse, *calibration.to_screen(*grid.cell_center(0, 3)))
-    after = wait_for_panel(grab, calibration, grid, 36, 18, guard.check,
-                           lambda frame, evidence: record(frame, {"stage": "after", **evidence}))
-    evidence = compare_viewports(before, after, calibration, grid)
-    top_after = scrollbar_top(after, calibration)
-    moved = top_after is not None and top_after - top_before >= 1.5
-    report["transition"].update({"status": "verified" if evidence["verified"] and moved else "unverified",
-                                "verified": evidence["verified"] and moved, "overlap": evidence,
-                                "scrollbarAfter": top_after, "scrollbarMovedDown": moved})
-    path = output / "position-00.png"
-    after.save(path)
-    observation = report["observations"][0]
-    observation.update({"status": "captured", "frame": str(path),
-        "frameSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-        "positionMeaning": "selected cell in post-transition viewport; not an absolute inventory index"})
+    # The real 1280x720 trial selected the bottom card without scrolling.
+    # Select an interior row, then measure exactly one explicit wheel request.
+    click(mouse, *calibration.to_screen(*grid.cell_center(*SOURCE_CELL)))
+    source_index = SOURCE_CELL[1] * grid.columns + SOURCE_CELL[0]
+    wait_for_panel(grab, calibration, grid, 36, source_index, guard.check,
+                   lambda frame, evidence: record(frame, {"stage": "selected-before-wheel", **evidence}))
+    guard.check()
+    mouse.position = calibration.to_screen(*grid.cell_center(*SCROLL_CELL))
+    report["transition"]["status"] = "wheel-requested"
     save()
+    mouse.scroll(0, -1)
+    latest = [None]
+    def record_after(frame, evidence):
+        latest[0] = frame
+        record(frame, {"stage": "after", **evidence})
+
+    def persist_after(frame, *, selection_settled):
+        evidence = compare_viewports(before, frame, calibration, grid)
+        top_after = scrollbar_top(frame, calibration)
+        moved = top_after is not None and top_after - top_before >= 1.5
+        verified = bool(selection_settled and evidence["verified"] and moved)
+        report["transition"].update({"status": "verified" if verified else "unverified",
+                                    "verified": verified, "overlap": evidence,
+                                    "scrollbarAfter": top_after, "scrollbarMovedDown": moved,
+                                    "selectionSettled": selection_settled})
+        path = output / "position-00.png"
+        frame.save(path)
+        report["observations"][0].update({"status": "captured", "frame": str(path),
+            "frameSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "positionMeaning": "expected selected cell in post-transition viewport; not an absolute inventory index"})
+        save()
+
+    result_index = RESULT_CELL[1] * grid.columns + RESULT_CELL[0]
+    try:
+        after = wait_for_panel(grab, calibration, grid, 36, result_index, guard.check, record_after)
+    except PanelNotReady as exc:
+        if latest[0] is not None:
+            persist_after(latest[0], selection_settled=False)
+        raise TransitionRejected("post-wheel-selection-or-panel-not-stable; inspect saved motion evidence") from exc
+    persist_after(after, selection_settled=True)
+    observation = report["observations"][0]
     if not report["transition"]["verified"]:
         raise TransitionRejected("one-row-transition-not-confirmed; inspect overlap and scrollbar evidence")
     guard.check()
