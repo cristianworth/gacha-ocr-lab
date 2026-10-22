@@ -249,6 +249,9 @@ def render_review(path, report):
     if "stopTest" in report:
         result = "PASSED" if report["stopTest"].get("passed") else "NOT PASSED" if report["status"] == "stopped" else "PENDING"
         summary += f"<p>Stop test: {result}. Full details are in session.json.</p>"
+    if "geometryTest" in report:
+        result = "PASSED" if report["geometryTest"].get("passed") else "NOT PASSED" if report["status"] == "stopped" else "PENDING"
+        summary += f"<p>Geometry test: {result}. Full details are in session.json.</p>"
     if report.get("mode") == "zzz-transition":
         summary += "<p>One viewport transition. Selected cell after movement: row 3, column 1. Absolute inventory position and inventory end remain unconfirmed.</p>"
     rows = []

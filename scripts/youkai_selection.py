@@ -16,10 +16,15 @@ class ProbeStopped(RuntimeError):
     pass
 
 
-class StopTrialFinished(ProbeStopped):
-    def __init__(self, passed):
+class TrialFinished(ProbeStopped):
+    def __init__(self, passed, reason):
         self.passed = passed
-        super().__init__("F8" if passed else "stop-test-no-second-F8-within-30-seconds")
+        super().__init__(reason)
+
+
+class StopTrialFinished(TrialFinished):
+    def __init__(self, passed):
+        super().__init__(passed, "F8" if passed else "stop-test-no-second-F8-within-30-seconds")
 
 
 def await_stop_trial(event, guard, report, save, *, timeout=30, notify=None):
@@ -37,6 +42,34 @@ def await_stop_trial(event, guard, report, save, *, timeout=30, notify=None):
                               "pressRequestsAtSignalObservation": guard.presses if observed else None})
     save()
     raise StopTrialFinished(observed)
+
+
+def await_geometry_trial(guard, report, save, *, timeout=30, notify=None, clock=time.monotonic, sleep=time.sleep):
+    trial = report["geometryTest"]
+    trial.update({"checkpointReached": True, "pressRequestsAtCheckpoint": guard.presses})
+    save()
+    print("GEOMETRY TEST PAUSED after first reading. Move the GAME WINDOW using its title bar now (30 seconds). Keep the game focused. No more scanner clicks.", flush=True)
+    if notify is not None:
+        try:
+            trial["audibleCueSucceeded"] = bool(notify())
+        except Exception as exc:
+            trial["audibleCueError"] = str(exc)
+        save()
+    deadline = clock() + timeout
+    while True:
+        try:
+            guard.check()
+        except ProbeStopped as exc:
+            passed = str(exc) == "game-geometry-or-DPI-changed"
+            trial.update({"passed": passed, "observedReason": str(exc),
+                          "pressRequestsAtObservation": guard.presses})
+            save()
+            raise TrialFinished(passed, str(exc)) from exc
+        if clock() >= deadline:
+            trial.update({"passed": False, "observedReason": "geometry-test-no-change-within-30-seconds"})
+            save()
+            raise TrialFinished(False, trial["observedReason"])
+        sleep(.05)
 
 
 def save_report(path, report):
@@ -59,13 +92,20 @@ class InputGuard:
         self.presses = 0
         self.moves = 0
         self.events = []
+        self.failure = None
 
     def check(self):
-        if self.stopped():
-            raise ProbeStopped("stop-requested-or-listener-unavailable")
-        if self.clock() >= self.deadline:
-            raise ProbeStopped("qualification-time-limit")
-        self.check_window()
+        try:
+            if self.stopped():
+                raise ProbeStopped("stop-requested-or-listener-unavailable")
+            if self.clock() >= self.deadline:
+                raise ProbeStopped("qualification-time-limit")
+            self.check_window()
+        except ProbeStopped as exc:
+            if self.failure is None:
+                self.failure = {"reason": str(exc), "at": self.clock(), "pressRequests": self.presses,
+                                "mouseMoves": self.moves}
+            raise
 
     def press(self, point):
         self.check()
@@ -130,7 +170,7 @@ def collect_prefix(navigator, limit, consume, observations, *, columns=None):
         observation["status"] = "captured"
         try:
             consume(index, frame, observation)
-        except StopTrialFinished:
+        except TrialFinished:
             raise
         except Exception as exc:
             observation.update({"status": "failed", "reason": str(exc)})
@@ -180,7 +220,9 @@ def main():
     parser.add_argument("--stop-receipt", type=Path)
     parser.add_argument("--limit", type=int, choices=(2, 3, 10), default=3)
     parser.add_argument("--pilot", action="store_true")
-    parser.add_argument("--test-stop", action="store_true")
+    trials = parser.add_mutually_exclusive_group()
+    trials.add_argument("--test-stop", action="store_true")
+    trials.add_argument("--test-geometry", action="store_true")
     parser.add_argument("--transition", action="store_true")
     parser.add_argument("--image", type=Path)
     parser.add_argument("--client")
@@ -191,6 +233,10 @@ def main():
         parser.error("--image requires --pilot --client and cannot emit live inputs")
     if args.test_stop and (not args.run or not args.pilot or args.transition or args.image):
         parser.error("--test-stop requires a live pilot, without image/transition")
+    if args.test_geometry and (not args.run or not args.pilot or args.transition or args.image):
+        parser.error("--test-geometry requires a live pilot, without image/transition")
+    if args.test_stop or args.test_geometry:
+        args.limit = 3
     if args.transition:
         if not args.pilot or args.image or args.check_stop:
             parser.error("--transition requires --pilot, without image/check-stop")
@@ -211,6 +257,8 @@ def main():
                                   for i in range(1 if args.image else args.limit)]
     if args.test_stop:
         report["stopTest"] = {"requested": True, "checkpointReached": False, "passed": False}
+    if args.test_geometry:
+        report["geometryTest"] = {"requested": True, "checkpointReached": False, "passed": False}
     if args.transition:
         report.update({"mode": "zzz-transition", "coverageConfirmed": False, "endOfInventory": None})
         report["observations"] = [{"position": 0, "row": 2, "column": 0, "status": "not-visited"}]
@@ -317,6 +365,8 @@ def main():
             event.clear()
         if args.test_stop:
             print("This is a STOP TEST: after the first reading, wait for the pause and press F8 a second time.", flush=True)
+        if args.test_geometry:
+            print("This is a GEOMETRY TEST: after the first reading, wait for the pause, then move the game window using its title bar.", flush=True)
         purpose = "One-transition test" if args.transition else f"{args.limit}-position proof"
         print(f"F8 verified. Release it. {purpose} in 5 seconds; F8/Ctrl+C now stops. Exclusive controls.", flush=True)
         time.sleep(5)
@@ -353,7 +403,10 @@ def main():
                 raise ProbeStopped("game-process-changed")
             _, _, w, h = win32gui.GetClientRect(hwnd)
             left, top = win32gui.ClientToScreen(hwnd, (0, 0))
-            if (left, top, w, h) != initial_identity or get_dpi(hwnd) != 96:
+            dpi = get_dpi(hwnd)
+            if (left, top, w, h) != initial_identity or dpi != 96:
+                report["windowChange"] = {"expectedClient": list(initial_identity), "observedClient": [left, top, w, h],
+                                          "expectedDpi": 96, "observedDpi": dpi}
                 raise ProbeStopped("game-geometry-or-DPI-changed")
 
         targets = [calibration.to_screen(*grid.DEFAULT_GRID.cell_center(i % grid.DEFAULT_GRID.columns,
@@ -447,6 +500,9 @@ def main():
                 if args.test_stop and index == 0:
                     await_stop_trial(event, guard, report, lambda: save_report(report_path, report),
                                      notify=lambda: ctypes.windll.kernel32.Beep(880, 200))
+                if args.test_geometry and index == 0:
+                    await_geometry_trial(guard, report, lambda: save_report(report_path, report),
+                                         notify=lambda: ctypes.windll.kernel32.Beep(880, 200))
                 return
             item, confidence = scan_single_frame_engine(frame, calibration, archive_dir=output / f"ocr-{index:02d}")
             observation.update({"status": "read" if item else "ocr-failed", "originalOutput": item.to_dict() if item else None,
@@ -474,7 +530,7 @@ def main():
         if event.is_set():
             report["reason"] = "F8"
         result_code = 0
-    except StopTrialFinished as exc:
+    except TrialFinished as exc:
         report.update({"status": "stopped", "reason": str(exc)})
         result_code = 0 if exc.passed else 1
     except KeyboardInterrupt:
@@ -505,11 +561,22 @@ def main():
             report.update({"pressRequests": guard.presses, "mouseMoves": guard.moves,
                            "inputEvents": guard.events, "liveInputTested": guard.presses > 0,
                            "selectionDeliveryVerified": False})
+        if guard is not None and guard.failure is not None:
+            report["guardStop"] = {**guard.failure, "noPressesAfterObservation": guard.presses == guard.failure["pressRequests"],
+                                   "noMouseMovesAfterObservation": guard.moves == guard.failure["mouseMoves"]}
         if cleanup_errors:
             report["cleanupErrors"] = cleanup_errors
             if args.test_stop:
                 report["stopTest"]["passed"] = False
                 result_code = 1
+        if args.test_geometry:
+            trial = report["geometryTest"]
+            if trial.get("pressRequestsAtObservation") is not None:
+                trial["noPressesAfterObservation"] = guard.presses == trial["pressRequestsAtObservation"]
+                trial["passed"] = trial["passed"] and trial["noPressesAfterObservation"]
+            if cleanup_errors:
+                trial["passed"] = False
+            result_code = 0 if trial["passed"] else 1
         if args.test_stop and report["stopTest"].get("pressRequestsAtSignalObservation") is not None:
             unchanged = guard.presses == report["stopTest"]["pressRequestsAtSignalObservation"]
             report["stopTest"]["noPressesAfterSignalObservation"] = unchanged
@@ -521,11 +588,13 @@ def main():
             report["scopeCounts"] = {scope: sum(o.get("reading", {}).get("scope") == scope for o in report["observations"])
                                      for scope in ("included", "excluded-B", "pending-rarity")}
             if not args.transition and args.image is None:
-                report["pilotTraversalComplete"] = report["processedPositions"] == args.limit and not args.test_stop
+                report["pilotTraversalComplete"] = report["processedPositions"] == args.limit and not (args.test_stop or args.test_geometry)
         report["endedAt"] = datetime.now(timezone.utc).isoformat()
         save_report(report_path, report)
         if args.test_stop:
             print("STOP TEST PASSED" if report["stopTest"]["passed"] else "STOP TEST NOT PASSED")
+        if args.test_geometry:
+            print("GEOMETRY TEST PASSED" if report["geometryTest"]["passed"] else "GEOMETRY TEST NOT PASSED")
         print(f"Qualification report: {report_path}")
     return result_code
 

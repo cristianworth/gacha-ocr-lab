@@ -141,8 +141,8 @@ def test_successful_read_is_preserved_when_stop_trial_aborts_the_iterator():
     assert [entry['status'] for entry in observations]==['read','not-visited','not-visited']
 
 
-@pytest.mark.parametrize('second_signal',[True,False])
-def test_stop_trial_cli_records_partial_session_and_distinguishes_only_initial_f8(tmp_path,monkeypatch,capsys,second_signal):
+@pytest.mark.parametrize('trial,outcome', [('stop','signal'),('stop','timeout'),('geometry','position'),('geometry','size'),('geometry','dpi'),('geometry','focus'),('geometry','f8')])
+def test_paused_trial_cli_preserves_reading_and_distinguishes_stop_causes(tmp_path,monkeypatch,capsys,trial,outcome):
     import ctypes
     import json
     import pynput.mouse
@@ -155,14 +155,23 @@ def test_stop_trial_cli_records_partial_session_and_distinguishes_only_initial_f
     frame=make_frame(selected=0);calibration=calibrate(frame)
     window={'hwnd':1,'title':'ZenlessZoneZero','left':0,'top':0,'w':1280,'h':720}
     monkeypatch.setattr(ctypes.windll.user32,'SetProcessDPIAware',Mock())
-    monkeypatch.setattr(ctypes.windll.user32,'GetDpiForWindow',Mock(return_value=96))
-    monkeypatch.setattr(ctypes.windll.kernel32,'Beep',Mock(return_value=1))
+    current={'position':(0,0),'size':(1280,720),'dpi':96,'foreground':1}
+    monkeypatch.setattr(ctypes.windll.user32,'GetDpiForWindow',Mock(side_effect=lambda hwnd:current['dpi']))
+    def notify(*args):
+        if trial=='geometry':
+            if outcome=='position':current['position']=(20,10)
+            elif outcome=='size':current['size']=(1200,720)
+            elif outcome=='dpi':current['dpi']=120
+            elif outcome=='focus':current['foreground']=2
+            elif outcome=='f8':event.flag=True
+        return 1
+    monkeypatch.setattr(ctypes.windll.kernel32,'Beep',Mock(side_effect=notify))
     monkeypatch.setattr(win32gui,'IsWindow',lambda hwnd:True)
     monkeypatch.setattr(win32gui,'IsWindowVisible',lambda hwnd:True)
     monkeypatch.setattr(win32gui,'IsIconic',lambda hwnd:False)
-    monkeypatch.setattr(win32gui,'GetForegroundWindow',lambda:1)
-    monkeypatch.setattr(win32gui,'GetClientRect',lambda hwnd:(0,0,1280,720))
-    monkeypatch.setattr(win32gui,'ClientToScreen',lambda hwnd,point:(0,0))
+    monkeypatch.setattr(win32gui,'GetForegroundWindow',lambda:current['foreground'])
+    monkeypatch.setattr(win32gui,'GetClientRect',lambda hwnd:(0,0,*current['size']))
+    monkeypatch.setattr(win32gui,'ClientToScreen',lambda hwnd,point:current['position'])
     monkeypatch.setattr(win32process,'GetWindowThreadProcessId',lambda hwnd:(1,42))
     monkeypatch.setattr(selection,'integrity_level',lambda *args:12288)
     monkeypatch.setattr(capture,'list_game_windows',lambda:[window])
@@ -174,7 +183,7 @@ def test_stop_trial_cli_records_partial_session_and_distinguishes_only_initial_f
         calls=0
         def wait(self,timeout):
             self.calls+=1
-            self.flag=True if self.calls==1 else second_signal
+            self.flag=True if self.calls==1 else outcome=='signal'
             return self.flag
         def is_set(self):return self.flag
         def clear(self):self.flag=False
@@ -207,15 +216,70 @@ def test_stop_trial_cli_records_partial_session_and_distinguishes_only_initial_f
     monkeypatch.setattr(zzz_pilot,'wait_for_panel',wait)
     monkeypatch.setattr(zzz_pilot,'read_frame',lambda *args:{'scope':'included','fields':{}})
     monkeypatch.setattr(sys,'argv',['youkai_selection.py',str(repo/'.cache/youkai-p1'),str(tmp_path),
-                                   '--pilot','--run','--limit','3','--test-stop'])
+                                   '--pilot','--run','--limit','3',f'--test-{trial}'])
     result=selection.main()
     report=json.loads((tmp_path/'session.json').read_text())
-    assert result==(0 if second_signal else 1)
-    assert report['status']=='stopped' and report['stopTest']['passed'] is second_signal
-    assert report['stopObservedDuringRun'] is second_signal
+    passed=outcome in ('signal','position','size','dpi')
+    assert result==(0 if passed else 1)
+    assert report['status']=='stopped' and report[f'{trial}Test']['passed'] is passed
+    assert report['stopObservedDuringRun'] is (outcome in ('signal','f8'))
+    if trial=='geometry':
+        assert report['guardStop']['noPressesAfterObservation'] is True
+        assert report['guardStop']['noMouseMovesAfterObservation'] is True
+        assert report['geometryTest']['noPressesAfterObservation'] is True
+        if passed:
+            assert report['reason']=='game-geometry-or-DPI-changed'
+            assert report['windowChange']['expectedClient']==[0,0,1280,720]
+            assert (report['windowChange']['observedClient']!=report['windowChange']['expectedClient']
+                    or report['windowChange']['observedDpi']!=96)
+        elif outcome=='focus':assert report['reason']=='game-focus-lost'
     assert report['processedPositions']==1 and report['pilotTraversalComplete'] is False
     assert [item['status'] for item in report['observations']]==['read','not-visited','not-visited']
     assert native_events==['press','release']
-    expected='STOP TEST PASSED' if second_signal else 'STOP TEST NOT PASSED'
+    label='STOP' if trial=='stop' else 'GEOMETRY'
+    expected=f'{label} TEST '+('PASSED' if passed else 'NOT PASSED')
     assert expected in capsys.readouterr().out
-    assert ('Stop test: PASSED' if second_signal else 'Stop test: NOT PASSED') in (tmp_path/'review.html').read_text()
+    html_label='Stop' if trial=='stop' else 'Geometry'
+    assert f'{html_label} test: '+('PASSED' if passed else 'NOT PASSED') in (tmp_path/'review.html').read_text()
+
+
+@pytest.mark.parametrize('change', ['none', 'geometry', 'focus', 'stop'])
+def test_geometry_pause_only_accepts_geometry_and_never_resumes_scanning(change):
+    from youkai_selection import InputGuard, ProbeStopped, TrialFinished, await_geometry_trial
+    now=[0.0]
+    def check():
+        if now[0]>=.1 and change in ('geometry','focus'):
+            raise ProbeStopped('game-geometry-or-DPI-changed' if change=='geometry' else 'game-focus-lost')
+    guard=InputGuard(check,lambda:now[0]>=.1 and change=='stop',[],0,clock=lambda:now[0])
+    guard.presses=2
+    report={'geometryTest':{'passed':False}}
+    def sleep(seconds):now[0]+=seconds
+    with pytest.raises(TrialFinished) as caught:
+        await_geometry_trial(guard,report,Mock(),timeout=.2,clock=lambda:now[0],sleep=sleep)
+    assert caught.value.passed is (change=='geometry')
+    assert report['geometryTest']['passed'] is (change=='geometry')
+    assert report['geometryTest']['checkpointReached'] is True
+    assert guard.presses==2 and guard.moves==0
+    if change=='none':assert 'no-change' in str(caught.value)
+    else:assert guard.failure['pressRequests']==2
+
+
+def test_guard_failure_records_first_observation_without_later_inputs():
+    from youkai_selection import InputGuard, ProbeStopped
+    now=[1.0]
+    guard=InputGuard(Mock(side_effect=ProbeStopped('game-focus-lost')),lambda:False,[(1,1)],4,clock=lambda:now[0])
+    with pytest.raises(ProbeStopped):guard.press((1,1))
+    first=dict(guard.failure)
+    now[0]=2.0
+    with pytest.raises(ProbeStopped):guard.press((1,1))
+    assert guard.failure==first
+    assert first['at']==1.0 and first['pressRequests']==0
+    assert guard.presses==0 and guard.events==[]
+
+
+@pytest.mark.parametrize('flags', [['--test-geometry'], ['--pilot','--run','--test-geometry','--test-stop'], ['--pilot','--run','--test-geometry','--transition']])
+def test_invalid_geometry_cli_combinations_fail_before_creating_session(tmp_path,monkeypatch,flags):
+    import youkai_selection as selection
+    monkeypatch.setattr(sys,'argv',['youkai_selection.py',str(tmp_path/'cache'),str(tmp_path/'output'),*flags])
+    with pytest.raises(SystemExit) as caught:selection.main()
+    assert caught.value.code==2 and not (tmp_path/'output').exists()

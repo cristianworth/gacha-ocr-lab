@@ -99,12 +99,12 @@ O replay separado do perfil v2 reconheceu os dez nomes, e os cinco campos confer
 
 A revisão separada `pilot-review.json` é vinculada ao SHA-256 do `session.json`. O manifesto e os frames originais são preservados; a correção não é apresentada como nova execução ao vivo. Relatório local do replay: `.cache/youkai-p1/p2-live-pilot-replay.json`, com nova sessão/HTML separados. Conferência dos campos por assistente não é aprovação humana da conta nem aceite do inventário inteiro.
 
-O piloto demonstra percurso limitado e legibilidade neste ambiente, com cópias reais preservadas. Essa coleta de dez posições não exercitou F8/foco/geometria durante o fluxo. O F8 foi conferido posteriormente na sessão registrada abaixo. Foco/geometria, filtro B em imagem real, percurso completo e outras resoluções continuam pendentes.
+O piloto demonstra percurso limitado e legibilidade neste ambiente, com cópias reais preservadas. Essa coleta de dez posições não exercitou F8/foco/geometria durante o fluxo. O F8 foi conferido posteriormente na sessão registrada abaixo. A perda de foco também foi conferida posteriormente. Geometria, filtro B em imagem real, percurso completo e outras resoluções continuam pendentes.
 
 ## Próximo aceite
 
 1. Concluir o aceite a partir da sessão já conferida e de seu replay corrigido. Não repetir as dez posições sem uma divergência que exija isso.
-2. F8 em curso confirmado no modo de pausa explícita. Em ensaios separados, testar recusa de novos inputs ao perder foco/mudar geometria. Analisar cada sessão antes de repetir.
+2. F8 em curso e perda de foco confirmados em sessões separadas. Validar mudança de geometria com `-Run -TestGeometry`. Analisar a sessão antes de repetir.
 3. Regressar casos novos e corrigir divergências. Obter referências reais de B, nível intermediário, progressão 5 e lock destravado antes de generalizar precisão.
 4. Com P2 aceito, iniciar P3: rolagem/fim, contagem S/A independente, duas coletas conferidas e pacote Windows. Consolidação com HSR permanece em P4.
 
@@ -124,9 +124,9 @@ A primeira leitura e sua imagem permanecem salvas: Steel Cushion, S, 60/60, prog
 
 Foram conferidos os hashes dos 13 frames e da imagem da posição, os hashes dos dois módulos do leitor contra o checkout CRLF de `a2239e4` e 260 arquivos upstream contra o ZIP fixado. A revisão separada `stop-test-review.json` está vinculada ao SHA-256 `ba5abf1ad5a8bb5176b5b3fe50656d99f6f3ec55e9fd67b77e59f7424171aced` do manifesto original, preservado. Não houve nova aprovação humana dos campos. Não é necessário repetir F8 nem o piloto de dez posições por rotina.
 
-## Próximo ensaio: perda de foco
+## Perda de foco — roteiro já validado
 
-**Objetivo:** verificar que o scanner encerra quando outro aplicativo recebe o foco, antes de ampliar o percurso.
+**Objetivo já exercitado na sessão abaixo:** verificar que o scanner encerra quando outro aplicativo recebe o foco, antes de ampliar o percurso. Não repetir por rotina; manter o roteiro como referência de regressão.
 
 1. Deixar W-Engines no topo, inglês, janela 1280×720/100%; abrir PowerShell como Administrador.
 2. Executar uma coleta curta normal:
@@ -140,3 +140,32 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\s
 5. Esperar `session.json` e enviar apenas seu caminho. Se a coleta terminar antes do Alt+Tab, enviar a sessão mesmo assim; analisar antes de repetir.
 
 **Esperado:** `status: stopped`, motivo `game-focus-lost`, sem continuar cliques no outro aplicativo. Leituras já concluídas permanecem salvas; se a perda ocorrer antes da primeira leitura, zero leituras é aceitável. Uma liberação de botão já pressionado é cleanup permitido. Se houver cliques continuados, usar F8 para interromper e informar isso junto ao caminho. Não há beep de pausa neste comando. A mudança de geometria será outro ensaio; a transição de P3.2 continua preparada para a etapa seguinte.
+
+## Perda de foco confirmada — 22/10/2026
+
+Sessão `.cache/youkai-p1/runs/20261022-115151-d35db31b-selection/`: encerrou com `status: stopped`, `reason: game-focus-lost`, dois pares de pressionamento/liberação e zero leituras concluídas. O primeiro clique prepara a segunda célula; o segundo seleciona a primeira, cujo painel ainda estava estabilizando quando a guarda recusou continuar. Dez frames e a sessão parcial ficaram preservados, sem erro de cleanup. Zero leituras é esperado neste ponto da interrupção; não indica falha de OCR. `stopObservedDuringRun: false` descreve o evento do listener F8, não a ausência de encerramento por outra guarda.
+
+Os dez hashes de frames foram conferidos, assim como 260 arquivos upstream contra o ZIP fixado e os hashes dos módulos do leitor contra o checkout CRLF de `d8c5a23`. Revisão separada em `focus-test-review.json`, vinculada ao manifesto SHA-256 `1ca99f42df66b6f7ba1f20fecd8e6d9240cb610da03ae7a4f97e1632b5d43441`, sem reescrever a sessão. O último frame foi inspecionado pelo assistente; não há leitura nem aprovação de item nessa sessão.
+
+Esse relatório histórico não tem instante/snapshot da mudança de foco; confirma o caminho de parada e o log final de ações, sem medir latência ou o instante exato do Alt+Tab. As próximas sessões registram `guardStop`: motivo, instante monotônico e contagens de pressionamentos/movimentos observados na primeira recusa, além da comparação dessas contagens no encerramento. Isso continua sendo observação de software, sem tornar atômicas a consulta de janela e a emissão nativa de input.
+
+## Próximo ensaio: mudança de geometria com pausa
+
+**Objetivo:** recusar continuar com coordenadas antigas após mover a janela. O scanner espera parado depois de ler o primeiro item; não é necessário disputar o mouse durante as seleções.
+
+1. Deixar W-Engines no topo, inglês, janela 1280×720, escala Windows 100%. Abrir PowerShell como Administrador.
+2. Executar:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\scripts\pilot-zzz.ps1" -Run -TestGeometry
+```
+
+3. Pressionar e soltar F8 apenas na confirmação inicial. Esperar os cinco segundos e a primeira leitura. Na pausa, o comando solicita um beep e imprime `GEOMETRY TEST PAUSED`. Manter o jogo em primeiro plano; não usar Alt+Tab para procurar a mensagem. O primeiro cartão selecionado e o mouse parado indicam a pausa caso o som não seja audível.
+4. Nessa pausa, em até 30 segundos, arrastar **a barra de título da janela do jogo** alguns centímetros e soltar. Manter o jogo em primeiro plano e evitar maximizar/encostar nas bordas da tela. Não mudar resolução nem escala; mover a janela já testa a origem das coordenadas.
+5. O scanner deve encerrar. Só depois voltar ao PowerShell e enviar o caminho de `session.json`.
+
+**Esperado:** `GEOMETRY TEST PASSED`, `status: stopped`, `reason: game-geometry-or-DPI-changed`, `geometryTest.passed: true`, primeira leitura preservada e nenhum novo pressionamento após a observação. `windowChange` registra área cliente/DPI esperados e observados. O modo termina em todos os resultados e nunca retoma a coleta após a pausa.
+
+Alt+Tab, F8, listener indisponível ou nenhuma mudança em 30 segundos encerram sem aprovar este teste. Se houver qualquer comportamento inesperado, usar F8 e enviar a sessão com essa informação. Não repetir sem análise. Mover a janela é o caso real pedido; mudança de tamanho/DPI tem cobertura simulada, sem alegar validação ao vivo de todos os casos.
+
+Implementação conferida por **102 testes aprovados**, incluindo os 89 anteriores e 13 casos adicionais: posição/tamanho/DPI pelo fluxo com Win32 simulado, foco/F8 distintos de geometria, tempo esgotado, sessão parcial, restrição de argumentos e registro da primeira recusa. Nenhum input nativo foi emitido pelos testes. A validação real de geometria segue pendente. Depois dela, executar a transição limitada de [P3.2](zzz-transition.md); P3.3 depende dessa evidência.
