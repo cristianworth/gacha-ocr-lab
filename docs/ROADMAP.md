@@ -1,6 +1,6 @@
 # Planejamento — motor compartilhado de OCR
 
-Atualizado em 22/10/2026. **Piloto Python ZZZ implementado; dez posições reais conferidas; paradas em curso pendentes. O motor compartilhado ainda não foi extraído.** Este documento é o plano canônico. A [arquitetura e pesquisa de fontes](architecture-proposal.md) explicam as alternativas; o [README](../README.md) descreve o software que existe hoje.
+Atualizado em 22/10/2026. **Piloto Python ZZZ implementado; dez posições reais conferidas; F8 em sessão parcial confirmado; foco/geometria pendentes. O motor compartilhado ainda não foi extraído.** Este documento é o plano canônico. A [arquitetura e pesquisa de fontes](architecture-proposal.md) explicam as alternativas; o [README](../README.md) descreve o software que existe hoje.
 
 ## Objetivo, prioridades e escopo
 
@@ -137,7 +137,7 @@ Cada observação mantém jogo/categoria, posição/ordem na sessão, versão do
 
 ### P2.3 Prova real em dez posições
 
-**Executado e conferido em 22/10/2026:** dez posições reais, segunda linha atingida, 11 cliques normais, sem rolagem; níveis/raridades/progressões/locks conferem visualmente. Duas cópias Weeping Cradle preservadas. Seis nomes reconhecidos e quatro incertos no leitor v1; recortes corrigidos em v2 e reprocessados offline, sem reescrever a sessão. [Evidências e limites](zzz-pilot.md#primeiro-piloto-real--22102026). F8 antes dos inputs foi observado; interrupção durante execução e perdas de foco/geometria seguem pendentes.
+**Executado e conferido em 22/10/2026:** dez posições reais, segunda linha atingida, 11 cliques normais, sem rolagem; níveis/raridades/progressões/locks conferem visualmente. Duas cópias Weeping Cradle preservadas. Seis nomes reconhecidos e quatro incertos no leitor v1; recortes corrigidos em v2 e reprocessados offline, sem reescrever a sessão. [Evidências e limites](zzz-pilot.md#primeiro-piloto-real--22102026). F8 antes dos inputs foi observado nessa coleta. Na sessão posterior `20261022-113802-38781f4a-selection`, o segundo F8 interrompeu o fluxo na pausa após a primeira leitura: dois pressionamentos antes do sinal, nenhum depois e parcial preservada. Hashes de 13 frames e da imagem da posição conferidos; revisão separada em `stop-test-review.json`. Perdas de foco/geometria seguem pendentes.
 
 - Primeiro conferir captura cliente e sobreposição de regiões/grade. Só iniciar inputs após verificar foco, geometria e mecanismo de parada.
 - Executar dez posições (ou as disponíveis), incluindo repetição visual quando houver. Confirmar que ações chegam ao alvo e o painel corresponde à posição esperada.
@@ -155,7 +155,7 @@ Preservar a entrada, a captura, as paradas e o diagnóstico exercitados em P2. A
 
 ### P3.2 Ampliar uma transição de cada vez
 
-**Primeiro recorte implementado em 22/10/2026:** [ensaio de uma transição](zzz-transition.md), limitado a um clique na última linha, capturas antes/depois, scrollbar e sobreposição de miniaturas para confirmar avanço de exatamente uma linha. Leitura só após prova positiva; não infere índice global, cobertura ou término. Implementado/testado em simulação; primeira transição real e linha final parcial ainda pendentes. O modo pilot-zzz.ps1 -Run -TestStop torna a validação de F8 explícita antes desse ensaio.
+**Primeiro recorte implementado em 22/10/2026:** [ensaio de uma transição](zzz-transition.md), limitado a um clique na última linha, capturas antes/depois, scrollbar e sobreposição de miniaturas para confirmar avanço de exatamente uma linha. Leitura só após prova positiva; não infere índice global, cobertura ou término. Implementado/testado em simulação; primeira transição real e linha final parcial ainda pendentes. O modo `pilot-zzz.ps1 -Run -TestStop` teve seu segundo F8 validado em sessão real; faltam os ensaios de foco/geometria antes de ampliar o percurso.
 
 Exercitar uma passagem entre telas/linhas e a linha final parcial com limites pequenos antes da coleta completa. Reutilizar evidências de P2; não exigir novo piloto idêntico quando o comportamento já tiver sido conferido. Casos sintéticos cobrem estados indisponíveis na conta, com essa limitação explícita.
 
@@ -210,4 +210,4 @@ Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reserv
 - Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
 - GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Próximo bloco:** executar o teste F8 com pausa explícita e os ensaios de perda de foco/geometria, mantendo sessões parciais. A sessão curta posterior concluiu três leituras porque só houve confirmação F8 inicial; não comprova interrupção. P3.2 já tem implementação de uma transição, a validar no jogo após as paradas. Depois ampliar fronteiras/linha final, escopo S/A e término em P3.3. O piloto de dez posições já foi conferido; não repetir por rotina.
+**Próximo bloco:** testar perda de foco e depois mudança de geometria, em sessões separadas, preservando parciais. O teste explícito F8 foi aprovado na sessão `20261022-113802-38781f4a-selection`: uma leitura preservada, segundo sinal recebido e nenhum novo pressionamento após sua observação. Não repetir esse teste por rotina. P3.2 já tem implementação de uma transição, a validar no jogo após as guardas restantes. Depois ampliar fronteiras/linha final, escopo S/A e término em P3.3. O piloto de dez posições já foi conferido; não repetir por rotina.

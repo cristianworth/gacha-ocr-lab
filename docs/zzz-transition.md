@@ -1,6 +1,6 @@
 # P3.2 — uma transição de grade ZZZ
 
-Implementado em **22/10/2026**, após o [piloto de dez posições](zzz-pilot.md). **Implementação verificada em simulação; transição real ainda pendente.** O teste real de parada/foco/geometria de P2 também permanece pendente. Este recorte não implementa coleta completa, contagem S/A, término de inventário ou executável independente.
+Implementado em **22/10/2026**, após o [piloto de dez posições](zzz-pilot.md). **Implementação verificada em simulação; transição real ainda pendente.** O segundo F8 de P2 foi confirmado na pausa após a primeira leitura; os ensaios reais de foco/geometria permanecem pendentes. Este recorte não implementa coleta completa, contagem S/A, término de inventário ou executável independente.
 
 ## Comportamento limitado
 
@@ -17,7 +17,7 @@ Não chama métodos privados do navegador nem modifica fonte upstream. A decisã
 
 ## Antes do ensaio real
 
-Concluir primeiro o [teste explícito de F8](zzz-pilot.md#teste-explícito-de-parada-f8): o ensaio de três posições enviado em 22/10 terminou normalmente porque Cristian informou ter pressionado apenas a confirmação inicial. Isso não demonstra defeito do listener nem comprova interrupção em curso.
+O [teste explícito de F8](zzz-pilot.md#segundo-f8-confirmado--22102026) foi aprovado na sessão `20261022-113802-38781f4a-selection`: segunda tecla recebida após a primeira leitura, parcial salva e nenhum novo pressionamento após o sinal. Concluir os ensaios de perda de foco e mudança de geometria antes de ampliar o percurso. O próximo ensaio detalhado está no [roteiro de perda de foco](zzz-pilot.md#próximo-ensaio-perda-de-foco).
 
 Preparação para a transição: W-Engines no topo, inglês, cliente 1280×720, escala 100%, quatro linhas preenchidas e itens além delas. Usar PowerShell **como Administrador**, no mesmo nível do jogo. Reservar os controles e manter o jogo em primeiro plano. O comando só deve ser executado como ensaio limitado combinado, não como coleta completa.
 
@@ -48,4 +48,4 @@ Os arquivos ficam em nova pasta `.cache/youkai-p1/runs/<data-hora-id>-selection/
 - Medições sobre a captura real já salva: scrollbar em 238,5, nove recortes da última linha com variação visual suficiente, e duas imagens sem rolagem corretamente recusadas como avanço. Isso não é execução real de rolagem.
 - Preflight do comando no Windows PowerShell 5.1: `.cache/youkai-p1/runs/20261022-111906-40763847-selection/session.json`. Recusou integridade inferior do helper antes de captura/foco/inputs. O processo deste chat não recebeu elevação Windows por executar ferramentas fora do sandbox.
 
-Depois da transição aceita: exercitar linha final parcial, verificar filtro/contador S/A e estratégia de término em P3.3. Em P3.4, duas coletas conferidas e pacote Windows. As pendências reais de F8/foco/geometria não são encerradas por testes simulados.
+Depois da transição aceita: exercitar linha final parcial, verificar filtro/contador S/A e estratégia de término em P3.3. Em P3.4, duas coletas conferidas e pacote Windows. O F8 já tem prova real separada; foco/geometria permanecem pendentes e não são encerrados por testes simulados.

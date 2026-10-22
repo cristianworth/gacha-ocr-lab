@@ -63,7 +63,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\s
 
 **Resultado esperado:** terminal mostra `STOP TEST PASSED`; relatório com `status: stopped`, `stopObservedDuringRun: true`, `stopTest.passed: true`, prefixo incompleto e nenhum novo pressionamento após a observação do sinal. A primeira leitura já salva permanece disponível. O comando não exige acertar uma janela curta entre cliques; ele espera o segundo sinal. Se houver apenas o F8 inicial, após 30 segundos registra `stopTest.passed: false` e o motivo, sem transformar uma coleta normal em prova de parada.
 
-Esse teste comprova F8; perdas de foco/geometria exigem ensaios próprios. O beep foi testado com API simulada; não depende dele para detectar a tecla.
+Esse teste comprova F8; perdas de foco/geometria exigem ensaios próprios. O beep também retornou sucesso na execução real registrada abaixo; a detecção da tecla não depende dele.
 
 ## Saídas e estados
 
@@ -99,12 +99,12 @@ O replay separado do perfil v2 reconheceu os dez nomes, e os cinco campos confer
 
 A revisão separada `pilot-review.json` é vinculada ao SHA-256 do `session.json`. O manifesto e os frames originais são preservados; a correção não é apresentada como nova execução ao vivo. Relatório local do replay: `.cache/youkai-p1/p2-live-pilot-replay.json`, com nova sessão/HTML separados. Conferência dos campos por assistente não é aprovação humana da conta nem aceite do inventário inteiro.
 
-O piloto demonstra percurso limitado e legibilidade neste ambiente, com cópias reais preservadas. Continua sem provar reação real a F8/foco/geometria durante inputs, filtro B em imagem real, percurso completo ou outras resoluções.
+O piloto demonstra percurso limitado e legibilidade neste ambiente, com cópias reais preservadas. Essa coleta de dez posições não exercitou F8/foco/geometria durante o fluxo. O F8 foi conferido posteriormente na sessão registrada abaixo. Foco/geometria, filtro B em imagem real, percurso completo e outras resoluções continuam pendentes.
 
 ## Próximo aceite
 
 1. Concluir o aceite a partir da sessão já conferida e de seu replay corrigido. Não repetir as dez posições sem uma divergência que exija isso.
-2. Em ensaio curto separado, testar F8 em curso e recusa de novos inputs ao perder foco/mudar geometria. Analisar cada sessão antes de repetir.
+2. F8 em curso confirmado no modo de pausa explícita. Em ensaios separados, testar recusa de novos inputs ao perder foco/mudar geometria. Analisar cada sessão antes de repetir.
 3. Regressar casos novos e corrigir divergências. Obter referências reais de B, nível intermediário, progressão 5 e lock destravado antes de generalizar precisão.
 4. Com P2 aceito, iniciar P3: rolagem/fim, contagem S/A independente, duas coletas conferidas e pacote Windows. Consolidação com HSR permanece em P4.
 
@@ -115,3 +115,28 @@ Sessão `.cache/youkai-p1/runs/20261022-105744-926f1c32-selection/`: três posi�
 Cristian esclareceu que apertou apenas o F8 inicial. Portanto foi uma coleta normal bem-sucedida, e não um teste de interrupção nem uma falha demonstrada do listener. A revisão `session-review.json` é separada e vinculada ao hash do manifesto. Os hashes do código correspondem ao commit `66fc626` com finais de linha CRLF. Não houve alteração do manifesto original nem aprovação humana dos campos.
 
 Foi criado `-TestStop` para tornar o segundo sinal explícito e aguardá-lo. O primeiro recorte de implementação P3.2, [uma transição de grade](zzz-transition.md), também foi preparado; sua execução real continua pendente.
+
+## Segundo F8 confirmado — 22/10/2026
+
+Sessão real `.cache/youkai-p1/runs/20261022-113802-38781f4a-selection/`, código `a2239e4`, perfil v2: `status: stopped`, `reason: F8`, `stopTest.passed: true`. A pausa explícita foi alcançada após a primeira leitura e recebeu o segundo sinal. Houve dois pares de pressionamento/liberação (preparação na segunda célula e seleção da primeira), ambos anteriores à pausa; a contagem permaneceu em dois após observar F8. Não houve erro de cleanup. Isso comprova encerramento por F8 nesse ponto do fluxo, sem medir latência de interrupção durante um botão pressionado.
+
+A primeira leitura e sua imagem permanecem salvas: Steel Cushion, S, 60/60, progressão 1, travado, com destaque na primeira célula; campos conferidos visualmente pelo assistente. A segunda posição `captured-pending` é evidência do clique de preparação anterior, sem leitura aceita; a terceira permanece `not-visited`. Prefixo incompleto e inventário não aceito são os estados esperados.
+
+Foram conferidos os hashes dos 13 frames e da imagem da posição, os hashes dos dois módulos do leitor contra o checkout CRLF de `a2239e4` e 260 arquivos upstream contra o ZIP fixado. A revisão separada `stop-test-review.json` está vinculada ao SHA-256 `ba5abf1ad5a8bb5176b5b3fe50656d99f6f3ec55e9fd67b77e59f7424171aced` do manifesto original, preservado. Não houve nova aprovação humana dos campos. Não é necessário repetir F8 nem o piloto de dez posições por rotina.
+
+## Próximo ensaio: perda de foco
+
+**Objetivo:** verificar que o scanner encerra quando outro aplicativo recebe o foco, antes de ampliar o percurso.
+
+1. Deixar W-Engines no topo, inglês, janela 1280×720/100%; abrir PowerShell como Administrador.
+2. Executar uma coleta curta normal:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\scripts\pilot-zzz.ps1" -Run -Limit 3
+```
+
+3. Pressionar e soltar F8 na confirmação inicial. Esperar os cinco segundos e o jogo receber foco automaticamente.
+4. Assim que o mouse começar a selecionar os cartões sozinho, usar **Alt+Tab uma vez para o PowerShell**. Manter o PowerShell em primeiro plano até o comando encerrar. Não pressionar o segundo F8 neste ensaio, para distinguir os motivos.
+5. Esperar `session.json` e enviar apenas seu caminho. Se a coleta terminar antes do Alt+Tab, enviar a sessão mesmo assim; analisar antes de repetir.
+
+**Esperado:** `status: stopped`, motivo `game-focus-lost`, sem continuar cliques no outro aplicativo. Leituras já concluídas permanecem salvas; se a perda ocorrer antes da primeira leitura, zero leituras é aceitável. Uma liberação de botão já pressionado é cleanup permitido. Se houver cliques continuados, usar F8 para interromper e informar isso junto ao caminho. Não há beep de pausa neste comando. A mudança de geometria será outro ensaio; a transição de P3.2 continua preparada para a etapa seguinte.
