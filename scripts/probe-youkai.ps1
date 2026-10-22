@@ -1,8 +1,11 @@
 [CmdletBinding()]
-param([switch]$CheckStop, [switch]$Run, [string]$StopReceipt, [ValidateRange(2,3)][int]$Limit = 3)
+param([switch]$CheckStop, [switch]$Run, [string]$StopReceipt, [ValidateSet(2,3,10)][int]$Limit = 3,
+      [switch]$Pilot, [string]$ImagePath, [string]$ClientArea)
 
 $ErrorActionPreference = 'Stop'
 if ($CheckStop -and $Run) { throw 'Choose CheckStop or Run.' }
+if ($Limit -eq 10 -and !$Pilot) { throw 'Ten positions require Pilot.' }
+if ($ImagePath -and (!$Pilot -or $Run -or $CheckStop -or !$ClientArea)) { throw 'ImagePath requires Pilot and ClientArea, without Run/CheckStop.' }
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $cacheRoot = Join-Path $repoRoot '.cache\youkai-p1'
 $sourceRoot = Join-Path $cacheRoot 'youkai-86a8b34511c86ec864d8f40c558789f7ccad4cc9'
@@ -26,6 +29,8 @@ foreach ($name in $environment.Keys) {
 }
 try {
     $probeArgs = @((Join-Path $PSScriptRoot 'youkai_selection.py'), $cacheRoot, $runRoot, '--limit', $Limit)
+    if ($Pilot) { $probeArgs += '--pilot' }
+    if ($ImagePath) { $probeArgs += @('--image', (Resolve-Path -LiteralPath $ImagePath).Path, '--client', $ClientArea) }
     if ($CheckStop) { $probeArgs += '--check-stop' }
     if ($Run) {
         $probeArgs += '--run'

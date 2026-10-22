@@ -20,6 +20,9 @@ def save_report(path, report):
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
+    if report.get("mode", "").startswith("zzz-pilot"):
+        from zzz_pilot import render_review
+        render_review(path.with_name("review.html"), report)
 
 
 class InputGuard:
@@ -44,7 +47,7 @@ class InputGuard:
     def press(self, point):
         self.check()
         if not any(abs(point[0] - x) <= 3 and abs(point[1] - y) <= 3 for x, y in self.targets):
-            raise ProbeStopped("click-outside-approved-first-row-targets")
+            raise ProbeStopped("click-outside-approved-targets")
         if self.presses >= self.max_presses:
             raise ProbeStopped("click-budget-exhausted")
         self.presses += 1
@@ -94,12 +97,12 @@ class GuardedMouse:
             self.release(button)
 
 
-def collect_prefix(navigator, limit, consume, observations):
+def collect_prefix(navigator, limit, consume, observations, *, columns=None):
     for index, row, frame in navigator.scan(limit):
-        if not 0 <= index < limit or row != 0:
+        if not 0 <= index < limit or row != (index // columns if columns else 0):
             raise ProbeStopped("navigator-left-approved-prefix")
         observation = observations[index]
-        if observation["status"] != "not-visited":
+        if observation["status"] not in ("not-visited", "captured-pending"):
             raise ProbeStopped("navigator-repeated-position")
         observation["status"] = "captured"
         try:
@@ -150,8 +153,15 @@ def main():
     modes.add_argument("--check-stop", action="store_true")
     modes.add_argument("--run", action="store_true")
     parser.add_argument("--stop-receipt", type=Path)
-    parser.add_argument("--limit", type=int, choices=(2, 3), default=3)
+    parser.add_argument("--limit", type=int, choices=(2, 3, 10), default=3)
+    parser.add_argument("--pilot", action="store_true")
+    parser.add_argument("--image", type=Path)
+    parser.add_argument("--client")
     args = parser.parse_args()
+    if args.limit == 10 and not args.pilot:
+        parser.error("ten positions require --pilot")
+    if args.image is not None and (not args.pilot or args.run or args.check_stop or not args.client):
+        parser.error("--image requires --pilot --client and cannot emit live inputs")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     report_path = output / "session.json"
@@ -159,7 +169,14 @@ def main():
               "status": "preflight", "startedAt": datetime.now(timezone.utc).isoformat(),
               "liveInputTested": False, "captureComplete": False, "inventoryAccepted": False,
               "observations": [{"position": i, "row": 0, "column": i, "status": "not-visited"} for i in range(args.limit)]}
+    if args.pilot:
+        report.update({"mode": "zzz-pilot-image" if args.image else "zzz-pilot", "game": "zzz", "itemType": "w-engine",
+                       "readerVersion": "zzz-wengine-1280x720-v1", "requestedPositions": 1 if args.image else args.limit,
+                       "requiresManualReview": True})
+        report["observations"] = [{"position": i, "row": i // 9, "column": i % 9, "status": "not-visited"}
+                                  for i in range(1 if args.image else args.limit)]
     listener = None
+    event = None
     guarded_mouse = None
     guard = None
     result_code = 1
@@ -175,6 +192,39 @@ def main():
         spec.loader.exec_module(offline)
         report["sourceSha"] = offline.SHA
         report["unchangedSourceFiles"] = offline.verify_source(args.cache, args.cache / f"youkai-{offline.SHA}")
+        if args.pilot:
+            report["readerSourceSha256"] = {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+                                             for name in ("zzz_pilot.py", "youkai_selection.py")}
+        if args.image is not None:
+            from PIL import Image
+            from zzz_pilot import read_frame
+            source = args.image.resolve(strict=True)
+            client = [int(value) for value in args.client.split(",")]
+            if len(client) != 4:
+                raise ValueError("client must be left,top,width,height")
+            x, y, w, h = client
+            if (w, h) != (1280, 720) or min(x, y) < 0:
+                raise ValueError("pilot requires a 1280x720 client crop without resizing")
+            with Image.open(source) as image:
+                if x + w > image.width or y + h > image.height:
+                    raise ValueError("client crop outside source image")
+                frame = image.convert("RGB").crop((x, y, x + w, y + h))
+            path = output / "position-00.png"
+            frame.save(path)
+            report.update({"image": str(source), "imageSha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                           "clientArea": client, "status": "processed-image"})
+            observation = report["observations"][0]
+            observation.update({"status": "captured", "frame": str(path),
+                                "frameSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                                "positionMeaning": "image-observation-index", "selectionVerified": False})
+            save_report(report_path, report)
+            try:
+                observation["reading"] = read_frame(frame, capture.calibrate(frame), output / "reading-00")
+                observation["status"] = "read"
+            except Exception as exc:
+                observation.update({"status": "failed", "reason": str(exc)})
+                raise
+            return 0
         ctypes.windll.user32.SetProcessDPIAware()
         get_dpi = ctypes.windll.user32.GetDpiForWindow
         get_dpi.argtypes = [wintypes.HWND]
@@ -226,7 +276,7 @@ def main():
             save_report(receipt_path, receipt)
             report["stopReceipt"] = str(receipt_path)
             event.clear()
-        print("F8 verified. Release it. Selection proof in 5 seconds; F8/Ctrl+C now stops. Exclusive controls.", flush=True)
+        print(f"F8 verified. Release it. {args.limit}-position proof in 5 seconds; F8/Ctrl+C now stops. Exclusive controls.", flush=True)
         time.sleep(5)
         if event.is_set():
             raise ProbeStopped("stopped-before-focus")
@@ -264,9 +314,10 @@ def main():
             if (left, top, w, h) != initial_identity or get_dpi(hwnd) != 96:
                 raise ProbeStopped("game-geometry-or-DPI-changed")
 
-        targets = [calibration.to_screen(*grid.DEFAULT_GRID.cell_center(col, 0)) for col in range(args.limit)]
+        targets = [calibration.to_screen(*grid.DEFAULT_GRID.cell_center(i % grid.DEFAULT_GRID.columns,
+                   i // grid.DEFAULT_GRID.columns if args.pilot else 0)) for i in range(args.limit)]
         guard = InputGuard(check_window, lambda: event.is_set() or not listener.is_alive(), targets,
-                           1 + args.limit * (1 + grid.PANEL_STUCK_RECLICKS))
+                           1 + args.limit * (1 + grid.PANEL_STUCK_RECLICKS), timeout=180 if args.pilot else 60)
         report["targets"] = targets
         report["pressBudget"] = guard.max_presses
         report["frames"] = []
@@ -276,20 +327,44 @@ def main():
         if (bound_calibration.window_left, bound_calibration.window_top,
             bound_calibration.frame_width, bound_calibration.frame_height) != initial_identity:
             raise ProbeStopped("bound-capture-window-mismatch")
-        def guarded_capture():
+        selected_frames = {}
+        def capture_and_record(evidence=None, frame=None):
             guard.check()
-            if len(report["frames"]) >= 80:
+            if len(report["frames"]) >= (600 if args.pilot else 80):
                 raise ProbeStopped("capture-budget-exhausted")
-            frame = original_grab()
+            frame = frame if frame is not None else original_grab()
             guard.check()
             if frame.size != (1280, 720):
                 raise ProbeStopped("unexpected-frame-size")
             path = frame_dir / f"{len(report['frames']):04d}.png"
             frame.save(path)
-            report["frames"].append({"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-                                      "pressCount": guard.presses, "at": guard.clock()})
+            entry = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                     "pressCount": guard.presses, "at": guard.clock()}
+            if evidence is not None:
+                entry["panelCheck"] = evidence
+                expected = evidence["expectedPosition"]
+                if evidence["settled"] and expected is not None:
+                    selected_frames[expected] = (frame, entry)
+                    observation = report["observations"][expected]
+                    observation["latestCaptureEvidence"] = str(path)
+                    if observation["status"] == "not-visited":
+                        observation["status"] = "captured-pending"
+            report["frames"].append(entry)
             save_report(report_path, report)
             return frame
+
+        def guarded_capture():
+            if not args.pilot:
+                return capture_and_record()
+            from zzz_pilot import wait_for_panel
+            presses = [event for event in guard.events if event["event"] == "press-requested"]
+            expected = None
+            if presses:
+                point = presses[-1]["position"]
+                expected = next(i for i, (x, y) in enumerate(targets)
+                                if abs(point[0] - x) <= 3 and abs(point[1] - y) <= 3)
+            return wait_for_panel(original_grab, calibration, grid.DEFAULT_GRID, args.limit, expected,
+                                  guard.check, lambda frame, evidence: capture_and_record(evidence, frame))
 
         raw_mouse = pynput.mouse.Controller()
         guarded_mouse = GuardedMouse(raw_mouse, guard)
@@ -301,6 +376,19 @@ def main():
             observation.update({"frame": str(path), "frameSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                                 "captureSequenceAtYield": len(report["frames"]), "pressCount": guard.presses})
             save_report(report_path, report)
+            if args.pilot:
+                from zzz_pilot import read_frame, selected_positions
+                selected = selected_positions(frame, calibration, grid.DEFAULT_GRID, args.limit)
+                if selected != [index]:
+                    raise ProbeStopped("yielded-frame-selection-mismatch")
+                matches = [entry for entry in report["frames"] if entry["sha256"] == observation["frameSha256"]]
+                if not matches or not matches[-1].get("panelCheck", {}).get("settled"):
+                    raise ProbeStopped("yielded-frame-without-settling-evidence")
+                observation.update({"captureEvidence": matches[-1]["path"], "pressCount": matches[-1]["pressCount"]})
+                observation.update({"reading": read_frame(frame, calibration, output / f"reading-{index:02d}"),
+                                    "status": "read", "selectionVerified": True, "humanApproved": False})
+                save_report(report_path, report)
+                return
             item, confidence = scan_single_frame_engine(frame, calibration, archive_dir=output / f"ocr-{index:02d}")
             observation.update({"status": "read" if item else "ocr-failed", "originalOutput": item.to_dict() if item else None,
                                 "upstreamConfidence": confidence, "humanApproved": False,
@@ -311,8 +399,21 @@ def main():
         # Inject a guard at pynput's public controller factory; source files and
         # the original GridNavigator.scan() algorithm stay unchanged.
         with patch.object(pynput.mouse, "Controller", return_value=guarded_mouse):
-            report["upstreamIncomplete"] = collect_prefix(navigator, args.limit, consume, report["observations"])
+            report["upstreamIncomplete"] = collect_prefix(navigator, args.limit, consume, report["observations"],
+                                                         columns=grid.DEFAULT_GRID.columns if args.pilot else None)
+        if args.pilot:
+            from zzz_pilot import recover_skipped
+            # Recover equal panels from stable captures only when the expected
+            # cell is visibly selected. Never use content equality as identity.
+            recover_skipped(report["observations"], selected_frames, consume)
+            report["processedPositions"] = sum(o["status"] == "read" for o in report["observations"])
+            report["scopeCounts"] = {scope: sum(o.get("reading", {}).get("scope") == scope for o in report["observations"])
+                                     for scope in ("included", "excluded-B", "pending-rarity")}
+            report["pilotTraversalComplete"] = report["processedPositions"] == args.limit
+
         report["status"] = "stopped" if event.is_set() else "prefix-read" if all(o["status"] == "read" for o in report["observations"]) else "partial"
+        if event.is_set():
+            report["reason"] = "F8"
         result_code = 0
     except KeyboardInterrupt:
         report.update({"status": "stopped", "reason": "Ctrl+C"})
@@ -338,6 +439,8 @@ def main():
                            "selectionDeliveryVerified": False})
         if cleanup_errors:
             report["cleanupErrors"] = cleanup_errors
+        if event is not None and args.run:
+            report["stopObservedDuringRun"] = event.is_set()
         report["endedAt"] = datetime.now(timezone.utc).isoformat()
         save_report(report_path, report)
         print(f"Qualification report: {report_path}")

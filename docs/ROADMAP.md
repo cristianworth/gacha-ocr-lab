@@ -1,6 +1,6 @@
 # Planejamento — motor compartilhado de OCR
 
-Atualizado em 20/10/2026. **Planejamento recomendado; o novo motor Python ainda não foi implementado.** Este documento é o plano canônico. A [arquitetura e pesquisa de fontes](architecture-proposal.md) explicam as alternativas; o [README](../README.md) descreve o software que existe hoje.
+Atualizado em 22/10/2026. **Piloto Python ZZZ implementado; aceite real de dez posições pendente. O motor compartilhado ainda não foi extraído.** Este documento é o plano canônico. A [arquitetura e pesquisa de fontes](architecture-proposal.md) explicam as alternativas; o [README](../README.md) descreve o software que existe hoje.
 
 ## Objetivo, prioridades e escopo
 
@@ -114,6 +114,8 @@ P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não 
 
 ## P2 — Adaptação mínima e piloto ZZZ
 
+**Implementação entregue em 22/10/2026:** [comando de dez posições, leitor adaptado e revisão HTML](zzz-pilot.md). Nome/nível/raridade/progressão conferem nas três referências humanas; estrelas corrigidas para 4/2/1, lock derivado do rótulo de ação, incertezas preservadas, estabilidade e recuperação de cópias com evidência de seleção testadas em simulação. P2.1/P2.2 prontos; P2.3 e paradas reais ainda pendentes. Não equivale a inventário aceito.
+
 ### P2.1 Reutilizar antes de reorganizar
 
 - Partir da versão qualificada em P1. Preservar seu caminho funcional de captura, seleção e reconhecimento; registrar arquivos de origem/SHA, avisos e alterações.
@@ -204,4 +206,4 @@ Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reserv
 - Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
 - GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Próximo bloco:** preparar a adaptação mínima P2 sobre captura/seleção originais comprovadas em três posições, corrigindo progressão/raridade/lock e conferindo estabilização do painel. Agrupar a interrupção real ainda pendente de P1.3 com o piloto de dez posições, sem repetir a prova bem-sucedida por rotina. Nova arquitetura geral só se a prova trouxer uma razão concreta.
+**Próximo bloco:** executar e revisar o piloto P2.3 já implementado, com dez posições, estabilização e campos adaptados. Agrupar a interrupção real ainda pendente de P1.3 e as recusas de foco/geometria em ensaios curtos com sessões preservadas. Depois corrigir divergências reais e, com o aceite P2, iniciar percurso completo P3. Nova arquitetura geral só se a prova trouxer uma razão concreta.
