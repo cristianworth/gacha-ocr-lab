@@ -104,7 +104,7 @@ O piloto demonstra percurso limitado e legibilidade neste ambiente, com cópias 
 ## Próximo aceite
 
 1. Concluir o aceite a partir da sessão já conferida e de seu replay corrigido. Não repetir as dez posições sem uma divergência que exija isso.
-2. F8 em curso, perda de foco e movimentação da janela confirmados em sessões separadas. Não repetir por rotina; seguir para a transição limitada P3.2.
+2. F8 em curso, perda de foco e movimentação da janela confirmados em sessões separadas. Não repetir por rotina; a transição P3.2 foi conferida em 23/10, e a próxima ação é o percurso integrado P3.3.
 3. Regressar casos novos e corrigir divergências. Obter referências reais de B, nível intermediário, progressão 5 e lock destravado antes de generalizar precisão.
 4. Com P2 aceito, iniciar P3: rolagem/fim, contagem S/A independente, duas coletas conferidas e pacote Windows. Consolidação com HSR permanece em P4.
 

@@ -236,15 +236,23 @@ def main():
     modes.add_argument("--check-stop", action="store_true")
     modes.add_argument("--run", action="store_true")
     parser.add_argument("--stop-receipt", type=Path)
-    parser.add_argument("--limit", type=int, choices=(2, 3, 10), default=3)
+    parser.add_argument("--limit", type=int, default=3)
     parser.add_argument("--pilot", action="store_true")
     trials = parser.add_mutually_exclusive_group()
     trials.add_argument("--test-stop", action="store_true")
     trials.add_argument("--test-geometry", action="store_true")
     parser.add_argument("--transition", action="store_true")
+    parser.add_argument("--scan", action="store_true")
     parser.add_argument("--image", type=Path)
     parser.add_argument("--client")
     args = parser.parse_args()
+    if args.scan:
+        if not args.pilot or args.image or args.check_stop or args.transition or args.test_stop or args.test_geometry:
+            parser.error("--scan requires --pilot without other modes/trials/image")
+        if not 1 <= args.limit <= 180:
+            parser.error("--scan limit must be 1..180")
+    elif args.limit not in (2, 3, 10):
+        parser.error("pilot/qualification limit must be 2, 3 or 10")
     if args.limit == 10 and not args.pilot:
         parser.error("ten positions require --pilot")
     if args.image is not None and (not args.pilot or args.run or args.check_stop or not args.client):
@@ -281,6 +289,12 @@ def main():
         report.update({"mode": "zzz-transition", "coverageConfirmed": False, "endOfInventory": None})
         from zzz_transition import RESULT_CELL
         report["observations"] = [{"position": 0, "row": RESULT_CELL[1], "column": RESULT_CELL[0], "status": "not-visited"}]
+    if args.scan:
+        report.update({"mode": "zzz-scan", "coverageConfirmed": False, "endOfInventory": None,
+                       "absoluteInventoryPositionConfirmed": False, "prefixTraversalComplete": False})
+        report["observations"] = [{"position": i, "logicalRow": i // 9, "row": min(i // 9, 2), "column": i % 9,
+                                   "positionMeaning": "ordinal within requested prefix; absolute inventory index unconfirmed",
+                                   "status": "not-visited"} for i in range(args.limit)]
     listener = None
     event = None
     guarded_mouse = None
@@ -299,8 +313,13 @@ def main():
         report["sourceSha"] = offline.SHA
         report["unchangedSourceFiles"] = offline.verify_source(args.cache, args.cache / f"youkai-{offline.SHA}")
         if args.pilot:
+            reader_files = ["zzz_pilot.py", "youkai_selection.py"]
+            if args.transition or args.scan:
+                reader_files.append("zzz_transition.py")
+            if args.scan:
+                reader_files.append("zzz_scan.py")
             report["readerSourceSha256"] = {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-                                             for name in (("zzz_pilot.py", "youkai_selection.py", "zzz_transition.py") if args.transition else ("zzz_pilot.py", "youkai_selection.py"))}
+                                             for name in reader_files}
         if args.image is not None:
             from PIL import Image
             from zzz_pilot import read_frame
@@ -388,7 +407,7 @@ def main():
             print("This is a GEOMETRY TEST: after the first reading, wait for the pause, then move the game window using its title bar.", flush=True)
         if args.transition:
             print("One middle-row selection, then ONE downward wheel step inside the grid. No automatic retry.", flush=True)
-        purpose = "One-transition test" if args.transition else f"{args.limit}-position proof"
+        purpose = "One-transition test" if args.transition else f"Integrated {args.limit}-position scan" if args.scan else f"{args.limit}-position proof"
         print(f"F8 verified. Release it. {purpose} in 5 seconds; F8/Ctrl+C now stops. Exclusive controls.", flush=True)
         time.sleep(5)
         if event.is_set():
@@ -398,7 +417,7 @@ def main():
         report["window"] = window
         initial_identity = (window["left"], window["top"], window["w"], window["h"])
         report["limit"] = args.limit
-        report["scrollAllowed"] = args.transition
+        report["scrollAllowed"] = args.transition or args.scan
         report["upstreamCountArgumentMeaning"] = "qualification-prefix-only; not the inventory total"
         header_reads = []
         recognizer = make_recognizer("tesseract")
@@ -437,14 +456,22 @@ def main():
             from zzz_transition import SOURCE_CELL, SCROLL_CELL
             targets = [calibration.to_screen(*grid.DEFAULT_GRID.cell_center(*SOURCE_CELL))]
             scroll_target = calibration.to_screen(*grid.DEFAULT_GRID.cell_center(*SCROLL_CELL))
+        if args.scan:
+            from zzz_transition import SCROLL_CELL
+            targets = [calibration.to_screen(*grid.DEFAULT_GRID.cell_center(column, row)) for row in range(3)
+                       for column in range(grid.DEFAULT_GRID.columns)]
+            scroll_target = calibration.to_screen(*grid.DEFAULT_GRID.cell_center(*SCROLL_CELL))
+            from zzz_scan import scroll_budget
         guard = InputGuard(check_window, lambda: event.is_set() or not listener.is_alive(), targets,
-                           (1 if args.transition else 1 + args.limit * (1 + grid.PANEL_STUCK_RECLICKS)),
-                           timeout=30 if args.transition else 180 if args.pilot else 60,
-                           scroll_target=scroll_target, max_scrolls=1 if args.transition else 0)
+                           args.limit if args.scan else 1 if args.transition else 1 + args.limit * (1 + grid.PANEL_STUCK_RECLICKS),
+                           timeout=max(180, args.limit * 6 + 30) if args.scan else 30 if args.transition else 180 if args.pilot else 60,
+                           scroll_target=scroll_target, max_scrolls=scroll_budget(args.limit) if args.scan else 1 if args.transition else 0)
         report["targets"] = targets
         report["pressBudget"] = guard.max_presses
         report["scrollBudget"] = guard.max_scrolls
         report["scrollTarget"] = list(scroll_target) if scroll_target is not None else None
+        report["frameBudget"] = args.limit * 12 + 60 if args.scan else 600 if args.pilot else 80
+        report["inputDeadlineSeconds"] = max(180, args.limit * 6 + 30) if args.scan else 30 if args.transition else 180 if args.pilot else 60
         report["frames"] = []
         frame_dir = output / "frames"
         frame_dir.mkdir()
@@ -455,7 +482,7 @@ def main():
         selected_frames = {}
         def capture_and_record(evidence=None, frame=None):
             guard.check()
-            if len(report["frames"]) >= (600 if args.pilot else 80):
+            if len(report["frames"]) >= report["frameBudget"]:
                 raise ProbeStopped("capture-budget-exhausted")
             frame = frame if frame is not None else original_grab()
             guard.check()
@@ -464,7 +491,7 @@ def main():
             path = frame_dir / f"{len(report['frames']):04d}.png"
             frame.save(path)
             entry = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-                     "pressCount": guard.presses, "at": guard.clock()}
+                     "pressCount": guard.presses, "scrollCount": guard.scrolls, "at": guard.clock()}
             if evidence is not None:
                 entry["panelCheck"] = evidence
                 expected = evidence["expectedPosition"]
@@ -493,6 +520,18 @@ def main():
 
         raw_mouse = pynput.mouse.Controller()
         guarded_mouse = GuardedMouse(raw_mouse, guard)
+        if args.scan:
+            from zzz_scan import run_scan
+            report["status"] = "running"
+            save_report(report_path, report)
+            def record_scan(frame, evidence):
+                capture_and_record(frame=frame)
+                report["frames"][-1]["scanCheck"] = evidence
+                save_report(report_path, report)
+                return report["frames"][-1]
+            run_scan(calibration, original_grab, guarded_mouse, guard, record_scan,
+                     report, output, lambda: save_report(report_path, report), grid.DEFAULT_GRID)
+            return 0
         if args.transition:
             from zzz_transition import run_transition
             report["status"] = "running"
@@ -615,7 +654,10 @@ def main():
             report["processedPositions"] = sum(o["status"] == "read" for o in report["observations"])
             report["scopeCounts"] = {scope: sum(o.get("reading", {}).get("scope") == scope for o in report["observations"])
                                      for scope in ("included", "excluded-B", "pending-rarity")}
-            if not args.transition and args.image is None:
+            if args.scan:
+                from zzz_scan import summarize_scan
+                summarize_scan(report)
+            if not args.transition and not args.scan and args.image is None:
                 report["pilotTraversalComplete"] = report["processedPositions"] == args.limit and not (args.test_stop or args.test_geometry)
         report["endedAt"] = datetime.now(timezone.utc).isoformat()
         save_report(report_path, report)

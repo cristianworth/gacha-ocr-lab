@@ -1,6 +1,6 @@
 # Planejamento — motor compartilhado de OCR
 
-Atualizado em 22/10/2026. **Piloto Python ZZZ conferido em 1280×720/100%; dez posições, F8, perda de foco e movimentação da janela verificados; rolagem ainda sem comprovação real. O motor compartilhado ainda não foi extraído.** Este documento é o plano canônico. A [arquitetura e pesquisa de fontes](architecture-proposal.md) explicam as alternativas; o [README](../README.md) descreve o software que existe hoje.
+Atualizado em 23/10/2026. **Piloto e uma rolagem real ZZZ conferidos em 1280×720/100%. P3.3 tem percurso integrado de 54 posições implementado; validação real do percurso e término de inventário pendentes. O motor compartilhado ainda não foi extraído.** Este documento é o plano canônico. A [arquitetura e pesquisa de fontes](architecture-proposal.md) explicam as alternativas; o [README](../README.md) descreve o software que existe hoje.
 
 ## Objetivo, prioridades e escopo
 
@@ -44,6 +44,13 @@ O núcleo comum é uma direção de projeto. Compartilhar captura, coordenadas, 
 **Regra de decisão:** se reproduzir o caminho W-Engines exigir reconstruir captura, grade e reconhecimento antes do piloto, interromper a extração e comparar a base HSR já levantada. Trocar a ordem é preferível a reconstruir um scanner para justificar a escolha inicial. Não iniciar outra pesquisa ampla sem uma falha concreta que a justifique.
 
 **Adiar:** framework de plugins, UI nova, navegação desde o menu principal, outras categorias, suporte amplo a resoluções e empacotamento independente antes do fluxo funcionar. A entrada elevada necessária ao piloto permanece no escopo; validação do pacote sem ferramentas de desenvolvimento fica no aceite P3. Preservar desde o início parada, foco, sessão parcial, dados brutos, incerteza e cópias distintas.
+
+## Validação com Cristian — preferência de 23/10/2026
+
+- Preferir uma sessão por entrega funcional, capturando mais contexto de uma vez: posições, campos, rolagens, cópias, decisões de escopo e falhas. Evitar solicitações manuais separadas para fragmentos do mesmo percurso.
+- Aproveitar capturas e relatórios existentes para diagnóstico/replay. O assistente executa verificações locais apropriadas; a execução manual deve resolver uma dúvida que os arquivos não permitem resolver.
+- Cada pedido manual informa comportamento exercitado, resultado esperado e um único artefato a enviar. Se falhar, analisar e corrigir antes de pedir nova sessão integrada.
+- Não repetir F8, foco, geometria, piloto ou transição já conferidos por rotina. Abrir ensaio isolado apenas para uma falha concreta que não possa ser esclarecida na sessão integrada.
 
 ## Levantamento concluído — P0
 
@@ -151,17 +158,21 @@ Cada observação mantém jogo/categoria, posição/ordem na sessão, versão do
 
 ### P3.1 Consolidar o piloto aceito
 
-O recorte do piloto foi conferido neste ambiente: dez posições, cópias preservadas, nomes corrigidos e paradas reais por F8, foco e movimentação da janela. Preservar entrada, captura, guardas e diagnóstico na transição P3.2. Referências reais adicionais (B, nível intermediário, progressão 5, destravado) continuam pendentes para ampliar a avaliação do leitor; não são inventário completo aceito. Não reescrever o leitor para acomodar jogos futuros.
+O recorte do piloto foi conferido neste ambiente: dez posições, cópias preservadas, nomes corrigidos e paradas reais por F8, foco e movimentação da janela. Preservar entrada, captura, guardas e diagnóstico na transição P3.2. Referências reais adicionais (B, nível intermediário, destravado) continuam pendentes; progressão 5 foi conferida visualmente no ensaio P3.2 de 23/10. Esses casos servem para ampliar a avaliação do leitor; não são inventário completo aceito. Não reescrever o leitor para acomodar jogos futuros.
 
 ### P3.2 Ampliar uma transição de cada vez
 
 **Primeiro ensaio real executado em 22/10/2026:** sessão `20261022-122109-7df244d1-selection`, um clique na primeira célula da última linha, sem rolagem. O cartão foi selecionado em r3c0, mas a grade e o scrollbar ficaram parados; o timeout veio da expectativa incorreta de encontrar a seleção em r2c0. Vinte e três hashes de frames, a imagem anterior e os módulos do leitor foram conferidos; o painel salvo foi lido offline como Bloodmarrow Coffer, A, 60/60, progressão 1, travado. Não foi transição aceita nem nova leitura ao vivo.
 
-**Correção implementada:** [ensaio de um passo de roda](zzz-transition.md). Seleciona a primeira célula da terceira linha, espera estabilidade e emite um único passo descendente de roda dentro da grade. Orçamentos separados: um clique e uma solicitação de roda; sem retentativas. Só lê após seleção esperada na segunda linha, sobreposição de exatamente uma linha e scrollbar descendente. Timeout de seleção preserva imagem posterior e métricas de movimento, sem inferir índice global, cobertura ou fim. O deslocamento real desse passo ainda precisa de prova; 116 testes locais aprovados, incluindo 14 casos adicionais de guarda/fluxo/evidência. F8, foco e movimentação da janela permanecem conferidos. A ampliação para P3.3 depende dessa evidência.
+**Correção implementada:** [ensaio de um passo de roda](zzz-transition.md). Seleciona a primeira célula da terceira linha, espera estabilidade e emite um único passo descendente de roda dentro da grade. Orçamentos separados: um clique e uma solicitação de roda; sem retentativas. Só lê após seleção esperada na segunda linha, sobreposição de exatamente uma linha e scrollbar descendente. Timeout de seleção preserva imagem posterior e métricas de movimento, sem inferir índice global, cobertura ou fim. Na entrega de 22/10, o deslocamento ainda precisava de prova; 116 testes locais estavam aprovados. A execução de 23/10 abaixo confirmou a transição e permitiu iniciar o percurso integrado P3.3.
 
 Exercitar uma passagem entre telas/linhas e a linha final parcial com limites pequenos antes da coleta completa. Reutilizar evidências de P2; não exigir novo piloto idêntico quando o comportamento já tiver sido conferido. Casos sintéticos cobrem estados indisponíveis na conta, com essa limitação explícita.
 
+**P3.2 conferido no jogo em 23/10/2026:** sessão `20261023-095006-716da4f3-selection`, um clique + uma roda, avanço de uma linha, seleção da posição visual 18 para 9, scrollbar 238,5 → 241,5. Sobreposição das três linhas compatível em 85,2% dos cartões. Weeping Gemini, A, 60/60, progressão 5 e travado conferem visualmente. Quatorze hashes de frames, duas imagens adicionais e fonte/código conferidos; revisão separada vinculada ao manifesto original. Não repetir o ensaio unitário por rotina.
+
 ### P3.3 Rolagem, escopo S/A e término
+
+**Recorte implementado em 23/10/2026:** [percurso integrado com limite](zzz-scan.md), comando `scan-zzz.ps1 -Run`, padrão de 54 posições (seis linhas e três rolagens). Reutiliza captura, OCR, guardas e comparação P3.2; percorre as três linhas iniciais e depois lê cada nova linha interna após uma roda verificada, sem reler posições anteriores. Preserva cópias, B como exclusão, campos incertos, imagens por posição e antes/depois das transições. Uma sessão fornece o diagnóstico de seleção, leitura, várias fronteiras e contagens do recorte. Quatro cenários integrados e a regressão anterior passaram localmente (120 casos no total). Ainda falta a prova real do percurso e a estratégia de fim/última linha do inventário. O total do cabeçalho permanece candidato global, não contagem S/A validada.
 
 - Verificar se o jogo permite filtro S/A e se o contador reflete esse filtro. Não presumir a semântica do número a partir de duas leituras OCR iguais.
 - Se o total incluir B, usá-lo apenas como total global. A quantidade S/A precisa de referência própria; registrar cobertura não confirmada quando faltar.
@@ -212,4 +223,4 @@ Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reserv
 - Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
 - GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Próximo bloco:** executar o `transition-zzz.ps1 -Run` corrigido, com W-Engines no topo e quatro linhas preenchidas. Agora são um clique na terceira linha e um único passo de roda; medir o deslocamento real e conferir a sessão antes de ampliar para P3.3 (fronteiras/linha final, escopo S/A e término). F8, perda de foco, movimentação da janela e piloto de dez posições já foram conferidos; não repetir por rotina. A tentativa anterior recusou corretamente a leitura sem movimento, mas expôs a hipótese errada de que o clique de borda rolaria nesse ambiente.
+**Próximo bloco:** uma única execução de `scan-zzz.ps1 -Run` para coletar 54 posições, seis linhas e três transições com evidências completas. Analisar essa sessão e corrigir offline o que ela demonstrar, sem pedir ensaios menores por comportamento. Depois concluir fim/última linha, semântica de contagem e escopo S/A em P3.3, agrupando sua validação em um percurso. P3.4 mantém duas coletas completas e pacote Windows; P4 vem após ZZZ funcional.

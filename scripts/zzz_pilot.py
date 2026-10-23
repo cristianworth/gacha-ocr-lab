@@ -255,6 +255,9 @@ def render_review(path, report):
     if report.get("mode") == "zzz-transition":
         cell = report.get("transition", {}).get("resultViewportCell", {"row": 1, "column": 0})
         summary += f"<p>One viewport transition. Expected selected cell after movement: row {cell['row'] + 1}, column {cell['column'] + 1}. Absolute inventory position and inventory end remain unconfirmed.</p>"
+    if report.get("mode") == "zzz-scan":
+        summary += '<p>Integrated bounded traversal. Completion means the requested prefix was read; inventory coverage and end remain unconfirmed.</p>'
+        summary += f'<pre>{html.escape(json.dumps(report.get("scanSummary", {}), indent=2))}</pre>'
     rows = []
     for observation in report.get("observations", []):
         reading = observation.get("reading", {})

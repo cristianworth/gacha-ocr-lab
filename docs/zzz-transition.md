@@ -1,6 +1,6 @@
 # P3.2 — transição ZZZ com um passo de roda
 
-Atualizado em **22/10/2026**. O primeiro ensaio real selecionou o cartão, mas não rolou a grade. A estratégia foi corrigida para uma seleção em linha interna seguida de um passo explícito de roda. **Correção implementada e testada localmente; movimento real da roda ainda não confirmado.** F8, perda de foco e movimentação da janela foram conferidos em P2. Este recorte não implementa inventário completo, contagem S/A ou executável independente.
+Atualizado em **22/10/2026**. O primeiro ensaio real selecionou o cartão, mas não rolou a grade. A estratégia foi corrigida para uma seleção em linha interna seguida de um passo explícito de roda. **Roda confirmada no jogo em 23/10/2026. Próxima validação: percurso integrado P3.3, sem repetir o ensaio isolado.** F8, perda de foco e movimentação da janela foram conferidos em P2. Este recorte não implementa inventário completo, contagem S/A ou executável independente.
 
 ## Diagnóstico do primeiro ensaio real
 
@@ -25,9 +25,9 @@ A guarda autoriza somente essa direção, magnitude e posição, com orçamentos
 
 Se um passo não mover a grade, mover uma fração ou mais de uma linha, ou deixar seleção/painel sem estabilidade, o comando encerra sem retentativa e sem aceitar a leitura. Nos timeouts de seleção após a roda, também salva a última imagem, comparação e scrollbar: o próximo diagnóstico não depende só da mensagem de timeout. Perdas de foco/paradas preservam os frames já salvos e não fazem captura adicional para completar evidências.
 
-O tamanho real do movimento por passo ainda será medido. Uma recusa não prova fim do inventário. Miniaturas medem movimento, sem identificar itens/deduplicar cópias. Índice absoluto, cobertura e fim permanecem não confirmados. Fonte Youkai não foi modificada e não são chamados métodos privados do navegador.
+Um passo avançou uma linha na sessão de 23/10. Repetição e fronteiras serão exercitadas juntas no percurso integrado. Uma recusa não prova fim do inventário. Miniaturas medem movimento, sem identificar itens/deduplicar cópias. Índice absoluto, cobertura e fim permanecem não confirmados. Fonte Youkai não foi modificada e não são chamados métodos privados do navegador.
 
-## Para testar a correção
+## Roteiro histórico da correção — já conferido
 
 1. Deixar W-Engines **no topo da lista**, inglês, janela 1280×720, escala Windows 100%, quatro linhas preenchidas e itens além delas. A posição da janela pode ser a atual; há nova calibração.
 2. No PowerShell **como Administrador**, executar:
@@ -47,4 +47,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\s
 
 **116 testes aprovados:** os 102 anteriores e 14 casos adicionais. Incluem fluxo completo do CLI com Win32/controlador simulados, uma seleção + uma roda + leitura, roda sem movimento com última imagem preservada, foco perdido após roda, proibição de roda fora do alvo/direção/magnitude/orçamento e regressão de F8/geometria/captura/leitor. Nenhum input nativo foi emitido pelos testes.
 
-A análise do ensaio real e o replay offline acima não testam a nova roda no jogo. Depois da transição aceita: ampliar fronteiras/linha final, filtro/contador S/A e término em P3.3. Em P3.4, duas coletas completas conferidas e pacote Windows.
+A verificação local e o replay do clique sem rolagem acima pertencem à entrega de 22/10. A sessão de 23/10 abaixo confirmou a nova roda no jogo. Seguir para o percurso integrado P3.3, com fronteiras e diagnóstico juntos; filtro/contador S/A e término ainda precisam ser concluídos. Em P3.4, duas coletas completas conferidas e pacote Windows.
+
+## Transição real aceita no recorte — 23/10/2026
+
+Sessão `.cache/youkai-p1/runs/20261023-095006-716da4f3-selection/`, leitor de `aff9440`: `transition-read`, uma solicitação de clique, uma de roda, uma leitura, sem erro de cleanup. Seleção visual 18 → 9, scrollbar 238,5 → 241,5, deslocamento de uma linha aceito pela sobreposição (erro mediano 6,70; 85,2% das 27 miniaturas compatíveis).
+
+Weeping Gemini, A, 60/60, progressão 5 e travado conferem visualmente pelo assistente. Nome primário truncado foi recuperado pela releitura ampliada literal; o score original de 96,296 é preservado e não representa probabilidade. A imagem passa a desenvolvimento/regressão, sem avaliação independente nem aprovação humana dos campos.
+
+Foram conferidos 14 hashes de frames, a imagem inicial da transição, a imagem da posição, os hashes dos módulos contra `aff9440` e 260 arquivos upstream contra o ZIP fixado. Revisão separada `transition-review.json`, vinculada ao SHA-256 `f3097b5cb2bdd302248d08c3ef82ed22b2baa0574bd06a72aa6513b32a2ed578` do manifesto preservado. Índice absoluto e cobertura continuam não confirmados.
+
+Não repetir o teste isolado por rotina. O próximo comando é o [percurso integrado](zzz-scan.md), que reúne posições, várias rolagens e diagnóstico em uma sessão.
