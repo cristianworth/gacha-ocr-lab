@@ -61,3 +61,19 @@ O caminho atual é serial: movimento/click público Youkai, confirmação por fr
 Um replay offline de quatro imagens na máquina deste chat mediu 1,36–2,41 s por `read_frame`, dos quais 0,58–1,05 s pertenciam à comparação upstream. Esse ensaio inclui OCR/crops e tem carga/condições diferentes da coleta; não é benchmark da versão final nem previsão de ganho. Dados em `20261023-101543-ad9b1eb4-selection/offline-timing/profile.json`.
 
 A versão final deve manter a confirmação de painel correto; há espaço para reduzir comparação duplicada e escrita de diagnóstico no caminho normal e separar melhor captura/processamento. Essas otimizações ainda não foram implementadas/medidas. Não há garantia de velocidade equivalente a outro scanner; a prioridade desta correção é concluir o percurso. A medição/otimização acompanha o produto sem criar outra rodada de ensaios manuais isolados.
+
+## Ler da seleção atual até a última coluna
+
+Modo solicitado por Cristian para uma linha com cartões NEW! e normais intercalados. Não volta ao topo e a roda fica bloqueada. Selecione o W-Engine inicial na linha desejada e execute no PowerShell como Administrador:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Repo\gacha-ocr-lab\scripts\row-zzz.ps1" -Run
+```
+
+Pressione/solte F8 na confirmação inicial; depois mantenha o jogo em primeiro plano até encerrar. O item já selecionado é lido sem novo clique; os seguintes são selecionados para a direita até a nona coluna, na mesma linha visível. Começando na primeira coluna: nove leituras e até oito cliques. Começando no meio: lê somente o restante, incluindo a seleção atual. Não muda a linha nem emite roda. Se a grade se mover por comportamento do jogo, recusa continuar e preserva os frames.
+
+Resultado esperado: `row-read`, `selected-row-end-reached`, `prefixTraversalComplete: true`, `scrollRequests: 0`. `rowStart` registra linha/coluna iniciais; os índices são relativos ao início manual, sem cobertura global. Salva o mesmo JSON/revisão/frames do percurso. Enviar apenas `session.json`. Três cenários integrados do modo passaram localmente: início na primeira coluna, início no meio e quarta linha com NEW! alternados, todos longe do topo. Sintaxe dos lançadores conferida no PowerShell 5.1. Esse ensaio isolado foi pedido explicitamente; a preferência geral por validações integradas permanece.
+
+## Percurso de 54 posições concluído — 23/10/2026
+
+Sessão `20261023-103911-485104ab-selection`, código `906e7b0`: 54/54 posições, três transições verificadas, 54 observações S/A, sem falhas. Permanecem três nomes incertos (posições de índice 13, 24 e 33); nenhum nível ficou incerto. Hashes de todos os frames e das 54 imagens conferidos, com seleção correspondente em cada imagem e versão do código verificada. Revisão separada vinculada ao manifesto original, sem aprovação humana automática ou conferência manual dos campos de todos os itens. Isso aceita o recorte, sem provar fim/contagem S/A global.

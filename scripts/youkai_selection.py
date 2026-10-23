@@ -243,9 +243,14 @@ def main():
     trials.add_argument("--test-geometry", action="store_true")
     parser.add_argument("--transition", action="store_true")
     parser.add_argument("--scan", action="store_true")
+    parser.add_argument("--selected-row", action="store_true")
     parser.add_argument("--image", type=Path)
     parser.add_argument("--client")
     args = parser.parse_args()
+    if args.selected_row:
+        if not args.scan:
+            parser.error("--selected-row requires --scan")
+        args.limit = 9
     if args.scan:
         if not args.pilot or args.image or args.check_stop or args.transition or args.test_stop or args.test_geometry:
             parser.error("--scan requires --pilot without other modes/trials/image")
@@ -290,7 +295,7 @@ def main():
         from zzz_transition import RESULT_CELL
         report["observations"] = [{"position": 0, "row": RESULT_CELL[1], "column": RESULT_CELL[0], "status": "not-visited"}]
     if args.scan:
-        report.update({"mode": "zzz-scan", "coverageConfirmed": False, "endOfInventory": None,
+        report.update({"mode": "zzz-scan", "startMode": "selected-row" if args.selected_row else "top-prefix", "coverageConfirmed": False, "endOfInventory": None,
                        "absoluteInventoryPositionConfirmed": False, "prefixTraversalComplete": False})
         report["observations"] = [{"position": i, "logicalRow": i // 9, "row": min(i // 9, 2), "column": i % 9,
                                    "positionMeaning": "ordinal within requested prefix; absolute inventory index unconfirmed",
@@ -407,7 +412,7 @@ def main():
             print("This is a GEOMETRY TEST: after the first reading, wait for the pause, then move the game window using its title bar.", flush=True)
         if args.transition:
             print("One middle-row selection, then ONE downward wheel step inside the grid. No automatic retry.", flush=True)
-        purpose = "One-transition test" if args.transition else f"Integrated {args.limit}-position scan" if args.scan else f"{args.limit}-position proof"
+        purpose = "Selected row to column 9, no scroll" if args.selected_row else "One-transition test" if args.transition else f"Integrated {args.limit}-position scan" if args.scan else f"{args.limit}-position proof"
         print(f"F8 verified. Release it. {purpose} in 5 seconds; F8/Ctrl+C now stops. Exclusive controls.", flush=True)
         time.sleep(5)
         if event.is_set():
@@ -417,7 +422,7 @@ def main():
         report["window"] = window
         initial_identity = (window["left"], window["top"], window["w"], window["h"])
         report["limit"] = args.limit
-        report["scrollAllowed"] = args.transition or args.scan
+        report["scrollAllowed"] = args.transition or (args.scan and not args.selected_row)
         report["upstreamCountArgumentMeaning"] = "qualification-prefix-only; not the inventory total"
         header_reads = []
         recognizer = make_recognizer("tesseract")
@@ -430,7 +435,7 @@ def main():
         report["headerReads"] = header_reads
         report["globalCountCandidate"] = count
         normalized = "".join(ch for ch in " ".join(header_reads).lower() if ch.isalnum())
-        if "wenginestorage" not in normalized or count is None or count < args.limit:
+        if "wenginestorage" not in normalized or count is None or count < (1 if args.selected_row else args.limit):
             raise ProbeStopped("W-Engine-storage-header-not-confirmed")
 
         def check_window():
@@ -462,10 +467,13 @@ def main():
                        for column in range(grid.DEFAULT_GRID.columns)]
             scroll_target = calibration.to_screen(*grid.DEFAULT_GRID.cell_center(*SCROLL_CELL))
             from zzz_scan import scroll_budget
+        if args.selected_row:
+            targets = []
+            scroll_target = None
         guard = InputGuard(check_window, lambda: event.is_set() or not listener.is_alive(), targets,
                            args.limit if args.scan else 1 if args.transition else 1 + args.limit * (1 + grid.PANEL_STUCK_RECLICKS),
                            timeout=max(180, args.limit * 6 + 30) if args.scan else 30 if args.transition else 180 if args.pilot else 60,
-                           scroll_target=scroll_target, max_scrolls=scroll_budget(args.limit) if args.scan else 1 if args.transition else 0)
+                           scroll_target=scroll_target, max_scrolls=0 if args.selected_row else scroll_budget(args.limit) if args.scan else 1 if args.transition else 0)
         report["targets"] = targets
         report["pressBudget"] = guard.max_presses
         report["scrollBudget"] = guard.max_scrolls

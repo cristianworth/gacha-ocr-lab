@@ -3,7 +3,7 @@
 import hashlib
 import math
 
-from zzz_pilot import PanelNotReady, read_frame, wait_for_panel
+from zzz_pilot import PanelNotReady, read_frame, selected_positions, wait_for_panel
 from zzz_transition import SCROLL_CELL, TransitionRejected, compare_viewports, grid_patches, scrollbar_top
 
 
@@ -35,7 +35,8 @@ def run_scan(calibration, grab, mouse, guard, record, report, output, save, grid
     # Keep one full row below the last requested row. Inventory-end handling
     # is a separate contract; a blocked wheel must never imply completion.
     required = max(grid.columns * grid.rows_visible, (math.ceil(limit / grid.columns) + 1) * grid.columns)
-    if report["globalCountCandidate"] < required:
+    selected_row = report.get("startMode") == "selected-row"
+    if not selected_row and report["globalCountCandidate"] < required:
         raise TransitionRejected("prefix-needs-room-below-requested-rows; inventory-end-is-not-implemented")
     report.update({"transitions": [], "coverageConfirmed": False, "endOfInventory": None,
                    "absoluteInventoryPositionConfirmed": False, "prefixTraversalComplete": False})
@@ -55,16 +56,34 @@ def run_scan(calibration, grab, mouse, guard, record, report, output, save, grid
     initial = wait(None, "initial")
     top = scrollbar_top(initial, calibration)
     report["initialScrollbar"] = top
-    if top is None or top > 250:
-        raise TransitionRejected("prepare-viewport-at-top; no automatic rewind")
-    if any(float(patch.std()) < 12 for patch in grid_patches(initial, calibration, grid)[-1]):
-        raise TransitionRejected("last-visible-row-not-confirmed-full")
+    if selected_row:
+        selected = selected_positions(initial, calibration, grid, grid.columns * grid.rows_visible)
+        if len(selected) != 1:
+            raise TransitionRejected("select-exactly-one-visible-W-Engine-before-running")
+        start_row, start_column = divmod(selected[0], grid.columns)
+        limit = grid.columns - start_column
+        report.update({"requestedPositions": limit, "limit": limit,
+                       "rowStart": {"row": start_row, "column": start_column, "lastColumn": grid.columns - 1},
+                       "observations": [{"position": i, "logicalRow": None, "row": start_row, "column": column,
+                                         "positionMeaning": "ordinal from manually selected card; absolute inventory index unconfirmed",
+                                         "status": "not-visited"} for i, column in enumerate(range(start_column, grid.columns))]})
+        guard.targets = [calibration.to_screen(*grid.cell_center(column, start_row)) for column in range(start_column + 1, grid.columns)]
+        guard.max_presses = limit - 1
+        guard.max_scrolls = 0
+        guard.scroll_target = None
+        report.update({"targets": guard.targets, "pressBudget": guard.max_presses, "scrollBudget": 0,
+                       "scrollAllowed": False, "scrollTarget": None})
+    else:
+        if top is None or top > 250:
+            raise TransitionRejected("prepare-viewport-at-top; no automatic rewind")
+        if any(float(patch.std()) < 12 for patch in grid_patches(initial, calibration, grid)[-1]):
+            raise TransitionRejected("last-visible-row-not-confirmed-full")
     report["initialFrame"] = save_frame(initial, "scan-before.png")
     save()
     offset = 0
     for index, observation in enumerate(report["observations"]):
-        logical_row, column = divmod(index, grid.columns)
-        if logical_row >= 3 and column == 0:
+        logical_row, column = (start_row, start_column + index) if selected_row else divmod(index, grid.columns)
+        if not selected_row and logical_row >= 3 and column == 0:
             anchor_column = grid.columns - 1
             before = wait(2 * grid.columns + anchor_column, "before-wheel", nextPosition=index, viewportOffsetRows=offset)
             transition = {"number": len(report["transitions"]) + 1, "beforePosition": index,
@@ -106,14 +125,28 @@ def run_scan(calibration, grab, mouse, guard, record, report, output, save, grid
                 save()
                 raise
         visual_row = logical_row - offset
-        if visual_row not in (0, 1, 2):
+        if visual_row not in (range(grid.rows_visible) if selected_row else (0, 1, 2)):
             raise TransitionRejected("scan-left-approved-interior-rows")
         observation.update({"row": visual_row, "viewportOffsetRows": offset, "status": "selecting"})
         save()
         try:
             guard.check()
-            click(mouse, *calibration.to_screen(*grid.cell_center(column, visual_row)))
-            frame = wait(visual_row * grid.columns + column, "item", position=index, viewportOffsetRows=offset)
+            if selected_row and index == 0:
+                frame = initial
+                observation["selectionAction"] = "already-selected"
+            else:
+                click(mouse, *calibration.to_screen(*grid.cell_center(column, visual_row)))
+                frame = wait(visual_row * grid.columns + column, "item", position=index, viewportOffsetRows=offset)
+                observation["selectionAction"] = "clicked"
+            if selected_row:
+                overlap = compare_viewports(initial, frame, calibration, grid)["candidates"][0]
+                current_thumb = scrollbar_top(frame, calibration)
+                same = (overlap["medianError"] <= 12 and overlap["matchingFraction"] >= .70
+                        and top is not None and current_thumb is not None and abs(current_thumb - top) < 1.5)
+                observation["viewportCheck"] = {"sameViewport": same, "zeroRowOverlap": overlap,
+                                                "scrollbarBefore": top, "scrollbarAfter": current_thumb}
+                if not same:
+                    raise TransitionRejected("viewport-moved-during-selected-row; no further inputs")
             observation.update({"status": "captured", **save_frame(frame, f"position-{index:03d}.png"),
                                 "captureEvidence": latest_entry[0]["path"], "selectionVerified": True})
             save()
@@ -128,7 +161,8 @@ def run_scan(calibration, grab, mouse, guard, record, report, output, save, grid
             summarize_scan(report)
             save()
             raise
-    report.update({"status": "prefix-read", "reason": "requested-limit-reached",
+    report.update({"status": "row-read" if selected_row else "prefix-read",
+                   "reason": "selected-row-end-reached" if selected_row else "requested-limit-reached",
                    "finalFrame": save_frame(latest_frame[0], "scan-final.png")})
     summarize_scan(report)
     save()

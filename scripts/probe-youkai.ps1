@@ -1,11 +1,12 @@
 [CmdletBinding()]
 param([switch]$CheckStop, [switch]$Run, [string]$StopReceipt, [ValidateRange(1,180)][int]$Limit = 3,
-      [switch]$Pilot, [string]$ImagePath, [string]$ClientArea, [switch]$TestStop, [switch]$TestGeometry, [switch]$Transition, [switch]$Scan)
+      [switch]$Pilot, [string]$ImagePath, [string]$ClientArea, [switch]$TestStop, [switch]$TestGeometry, [switch]$Transition, [switch]$Scan, [switch]$SelectedRow)
 
 $ErrorActionPreference = 'Stop'
 if ($CheckStop -and $Run) { throw 'Choose CheckStop or Run.' }
 if ($TestStop -and $TestGeometry) { throw 'Choose TestStop or TestGeometry.' }
 if (($TestStop -or $TestGeometry) -and (!$Run -or !$Pilot -or $ImagePath -or $Transition)) { throw 'Trials require Run and Pilot, without ImagePath/Transition.' }
+if ($SelectedRow -and !$Scan) { throw 'SelectedRow requires Scan.' }
 if ($Scan -and (!$Pilot -or $ImagePath -or $CheckStop -or $Transition -or $TestStop -or $TestGeometry)) { throw 'Scan requires Pilot without other modes/trials/image.' }
 if (!$Scan -and $Limit -notin @(2,3,10)) { throw 'Qualification/pilot limit must be 2, 3 or 10.' }
 if ($Limit -eq 10 -and !$Pilot) { throw 'Ten positions require Pilot.' }
@@ -38,6 +39,7 @@ try {
     if ($TestGeometry) { $probeArgs += '--test-geometry' }
     if ($Transition) { $probeArgs += '--transition' }
     if ($Scan) { $probeArgs += '--scan' }
+    if ($SelectedRow) { $probeArgs += '--selected-row' }
     if ($ImagePath) { $probeArgs += @('--image', (Resolve-Path -LiteralPath $ImagePath).Path, '--client', $ClientArea) }
     if ($CheckStop) { $probeArgs += '--check-stop' }
     if ($Run) {
