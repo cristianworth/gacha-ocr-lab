@@ -1,231 +1,114 @@
-# Planejamento — motor compartilhado de OCR
+# Planejamento — scanner local e motor compartilhado
 
-Atualizado em 23/10/2026. **Piloto e uma rolagem real ZZZ conferidos em 1280×720/100%. P3.3 tem percurso integrado de 54 posições implementado; validação real do percurso e término de inventário pendentes. O motor compartilhado ainda não foi extraído.** Este documento é o plano canônico. A [arquitetura e pesquisa de fontes](architecture-proposal.md) explicam as alternativas; o [README](../README.md) descreve o software que existe hoje.
+Atualizado em **23/10/2026**. Plano canônico, revisado após as sessões reais de 54 posições e da linha com NEW!. **Estamos em P3.3: o percurso intermediário funciona; falta fechar escopo, cobertura e fim do inventário ZZZ.** O motor multijogo e o pacote Python independente ainda não existem.
 
-## Objetivo, prioridades e escopo
+## Objetivo e prioridades
 
-Entregar um aplicativo Windows com um motor compartilhado para ler armas e equivalentes nos cinco jogos, salvar inventário local e permitir revisão. O motor cuida de janela/coordenadas, ações, captura, OCR, sessão e revisão. Cada jogo fornece perfil visual, interpretação e estratégia de percurso.
+Entregar um aplicativo Windows que capture armas/equivalentes, faça OCR local, preserve cópias e permita revisar/salvar o inventário. Um núcleo compartilhado cuida de janela, coordenadas, ações, captura, execução OCR, sessão e revisão; cada jogo mantém interpretação e estratégia de percurso próprias.
 
-Prioridades, em ordem:
+1. Reaproveitar código executável e verificável.
+2. Entregar ZZZ completo antes de ampliar a arquitetura.
+3. Comprovar compartilhamento com HSR, sem duplicar o scanner.
+4. Completar **Genshin → WuWa → NTE**, um por vez.
+5. Exportar dados revisados ao Advisor; avaliar outras categorias depois.
 
-1. Reaproveitar código existente que possamos executar e verificar.
-2. Entregar um primeiro jogo completo, com resultado útil e conferível.
-3. Demonstrar que o segundo jogo usa o mesmo núcleo, sem copiar o scanner.
-4. Completar os cinco jogos, um por vez.
-5. Exportar dados revisados ao Advisor e avaliar outras categorias.
+Condições confirmadas por Cristian:
 
-**Ordem recomendada: ZZZ → HSR → Genshin → WuWa → NTE.** ZZZ usa o ambiente de origem da candidata a base; HSR verifica cedo outro percurso em Python; Genshin acrescenta 16:10 e referências já conhecidas; WuWa amplia condições visuais/OCR; NTE tem mais lacunas de fonte e idioma.
+- Windows, jogos em inglês e uma entrada para o aplicativo. ZZZ inicialmente em janela, área cliente **1280×720**, escala Windows **100%**.
+- **ZZZ: W-Engines S/A de todos os níveis e progressões.** B é exclusão/evidência, nunca item do inventário-alvo. Genshin: armas 4/5 estrelas; demais jogos terão escopo definido antes da coleta.
+- Inventário preparado manualmente, jogo visível em primeiro plano e controles exclusivos durante a aquisição. Navegação desde menus não é requisito inicial.
+- OCR local, sem credenciais/API paga. Imagens, modelos, resultados e temporários fora do Git; nenhum snapshot do Advisor é atualizado automaticamente.
+- Software livre compatível é aceitável, com origem e avisos conferidos por arquivo/dependência. Não atribuir uma única licença a todo o conjunto.
 
-Confirmado por Cristian:
+## Onde estamos, pela evidência
 
-- Windows exclusivo, interface dos jogos em inglês e um aplicativo de entrada.
-- Resolução pode ser ajustada por jogo; primeiro ZZZ em janela 16:9 e escala Windows 100%. Área cliente 1280×720 confirmada por Cristian e exercitada offline em três prints; aquisição cliente real exercitada e inspecionada; três seleções reais foram conferidas; interrupção em curso e percurso completo ainda precisam da prova. Outra resolução terá validação própria.
-- **ZZZ: somente W-Engines S e A**, de todos os níveis/progressões. B só pode aparecer como evidência de exclusão ou teste negativo, nunca como item do inventário-alvo.
-- Genshin mantém armas 4/5 estrelas. Raridades dos jogos seguintes serão definidas antes de suas coletas, sem aplicar automaticamente esses filtros.
-- Jogo visível em primeiro plano e uso exclusivo dos controles durante a coleta.
-- Aceitação de licença de software livre compatível para priorizar reaproveitamento, após conferir arquivos/dependências.
-- OCR local, sem credenciais/API paga, imagens/resultados/modelos fora do Git e nenhum snapshot do Advisor atualizado automaticamente.
+| Chunk | Estado real | Evidência / limite |
+|---|---|---|
+| P0 — Seleção da base | Concluído | Youkai Python fixado, riscos e alternativas levantados. |
+| P1 — Reprodução isolada | Concluído no recorte | Fonte/dependências fixadas, OCR offline, captura e três seleções reais. Não foi uma coleta completa. |
+| P2 / P3.1 — Piloto e proteções | Conferidos no ambiente inicial | Dez posições, cópias, F8 em curso, perda de foco e movimentação da janela. Resize/DPI diferentes só simulados. |
+| P3.2 — Transição | Conferido | Uma roda real desloca uma linha. Clicar na última linha não rolou neste ambiente; essa hipótese foi descartada. |
+| **P3.3-A — Percurso intermediário** | **Concluído no recorte** | 54/54 posições, seis linhas e três transições verificadas. Três nomes incertos preservados. Linha adicional: 9/9, NEW!/normais, oito cliques, zero roda, campos conferidos visualmente. |
+| **P3.3-B — Escopo e coleta até o fim** | **Próxima implementação** | Filtro/contador S/A, cobertura do início ao fim, borda final e última linha parcial. |
+| P3.4 — Uso normal, aceite e pacote | Pendente | Reduzir custo de diagnóstico, revisar/comparar inventários e entregar entrada Windows independente do ambiente de desenvolvimento. |
+| P4 — HSR e núcleo comum | Pendente | Segundo jogo comprova as fronteiras reais de compartilhamento. |
 
-Python e Youkai permanecem a recomendação técnica, condicionada à prova prática P1. P1.1/P1.2 offline foram executados; em 20/10/2026 Cristian autorizou revisar o plano e avançar à captura única P1.3. Isso não registra uma migração ou inventário completo já aceito.
+A sessão `20261023-103911-485104ab-selection` concluiu o prefixo de 54 posições. A sessão `20261023-105454-c3458594-selection` concluiu a linha selecionada: Housekeeper ×3, Starlight Engine Replica ×3, Drill Rig - Red Axis ×2 e Steam Oven ×1; todos A, 0/10, progressão 1 e travados. Etiquetas NEW! nas colunas 4, 7 e 8 não geraram falsas seleções. Foram conferidos hashes de 40 frames e 11 imagens adicionais, versões dos quatro módulos e 260 arquivos upstream; revisão separada em `row-review.json`, sem alterar o manifesto ou aprovar dados como humanos.
 
-## Revisão crítica da rota — 20/10/2026
+**Essas provas encerram os recortes, não o inventário inteiro.** As nove leituras sem incerteza não medem a precisão geral do OCR. Os três nomes incertos do prefixo continuam pendentes; ausência de B/destravado nessa linha também continua explícita.
 
-O objetivo é um coletor utilizável nos cinco jogos. Até aqui, comprovamos leitores por imagem Genshin/HSR; ainda não aceitamos um inventário completo. A quantidade de testes, commits ou documentos não substitui esse resultado.
+## Revisão crítica e decisões
 
-- **Reaproveitamento tardio:** o scanner Genshin criou visão/percurso próprios antes de reproduzir o comportamento da referência. Os ajustes de máscaras, cores e seleção resolveram casos locais, mas o piloto real continuou sem aceite. A próxima base deve ser executada antes de ser generalizada.
-- **Compartilhamento parcial:** `src/read-weapon.js` já compartilha o processamento de imagem entre Genshin/HSR. Porém, `src/scan-inventory.js` importa visão Genshin e fixa jogo/preparação; `src/inventory-session.js` aceita somente Genshin. Não temos um coletor multijogo comprovado.
-- **Generalização antecipada:** o plano anterior colocava extração do núcleo e um perfil HSR antes do primeiro piloto ZZZ. Isso aumenta a superfície de mudança antes de saber se captura, seleção e OCR da base funcionam juntos. P2 passa a ser uma adaptação pequena para dez posições; P4 comprova e refina as fronteiras com HSR.
-- **Planejamento sem nova evidência executável:** os três commits anteriores a esta revisão alteraram documentação. A próxima entrega de implementação precisa produzir uma execução reproduzível e um diagnóstico, em vez de outra reformulação de arquitetura.
+- **O avanço foi real, mas fragmentado demais.** Captura, cliques, guardas, leitura e várias rolagens funcionam. O planejamento antigo continuava pedindo repetir 54 posições já concluídas. A próxima entrega precisa mudar o resultado disponível: sair de prefixo limitado para inventário com cobertura explicável.
+- **Não aumentar o limite de 54 para 100/180 como próximo marco.** Isso exercita mais do percurso intermediário e continua sem resolver a última linha, a contagem ou o término.
+- **A base Youkai continua útil.** Reutilizamos APIs de captura, calibração, grade, controle e OCR com fonte original preservada. Seleção, campos e percurso ZZZ receberam adaptações onde os dados reais mostraram divergências. Não há motivo atual para outra pesquisa ampla ou troca de base.
+- **Não extrair agora um framework multijogo.** O segundo jogo deve revelar quais fronteiras compartilhar. Ao fechar ZZZ, separar apenas o executor de sessão necessário para não acumular comportamento de produto no lançador de diagnóstico.
+- **Separar cobertura de qualidade dos campos.** Um nome incerto não deve interromper a captura nem desaparecer do resultado. Cobertura completa pode coexistir com pendências OCR; inventário aprovado exige revisão explícita.
+- **Velocidade é trabalho de produto.** Hoje a cadência observada é cerca de 2,4–2,5 s entre cliques, com OCR duplicado e escrita extensa de diagnóstico. Não prometer esse tempo como definitivo nem velocidade igual a outro scanner. Remover custos medidos mantendo seleção/painel corretos; evitar paralelismo complexo antes de medir o ganho simples.
 
-Manter Python/Youkai como hipótese de maior reaproveitamento, sem tratar a escolha como garantia. Preservar o experimento JS e seus exemplos confirmados; congelar novas funcionalidades nele durante a prova. Não portar automaticamente suas ferramentas, todos os testes ou seus detectores.
+## Próximo chunk — P3.3-B: escopo e término em uma entrega
 
-O núcleo comum é uma direção de projeto. Compartilhar captura, coordenadas, emissão de ações, OCR e persistência é plausível; seleção, rolagem, confirmação e término exigem estratégias por jogo. Não obrigar percursos diferentes ao mesmo algoritmo nem esconder comportamento em um arquivo de coordenadas.
+**Resultado esperado:** uma sessão percorre o inventário preparado do início ao fim, preserva cada posição/cópia, identifica itens S/A e explica quando a cobertura está confirmada ou por que ficou incompleta. O limite de segurança deixa de ser o motivo normal de conclusão.
 
-**Regra de decisão:** se reproduzir o caminho W-Engines exigir reconstruir captura, grade e reconhecimento antes do piloto, interromper a extração e comparar a base HSR já levantada. Trocar a ordem é preferível a reconstruir um scanner para justificar a escolha inicial. Não iniciar outra pesquisa ampla sem uma falha concreta que a justifique.
+### 1. Fechar a preparação e a semântica de contagem
 
-**Adiar:** framework de plugins, UI nova, navegação desde o menu principal, outras categorias, suporte amplo a resoluções e empacotamento independente antes do fluxo funcionar. A entrada elevada necessária ao piloto permanece no escopo; validação do pacote sem ferramentas de desenvolvimento fica no aceite P3. Preservar desde o início parada, foco, sessão parcial, dados brutos, incerteza e cópias distintas.
+- Preferir **filtro S/A preparado manualmente**, se o jogo oferecer essa combinação. Confirmar disponibilidade e efeito real antes de depender dele; não implementar navegação de menus para resolver isso.
+- O cabeçalho observado `1567/2000` é **candidato global**. Ainda não sabemos se muda com o filtro. Não usá-lo como quantidade S/A sem prova.
+- Se não houver filtro adequado, escolher explicitamente entre percorrer a lista global com B excluído ou usar ordenação por raridade comprovada. Não cortar na primeira raridade inferior por suposição; raridade incerta não autoriza corte.
+- Uma referência de contagem independente ajuda a conferir cobertura. Se o jogo não a fornecer, documentar a alternativa por início/fim, ocupação e transições verificadas; sem evidência suficiente, manter cobertura pendente.
 
-## Validação com Cristian — preferência de 23/10/2026
+### 2. Implementar a borda final e a cobertura
 
-- Preferir uma sessão por entrega funcional, capturando mais contexto de uma vez: posições, campos, rolagens, cópias, decisões de escopo e falhas. Evitar solicitações manuais separadas para fragmentos do mesmo percurso.
-- Aproveitar capturas e relatórios existentes para diagnóstico/replay. O assistente executa verificações locais apropriadas; a execução manual deve resolver uma dúvida que os arquivos não permitem resolver.
-- Cada pedido manual informa comportamento exercitado, resultado esperado e um único artefato a enviar. Se falhar, analisar e corrigir antes de pedir nova sessão integrada.
-- Não repetir F8, foco, geometria, piloto ou transição já conferidos por rotina. Abrir ensaio isolado apenas para uma falha concreta que não possa ser esclarecida na sessão integrada.
+- Identificar início, posições novas e último cartão; lidar com inventários menores que uma tela e linha final parcial.
+- Tratar o alinhamento do último viewport: perto do fundo, a roda pode deslocar menos de uma linha. A hipótese intermediária de uma linha exata não deve decidir o fim.
+- Combinar ocupação da grade, âncoras/sobreposição, seleção e scrollbar para distinguir fim, clique perdido e roda sem progresso. Se a evidência for ambígua, preservar a parcial e explicar a pendência.
+- Não usar igualdade de nome, campos ou painel como identidade da cópia ou prova de fim. Não gerar duplicatas ao rever a mesma posição nem fundir novas posições visualmente iguais.
+- Manter limites de segurança, guardas e salvamento parcial. Limite atingido ou timeout significa incompleto, nunca sucesso integral.
+- Resumo deve separar posições visitadas, S/A, B excluídos, raridade pendente, campos incertos, cobertura e motivo de encerramento. Não promover `inventoryAccepted` automaticamente.
 
-## Levantamento concluído — P0
+### 3. Preparar tudo localmente antes da próxima execução
 
-| Evidência verificada | Consequência no plano |
+- Reaproveitar as imagens existentes para os três nomes incertos, NEW!, nível zero e cópias. Não pedir novas capturas desses casos por rotina.
+- Simular especialmente cauda curta, deslocamento final parcial, ausência de progresso e interrupção. Reprocessar as sessões reais como regressão das regras alteradas; não repetir toda a bateria sem relação com a mudança.
+- Caso faltem referências de filtro/fim, solicitar **um conjunto agrupado**: lista/cabeçalho antes e depois do filtro, opções de filtro e cauda. Esse recurso serve para fechar um contrato visual; não abre uma sequência de testes manuais de cliques.
+- Quando pronto, pedir **uma coleta completa integrada** que reúna início, várias fronteiras, cauda, resumo e evidências automáticas de falha. Cristian envia apenas `session.json`. Se falhar, corrigir a partir dos artefatos antes de pedir outra.
+
+**Critério de saída:** percurso completo demonstrado, escopo explícito e cobertura sustentada por evidências; pendências de campo separadas. Uma repetição estável sozinha não prova completude.
+
+## P3.4 — Tornar o ZZZ utilizável e aceitar a entrega
+
+1. **Uso normal e revisão:** separar comparação OCR upstream e diagnóstico exaustivo do caminho normal; reduzir PNG/HTML redundantes sem perder imagem/evidência por posição e falha. Medir tempos no próprio fluxo, sem pedir benchmark manual isolado. Oferecer uma entrada ZZZ, resultado revisável e resumo/comparação de sessões; não criar uma UI ampla.
+2. **Pacote Windows:** preferir pacote de pasta com um exe de entrada, runtime, OCR/modelos e avisos necessários. Verificar lançamento sem Node/Python de desenvolvimento; o lançador legado Genshin não equivale a esse pacote.
+3. **Aceite integrado:** aproveitar a primeira coleta completa válida de P3.3-B. Fazer a segunda, preferencialmente já pelo pacote, com inventário estável; comparar contagem e multiplicidade de cópias, conteúdo e transições. Conferência visual agrupada de início/meio/fim e casos relevantes dá controle adicional contra erro sistemático. Não exigir nova campanha de F8/foco/geometria já conferidos sem mudança relacionada.
+4. **Pendências honestas:** nomes desconhecidos/incertos continuam visíveis para revisão; divergências não alteram o bruto. Ajustes do executável exigem validação proporcional à mudança, sem reiniciar automaticamente todo o histórico.
+
+**Pronto para seguir:** duas coletas completas conferidas com evidência de cobertura, resultado útil/revisável e entrada Windows utilizável. Amostras usadas para corrigir o leitor são desenvolvimento/regressão; não chamá-las de avaliação independente.
+
+## Depois do primeiro jogo completo
+
+| Etapa | Entrega / critério |
 |---|---|
-| Youkai tem scanner Python de W-Engines, módulos de captura/grade/OCR, 33 arquivos de testes Python e empacotamento onedir | Reproduzir uma versão fixada antes de extrair código. Quantidade de arquivos não mede cobertura nem significa testes executados. |
-| Há release portátil v1.0.8 com arquivo de checksum, além de capturas de referência e casos de W-Engines | Podemos fazer verificações offline antes de pedir novas execuções. Referências públicas ficam no cache ignorado, não no Git do laboratório. |
-| Dependências Python usam limites amplos, como versões mínimas | Fixar versões resolvidas, Tesseract/modelo e hashes na primeira prova. Um SHA do código sozinho não congela o comportamento. |
-| README e metadados do catálogo indicam 1.4; arquivo contém 99 entradas e data de atualização própria | Conferir nomes atuais com capturas. O nome da pasta não prova catálogo desatualizado; tampouco suas 99 entradas provam completude atual. |
-| O scanner calcula raridade, mas sua saída de W-Engine não a preserva como campo do item | Expor evidência e classificação S/A/B antes de implementar nosso filtro. Não filtrar apenas pela confiança ou pelo nome. |
-| O classificador usa números internos 4=S, 3=A e 2=B | Interpretar como códigos do módulo ZZZ, não estrelas universais; não usar o corte Genshin 4/5 no ZZZ. |
-| Contagem de estrelas retorna no mínimo 1, inclusive quando não detecta estrela; há teste que espera esse comportamento | Adaptar ao contrato: falta de evidência é incerta, não progressão 1 reconhecida. Não copiar esse teste como nosso critério de qualidade. |
-| Grade trata painel repetido como possível clique perdido e possui caminho que pula uma célula permanentemente parada | Preservar cópias visualmente iguais e registrar observações falhas; não omitir posições silenciosamente. |
-| No PATH desta inspeção, Python apontou para o alias WindowsApps e Tesseract não foi localizado | Preparar runtime isolado e OCR nativo. Isso não prova ausência de instalações em outros caminhos; não exigir preparação manual de Cristian antes de verificar. |
-| Exemplos locais fornecidos: Aqua Genshin e quatro imagens HSR; não há captura pessoal ZZZ nessa pasta | Precisamos de referências reais ZZZ para confirmar compatibilidade. A pesquisa e os testes offline independentes podem avançar antes disso. |
+| **P4 — HSR e núcleo compartilhado** | Definir raridades, ler referências existentes, integrar interpretação/percurso pertinentes do HSR-Scanner. Extrair janela, captura, ações, OCR, sessão e revisão a partir dos dois usos reais. Piloto e duas coletas completas; ZZZ continua funcionando. Progressão ausente não vira 1. |
+| **P5 — Genshin** | Perfil 16:10 e armas 4/5 estrelas; aproveitar evidência anterior e procedimentos pertinentes do Kamera. Conferir duas coletas completas, sem portar automaticamente ferramentas/heurísticas legadas. |
+| **P6 — WuWa** | Qualificar fonte, escopo/perfil de armas e OCR adequado; fluxo completo aceito e regressão dos anteriores. |
+| **P7 — NTE** | Primeiro verificar categoria, inglês, tela e fonte útil. Não copiar scanner de outras categorias/idiomas como se já servisse. |
+| **P8 — Exportação e Advisor** | Exportar somente dados revisados, com procedência, pendências e diff. Ausência no scan não remove fatos da conta; aplicação explícita. |
+| **P9 — Expansão** | Avaliar personagens, artefatos e equivalentes por necessidade, depois do fluxo de armas. |
 
-Fonte principal fixada nesta revisão: [Youkai](https://github.com/AJTDaedalus/youkai), commit 86a8b34511c86ec864d8f40c558789f7ccad4cc9. No levantamento P0 foram lidos módulos, testes, configuração de build, avisos e metadados; **não houve execução naquela pesquisa**. A reprodução offline P1.1 posterior está registrada abaixo e no relatório específico; o candidato ainda não está aceito para coleta.
+Não estimar prazos por quantidade de testes/arquivos. Núcleo comum significa contratos compartilhados, não impor o mesmo algoritmo de seleção/rolagem/fim a todos os jogos. Se HSR exigir copiar o scanner ou grandes condicionais no núcleo, corrigir a fronteira antes de Genshin.
 
-## Etapas e critérios de avanço
+## Protocolo de validação com poucas intervenções
 
-| Etapa / estado | Entrega concreta | Critério para avançar |
-|---|---|---|
-| **P0 — Concluído neste planejamento** | Escopo, pesquisa, riscos concretos, sequência e protocolo de validação | Plano documentado e decisões de uso registradas. Não equivale a software novo. |
-| **P1 — Base ZZZ em qualificação** | Instalação isolada, fonte/dependências fixadas, testes e leitura offline pelo caminho original | Base executável com limitações medidas; confirmar captura/avanço controlado antes de reorganizar. Se exigir reconstrução, reavaliar o candidato. |
-| **P2 — Piloto ZZZ conferido no ambiente inicial** | W-Engines S/A, evidências/JSON/revisão simples e dez posições | Seleções reais, imagens correspondentes, estados honestos, cópias preservadas e paradas verificadas. Não depende de abstrair os cinco jogos. |
-| **P3 — ZZZ completo + executável** | Captura real, piloto, percurso S/A completo, revisão e pacote Windows | Duas coletas conferidas, cópias preservadas, escopo/contagem demonstrados e paradas testadas. Um executável de entrada inicia o fluxo. |
-| **P4 — HSR e núcleo comprovado** | Extrair responsabilidades comuns a partir de ZZZ funcional e integrar perfil/parser/percurso HSR | Piloto e duas coletas completas; reusar janela, captura, OCR, sessão, cancelamento e revisão sem forçar o mesmo algoritmo de percurso. |
-| **P5 — Genshin no mesmo motor** | Perfil 16:10, procedimentos aproveitados do Kamera e coleta 4/5 estrelas | Regredir imagens confirmadas, conferir raridade/cópias/transições e aceitar duas coletas completas. |
-| **P6 — WuWa** | Qualificação da fonte, perfil de armas, percurso e integração do OCR adequado | Um fluxo completo aceito e regressão dos anteriores; trocar OCR não duplica o motor de coleta. |
-| **P7 — NTE** | Primeiro confirmar categoria de arma, inglês, tela e fonte útil; depois imagem/piloto/coleta | Não iniciar copiando o scanner chinês de outras categorias. Definição do módulo depende desse levantamento específico. |
-| **P8 — Exportação e Advisor** | Exportações revisadas, contrato de troca e aplicação explícita | Procedência, pendências e diff preservados; ausência no scan não remove automaticamente fato da conta. |
-| **P9 — Avaliar expansão** | Decidir personagens/progressões/artefatos e equivalentes, por necessidade | Cada categoria acrescenta perfil/parser/percurso ao núcleo; não copiar todos os recursos dos projetos de origem. |
+- Uma sessão por entrega funcional, com o máximo de contexto relevante. Pedido manual informa comportamento, resultado esperado e um único caminho de saída a enviar.
+- Usar primeiro arquivos salvos, replays e simulações; teste manual só para dúvida que eles não resolvem. Analisar cada falha antes de solicitar repetição.
+- Não repetir captura, piloto, F8, foco, geometria, uma roda ou linha NEW! já conferidos por rotina. Ensaio isolado apenas por falha concreta ou pedido explícito de Cristian.
+- Campos corretos, incertos e incorretos aceitos são métricas distintas. Dois scans iguais não provam cobertura sozinhos; contagem coincidente também não prova conteúdo.
+- Sessão parcial permanece válida como evidência. Revisão do assistente não se apresenta como aprovação humana.
 
-P6–P9 ficam no nível de marcos até aprendermos com os primeiros jogos. Não estimar prazo a partir de README, número de testes ou tamanho do repositório. Estimar o bloco seguinte depois da prova de compatibilidade, usando o trabalho observado.
+## Materiais e histórico
 
-## P1 — Prova prática da base
+A [arquitetura e pesquisa de fontes](architecture-proposal.md) detalham os candidatos. A fonte Youkai está fixada em `86a8b34511c86ec864d8f40c558789f7ccad4cc9`, com dependências/runtime no cache isolado e original preservado. Reprodução e limitações: [P1.1](youkai-qualification.md), [imagens pessoais](youkai-personal-images.md), [captura](youkai-capture.md), [seleção](youkai-selection.md), [piloto](zzz-pilot.md), [transição](zzz-transition.md) e [percurso integrado/diagnósticos](zzz-scan.md). Esses documentos conservam os resultados históricos; a próxima ação é a deste roadmap.
 
-### P1.1 Preparar sem reestruturar
+O experimento JavaScript Genshin/HSR permanece preservado e congelado para novas funcionalidades durante esta rota. Seus leitores de imagem e o [scanner Genshin legado](genshin-scanner.md) não comprovam o motor Python nem inventário completo. Os IDs P0–P9 pertencem à rota atual, separados dos antigos marcos M. GOOD/ZOD e demais formatos de consumidor são posteriores; não remover incerteza para caber num export.
 
-**Executado isoladamente em 20/10/2026:** 273 testes upstream aprovados, 5 pulados por fixtures ausentes; OCR original em duas referências públicas, sem patch da candidata. [Roteiro, versões/hashes e limitações medidas](youkai-qualification.md). Cristian autorizou diretamente a continuidade da qualificação em 20/10/2026. A parte offline de P1.2 foi executada posteriormente, conforme a seção abaixo; captura e avanço real de três posições foram conferidos em P1.3; paradas durante execução seguem pendentes.
-
-- Conferir origem/SHA e avisos dos arquivos selecionados. Usar cache/diretório local isolado, sem tocar nos logs ou na instalação pessoal de outro scanner.
-- Verificar runtime Python real e criar ambiente isolado, fixando dependências resolvidas. Providenciar Tesseract e inglês localmente, com versões/hashes. Não instalar o aplicativo inteiro para obter apenas o scanner Python.
-- Identificar o subconjunto de módulos necessário. Interface Rust, outras categorias e pastas de referência alheias ao OCR não fazem parte da primeira entrega.
-- Executar primeiro os testes upstream relevantes para captura, grade, reconhecimento e W-Engines. Registrar pass/fail/skip e fixtures ausentes; não chamar um teste pulado de sucesso.
-
-**Saída:** roteiro de instalação reproduzível e relatório curto do que foi possível executar. Se o ambiente/build exigir reescrever a base inteira, revisar o candidato antes de migrar o laboratório.
-
-### P1.2 Conferir com imagens
-
-**Parte offline executada em 20/10/2026:** três capturas atuais 1280×720 com recorte cliente explícito, sem redimensionar ou modificar a candidata. Nome/nível e a consulta separada de raridade conferem visualmente; progressão diverge em dois casos. Referências humanas confirmadas por Cristian em 20/10/2026; captura e seleção limitada reais exercitadas posteriormente em P1.3; paradas em curso permanecem pendentes. [Comando por arquivo e limitações](youkai-personal-images.md).
-
-- Usar capturas públicas do candidato apenas como desenvolvimento/regressão, respeitando procedência.
-- Solicitar um conjunto compacto de capturas atuais de Cristian e referências dos campos. Não é necessário fornecer tudo de uma vez.
-- Comparar nome, nível/limite, progressão e raridade. Nome fora do catálogo permanece bruto/candidato; não escolher o vizinho mais próximo silenciosamente.
-- Identificar se as falhas são de instalação, regiões/layout, tratamento, catálogo ou interpretação. Não ajustar tudo ao mesmo tempo.
-
-**Saída por arquivo concluída:** OCR original sobre três imagens atuais, referências humanas confirmadas e divergências preservadas. O resultado original é diagnóstico, não inventário aprovado. A aquisição e o avanço ficam explícitos no subpasso seguinte.
-
-### P1.3 Captura e avanço controlados — atual
-
-1. **Captura única, sem inputs:** executar o caminho original em janela única, 1280×720/100%, conferindo foco e geometria antes/depois. Salvar imagem cliente, prévia da grade e relatório de falha/parada. [Comando e evidências](youkai-capture.md). Implementado e exercitado com 14 testes simulados. Depois da recusa correta por janela ausente, a primeira captura cliente real foi concluída em 20/10/2026, sem inputs.
-2. **Aquisição conferida pelo assistente:** imagem cliente sem barra de título, 36 pontos dentro dos cartões e arquivo relido pelo OCR original, vinculado ao mesmo hash. A captura real prova aquisição; não comprova entrega de input ou campos aprovados.
-3. **Avanço pequeno real conferido; paradas em curso pendentes:** o [comando de três posições](youkai-selection.md) usa o navegador original com controlador guardado, F8 explícito, rolagem bloqueada e sessão parcial. 17 testes novos + 14 de captura aprovados historicamente; inclui percurso original simulado. Após a recusa por integridade 8192 < 12288, Cristian executou em 12288: F8 inicial observado, quatro cliques normais, três seleções/painéis correspondentes, nomes/níveis corretos e zero rolagem. Revisão do assistente separada, vinculada por hashes; sem aprovação humana dos campos. Dois painéis ainda escurecidos na transição e lock incorreto orientam P2. Interrupção durante execução, perda de foco/geometria e Escape não foram testados ao vivo.
-4. **Decisão:** se aquisição/avanço originais exigirem reconstrução, aplicar a regra de reavaliação da candidata. Se funcionarem, seguir à adaptação mínima P2. Pode agrupar esse ensaio e o piloto em uma janela de teste após preparar as correções necessárias; não iniciar coleta completa.
-
-**Critério:** aquisição real inspecionável e seleção limitada rastreável, com parada conhecida; testes simulados/prints salvos não encerram esta etapa.
-
-## P2 — Adaptação mínima e piloto ZZZ
-
-**Implementação entregue em 22/10/2026:** [comando de dez posições, leitor adaptado e revisão HTML](zzz-pilot.md). Nome/nível/raridade/progressão conferem nas três referências humanas; estrelas corrigidas para 4/2/1, lock derivado do rótulo de ação, incertezas preservadas, estabilidade e recuperação de cópias com evidência de seleção testadas em simulação. P2.1/P2.2 prontos; primeiro percurso P2.3 de dez posições conferido posteriormente nesta data. Paradas reais em curso ainda pendentes. Não equivale a inventário aceito.
-
-### P2.1 Reutilizar antes de reorganizar
-
-- Partir da versão qualificada em P1. Preservar seu caminho funcional de captura, seleção e reconhecimento; registrar arquivos de origem/SHA, avisos e alterações.
-- Começar no inventário de W-Engines já preparado. Não trazer interface Rust, navegação geral ou outras categorias.
-- Uma entrada local, com elevação quando necessária, oferece captura e piloto limitado. Um comando/lançador basta; distribuição independente não bloqueia o piloto.
-- Separar somente as fronteiras necessárias para repetir OCR em arquivo e injetar captura/ações nos testes. Não construir o perfil HSR nem extrair toda a grade nesta etapa.
-
-### P2.2 Contrato pequeno e correções necessárias
-
-Cada observação mantém jogo/categoria, posição/ordem na sessão, versão do leitor, captura, texto bruto/evidência visual, candidatos, estados e decisão de escopo. Um JSON versionado e uma revisão local simples bastam. Não migrar resultados antigos nem impor uma entidade universal para progressões de jogos distintos.
-
-- Preservar raridade S/A/B, distinguindo-a de códigos internos numéricos.
-- Falta de estrelas não vira progressão 1; raridade incerta vira pendência. Casos P1.2 confirmaram estrelas claras e recorte que termina antes da quinta: corrigir região e detector em conjunto, preservando a saída original como comparação.
-- Conferir estabilização do painel antes de aceitar leitura: a prova real P1.3 capturou dois painéis ainda escurecidos na transição. Mudança de hash não demonstra fim da animação; preservar os frames e distinguir seleção correta de imagem pronta para OCR.
-- Falha de célula permanece no relatório, mesmo sem item válido.
-- Igualdade de nome, atributos ou imagem não funde cópias nem prova clique perdido.
-- Catálogo auxilia normalização; nomes desconhecidos mantêm bruto/candidatos, sem correção silenciosa.
-- Separar término do percurso, cobertura, processamento e revisão humana. Salvar a sessão parcial em falhas/parada.
-
-### P2.3 Prova real em dez posições
-
-**Executado e conferido em 22/10/2026:** dez posições reais, segunda linha atingida, 11 cliques normais, sem rolagem; níveis/raridades/progressões/locks conferem visualmente. Duas cópias Weeping Cradle preservadas. Seis nomes reconhecidos e quatro incertos no leitor v1; recortes corrigidos em v2 e reprocessados offline, sem reescrever a sessão. [Evidências e limites](zzz-pilot.md#primeiro-piloto-real--22102026). F8 antes dos inputs foi observado nessa coleta. Na sessão posterior `20261022-113802-38781f4a-selection`, o segundo F8 interrompeu o fluxo na pausa após a primeira leitura: dois pressionamentos antes do sinal, nenhum depois e parcial preservada. Hashes de 13 frames e da imagem da posição conferidos; revisão separada em `stop-test-review.json`. Perda de foco confirmada posteriormente na sessão `20261022-115151-d35db31b-selection`: guarda encerrou após dois cliques, antes da primeira leitura; dez hashes de frames conferidos e parcial preservada. Não houve F8 durante o fluxo. Movimentação da janela confirmada na sessão `20261022-120911-985f905a-selection`: origem cliente `(320,191)` → `(328,193)`, 1280×720/DPI 96 mantidos, primeira leitura preservada e nenhum novo clique/movimento solicitado após a guarda. Tamanho/DPI diferentes não foram exercitados ao vivo.
-
-- Primeiro conferir captura cliente e sobreposição de regiões/grade. Só iniciar inputs após verificar foco, geometria e mecanismo de parada.
-- Executar dez posições (ou as disponíveis), incluindo repetição visual quando houver. Confirmar que ações chegam ao alvo e o painel corresponde à posição esperada.
-- Registrar ação/posição, tentativas, captura anterior/posterior nos pontos de falha e interpretação; distinguir captura antiga de erro OCR.
-- F8 deve interromper o fluxo do laboratório; perda de foco/mudança de geometria impede novos inputs. Uma parada nativa diferente do candidato precisa ser conferida antes da prova original P1, sem presumir F8 disponível nele.
-- Reprocessar arquivos salvos e acrescentar o caso real à regressão antes de pedir repetição. Alterar uma causa por vez.
-
-**Critério:** dez posições rastreáveis, campos conferíveis, falhas explícitas, cópias preservadas e interrupção testada. Não chamar esse piloto de inventário completo. Se P1 já permitir um ensaio de seleção, agrupar os testes de jogo em uma janela combinada, sem exigir execuções redundantes.
-
-## P3 — Primeiro produto completo: ZZZ
-
-### P3.1 Consolidar o piloto aceito
-
-O recorte do piloto foi conferido neste ambiente: dez posições, cópias preservadas, nomes corrigidos e paradas reais por F8, foco e movimentação da janela. Preservar entrada, captura, guardas e diagnóstico na transição P3.2. Referências reais adicionais (B, nível intermediário, destravado) continuam pendentes; progressão 5 foi conferida visualmente no ensaio P3.2 de 23/10. Esses casos servem para ampliar a avaliação do leitor; não são inventário completo aceito. Não reescrever o leitor para acomodar jogos futuros.
-
-### P3.2 Ampliar uma transição de cada vez
-
-**Primeiro ensaio real executado em 22/10/2026:** sessão `20261022-122109-7df244d1-selection`, um clique na primeira célula da última linha, sem rolagem. O cartão foi selecionado em r3c0, mas a grade e o scrollbar ficaram parados; o timeout veio da expectativa incorreta de encontrar a seleção em r2c0. Vinte e três hashes de frames, a imagem anterior e os módulos do leitor foram conferidos; o painel salvo foi lido offline como Bloodmarrow Coffer, A, 60/60, progressão 1, travado. Não foi transição aceita nem nova leitura ao vivo.
-
-**Correção implementada:** [ensaio de um passo de roda](zzz-transition.md). Seleciona a primeira célula da terceira linha, espera estabilidade e emite um único passo descendente de roda dentro da grade. Orçamentos separados: um clique e uma solicitação de roda; sem retentativas. Só lê após seleção esperada na segunda linha, sobreposição de exatamente uma linha e scrollbar descendente. Timeout de seleção preserva imagem posterior e métricas de movimento, sem inferir índice global, cobertura ou fim. Na entrega de 22/10, o deslocamento ainda precisava de prova; 116 testes locais estavam aprovados. A execução de 23/10 abaixo confirmou a transição e permitiu iniciar o percurso integrado P3.3.
-
-Exercitar uma passagem entre telas/linhas e a linha final parcial com limites pequenos antes da coleta completa. Reutilizar evidências de P2; não exigir novo piloto idêntico quando o comportamento já tiver sido conferido. Casos sintéticos cobrem estados indisponíveis na conta, com essa limitação explícita.
-
-**P3.2 conferido no jogo em 23/10/2026:** sessão `20261023-095006-716da4f3-selection`, um clique + uma roda, avanço de uma linha, seleção da posição visual 18 para 9, scrollbar 238,5 → 241,5. Sobreposição das três linhas compatível em 85,2% dos cartões. Weeping Gemini, A, 60/60, progressão 5 e travado conferem visualmente. Quatorze hashes de frames, duas imagens adicionais e fonte/código conferidos; revisão separada vinculada ao manifesto original. Não repetir o ensaio unitário por rotina.
-
-### P3.3 Rolagem, escopo S/A e término
-
-**Recorte implementado em 23/10/2026:** [percurso integrado com limite](zzz-scan.md), comando `scan-zzz.ps1 -Run`, padrão de 54 posições (seis linhas e três rolagens). Reutiliza captura, OCR, guardas e comparação P3.2; percorre as três linhas iniciais e depois lê cada nova linha interna após uma roda verificada, sem reler posições anteriores. Preserva cópias, B como exclusão, campos incertos, imagens por posição e antes/depois das transições. Uma sessão fornece o diagnóstico de seleção, leitura, várias fronteiras e contagens do recorte. Quatro cenários integrados e a regressão anterior passaram localmente (120 casos no total). As duas primeiras sessões reais chegaram a 45 posições; etiquetas NEW! provocaram falso destaque na terceira roda e impediram continuar. O perfil v3 foi corrigido usando as imagens salvas, aceitando também nível zero e identidade literal completa de catálogo. Ainda falta confirmar a conclusão real das 54 posições e implementar fim/última linha do inventário. O total do cabeçalho permanece candidato global, não contagem S/A validada.
-
-**Recorte de 54 posições concluído no jogo:** sessão `20261023-103911-485104ab-selection`, três transições verificadas, todas as posições preservadas e três nomes incertos (13, 24, 33). Hashes e seleção das 54 imagens conferidos. Por pedido explícito, `row-zzz.ps1 -Run` permite agora diagnosticar só a linha selecionada até a nona coluna, com zero roda e sem exigir topo; não substitui nem reinicia o percurso já aceito. Continuam pendentes fim/última linha e semântica de contagem/filtro S/A.
-
-- Verificar se o jogo permite filtro S/A e se o contador reflete esse filtro. Não presumir a semântica do número a partir de duas leituras OCR iguais.
-- Se o total incluir B, usá-lo apenas como total global. A quantidade S/A precisa de referência própria; registrar cobertura não confirmada quando faltar.
-- Corte na primeira raridade inferior exige ordenação comprovável e preparação documentada. Raridade incerta não autoriza corte nem sumiço da observação.
-- Verificar primeira/última posição, fronteiras de rolagem, linha final parcial, ausência de progresso e cópias idênticas.
-- Uma repetição da tela não deve gerar outra observação; uma nova cópia com atributos iguais deve gerar registro próprio.
-
-**Critério:** percurso e escopo explicáveis com evidências, sem aceitar o fim só porque não houve mudança no nome ou no hash do painel.
-
-**Correção de 23/10:** os replays das duas sessões confirmam que a terceira roda ocorreu; o bloqueio era do detector de seleção, sem exigir aumento do timeout. Novo contorno topo+lateral exclui NEW! e preserva as 90 seleções de itens capturados. A cadência observada foi de cerca de 2,4–2,5 s entre cliques, incluindo estabilização, OCR serial/comparação e arquivamento. [Evidências e medidas](zzz-scan.md#parada-repetida-antes-da-posição-46--diagnóstico-de-23102026). Usar a mesma coleta integrada para conferir a correção, sem pedir fragmentos adicionais.
-
-### P3.4 Aceite e pacote
-
-- Duas coletas completas do mesmo inventário sem alterações entre elas, comparadas com contagem S/A conferida e evidências das transições.
-- Mesma quantidade e conteúdo esperado, sem omissão/fusão silenciosa observada; divergências investigadas, não corrigidas no resultado bruto.
-- Campos incertos continuam disponíveis para revisão. Inventário coletado não é inventário aprovado.
-- Testar o pacote em ambiente Windows sem Node/Python de desenvolvimento. Incluir/explicitar dependências nativas e modelos. Preferir pacote de pasta, com um exe de entrada, antes de one-file.
-- Medir e reduzir os custos de diagnóstico do caminho normal (comparação OCR duplicada, PNG/HTML por tentativa), mantendo confirmação visual e evidências necessárias. A velocidade final ainda não foi medida; isso não abre outra bateria manual antes de concluir o percurso.
-- O experimento JS só sai do caminho normal depois do aceite novo. Dados e histórico permanecem intactos.
-
-## P4 — HSR e consolidação do núcleo compartilhado
-
-1. Definir escopo de Cones de Luz e preparar inglês/16:9. Reutilizar as imagens existentes e referências confirmadas para uma primeira leitura em arquivo.
-2. Com ZZZ funcionando, extrair suas operações de janela/coordenadas, ações, captura, execução OCR, sessão e revisão nas fronteiras efetivamente usadas pelos dois jogos. Preservar a regressão ZZZ em cada mudança.
-3. Reaproveitar interpretação e avanço pertinentes do HSR-Scanner, sem trazer a UI ou controle virtual de outras categorias. Percurso HSR pode usar teclas; a grade ZZZ continua uma estratégia específica.
-4. Usar o mesmo processamento/salvamento para imagem ZZZ e HSR. Não criar perfis vazios dos demais jogos. Não duplicar motores nem forçar algoritmos de seleção/fim incompatíveis.
-5. Remover o fallback de sobreposição 1 sem leitura válida; manter bruto, evidências e semântica própria do campo.
-6. Fazer captura, piloto, transição/fim e duas coletas conferidas, com paradas. Comparar os resultados e repetir regressão ZZZ após alterações compartilhadas.
-
-**Teste decisivo:** o segundo jogo acrescenta perfil/parser/percurso, mas reaproveita as operações e os contratos comuns. Se isso exigir grandes condicionais por jogo no núcleo ou sua cópia, corrigir a fronteira antes de iniciar Genshin. A arquitetura só passa a ser comprovada nesse momento; ler duas imagens não comprova reutilização de coleta.
-
-## Validação com poucas idas e voltas
-
-| Momento | O que o assistente prepara | Participação necessária de Cristian |
-|---|---|---|
-| Antes do jogo | Instalação, testes relevantes, casos sintéticos, replays e diagnóstico de arquivos salvos | Conjunto inicial de capturas ZZZ atuais e conferência dos campos |
-| Uma imagem | Folha de revisão com imagem/recortes e valores candidatos; correções salvas separadamente | Confirmar/corrigir vários exemplos juntos |
-| Piloto | Executável/comando concreto, preparação curta, parada e evidências automáticas de falha | Executar um piloto e informar a sessão; não repetir uma falha sem análise |
-| Aceite | Instruções agrupadas para duas coletas e testes de parada, relatório comparativo e pendências | Manter inventário estável, executar e conferir contagem/itens necessários |
-
-Conjunto inicial sugerido, não requisito para começar: 6–10 capturas diversas de W-Engines, incluindo S/A, nome longo/em duas linhas, nível abaixo do máximo, progressões diferentes e B como caso negativo se disponível. Uma captura completa atual do inventário já permite começar a conferir layout; não exigir todos os casos da conta.
-
-Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reservar exemplos novos antes de declarar avaliação independente. Medir por campo valores corretos, incertos/ausentes e incorretos aceitos, sem inventar porcentagem geral com amostra pequena. Dois scans iguais também não provam completude sozinhos.
-
-## Materiais, limites e histórico
-
-- Cada sessão guarda capturas, OCR bruto, candidatos, decisões de escopo, motivo de parada e relatório local. Falhas preservam posição/ação esperada, tentativas, evidência e motivo. Esse diagnóstico deve distinguir erro de clique de erro de leitura.
-- Modelos, fontes de referência em cache, imagens, saídas e temporários permanecem ignorados pelo Git. Configurar o ignore Python antes de criar ambiente/build ou incorporar código.
-- O planejamento P0 não instalou dependências nem executou scanners. P1.1 preparou o ambiente isolado e executou testes/OCR offline, conforme o relatório; nenhum jogo foi controlado.
-- O experimento anterior M0/M1/M2 entregou leitores de imagem Genshin/HSR e referências confirmadas. O M3 antigo deixou scanner Genshin experimental, com captura/OCR estáticos e 135 testes JS, mas sem aceite de inventário completo. Eles não validam o novo motor.
-- Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
-- GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
-
-**Próximo bloco:** uma única execução de `scan-zzz.ps1 -Run` para coletar 54 posições, seis linhas e três transições com evidências completas. A correção do falso destaque NEW! já foi validada offline sobre as duas sessões que pararam após 45 posições. Conferir o percurso corrigido e aproveitar todas as evidências, sem pedir ensaios menores por comportamento. Depois concluir fim/última linha, semântica de contagem e escopo S/A em P3.3, agrupando sua validação em um percurso. P3.4 mantém duas coletas completas e pacote Windows; P4 vem após ZZZ funcional.
+**Próximo passo recomendado:** implementar **P3.3-B — escopo e término**, após fechar as referências de filtro/cauda necessárias. Não solicitar novamente o prefixo de 54 ou a linha de nove. Esta revisão atualiza diagnóstico e planejamento; não implementa essa próxima funcionalidade.

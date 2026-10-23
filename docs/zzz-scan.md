@@ -1,6 +1,6 @@
 # P3.3 — percurso ZZZ integrado com limite
 
-Implementado em **23/10/2026**, após a [transição real conferida](zzz-transition.md#transição-real-aceita-no-recorte--23102026). O padrão é **54 posições, seis linhas lógicas e três rolagens**, em uma sessão. Primeiro percurso real chegou a 45 posições e três solicitações de roda; a terceira transição foi recusada por falso destaque em etiquetas NEW!. O perfil v3 corrige essa falha, com replay offline das duas sessões; conclusão real das 54 posições ainda pendente. Este recorte entrega ampliação do percurso, sem declarar inventário completo nem fim da lista.
+Implementado em **23/10/2026**, após a [transição real conferida](zzz-transition.md#transição-real-aceita-no-recorte--23102026). O padrão é **54 posições, seis linhas lógicas e três rolagens**, em uma sessão. Primeiro percurso real chegou a 45 posições e três solicitações de roda; a terceira transição foi recusada por falso destaque em etiquetas NEW!. O perfil v3 corrigiu essa falha, com replay offline das duas sessões; posteriormente, a sessão `20261023-103911-485104ab-selection` concluiu 54/54 posições e três transições verificadas. Este recorte entrega ampliação do percurso, sem declarar inventário completo nem fim da lista.
 
 ## Uma execução para validar o conjunto
 
@@ -38,7 +38,7 @@ O topo do scrollbar ainda é candidato; índice absoluto e cobertura não são p
 
 Quatro cenários integrados percorrem o CLI com janela, controlador, OCR e tempo simulados: 54 posições/3 transições; 50 posições com última linha do recorte parcial; perda de foco após a segunda roda; segunda roda sem progresso. Conferem ordem/ausência de omissões, cópias com campos iguais, B excluído, campos incertos, limites de inputs e sessão parcial. Nenhum input nativo é emitido por esses testes. A regressão dos modos anteriores acompanha as mudanças no lançador compartilhado: 120 casos locais aprovados nesta entrega. O comando sem `-Run` também foi exercitado no Windows PowerShell 5.1: sessão `20261023-100309-e33e75a7-selection`, recusada por integridade helper inferior à do jogo antes de foco/captura/inputs. A execução real requer o PowerShell como Administrador já utilizado por Cristian.
 
-Depois de conferir a sessão real integrada, concluir em P3.3 a estratégia de última linha/fim e a semântica de contagem/filtro S/A. Agrupar a validação desses comportamentos em um percurso; não voltar a pedir fragmentos manuais por campo/ação. P3.4 mantém duas coletas completas conferidas e pacote Windows.
+A sessão real integrada de 54 posições foi conferida; concluir agora em P3.3 a estratégia de última linha/fim e a semântica de contagem/filtro S/A. Agrupar a validação desses comportamentos em um percurso; não voltar a pedir fragmentos manuais por campo/ação. P3.4 mantém duas coletas completas conferidas e pacote Windows.
 
 ## Parada repetida antes da posição 46 — diagnóstico de 23/10/2026
 
@@ -50,7 +50,7 @@ O perfil v3 exige amarelo no topo **e na lateral esquerda** do contorno. No repl
 
 Os brutos também demonstraram nível inicial `Lv. 00/10`: o parser passou a aceitar zero. A identidade literal completa `Drill Rig - Red Axis` com `DrillRigRedAxis` passa a ser aceita com score original 95, sem alterar o texto nem relaxar correspondência para nomes parecidos. Reinterpretar os brutos corrige 11 níveis e esse nome por sessão; três outros nomes continuam incertos. Brutos/manifestos antigos permanecem intactos. Não há atualização de conta nem aprovação humana automática.
 
-As regressões locais passaram com o perfil v3 (123 casos, incluindo os cenários integrados anteriores). A próxima conferência manual continua sendo **uma única coleta de 54 posições**, com o mesmo comando, após a correção. Não pedir uma reprodução menor de NEW!, nível zero ou clique/roda.
+As regressões locais passaram com o perfil v3 (123 casos, incluindo os cenários integrados anteriores). Essa conferência foi concluída posteriormente na sessão de 54 posições abaixo. Não repetir o prefixo, NEW!, nível zero ou clique/roda por rotina; seguir ao escopo/fim conforme o [roadmap atual](ROADMAP.md).
 
 ## Cadência atual e versão final
 
@@ -77,3 +77,13 @@ Resultado esperado: `row-read`, `selected-row-end-reached`, `prefixTraversalComp
 ## Percurso de 54 posições concluído — 23/10/2026
 
 Sessão `20261023-103911-485104ab-selection`, código `906e7b0`: 54/54 posições, três transições verificadas, 54 observações S/A, sem falhas. Permanecem três nomes incertos (posições de índice 13, 24 e 33); nenhum nível ficou incerto. Hashes de todos os frames e das 54 imagens conferidos, com seleção correspondente em cada imagem e versão do código verificada. Revisão separada vinculada ao manifesto original, sem aprovação humana automática ou conferência manual dos campos de todos os itens. Isso aceita o recorte, sem provar fim/contagem S/A global.
+
+## Linha com NEW! e cópias conferida — 23/10/2026
+
+Sessão `20261023-105454-c3458594-selection`, código `1613e83`: `row-read`, `selected-row-end-reached`, 9/9 posições, oito cliques e nenhuma roda. Começou na primeira coluna da primeira linha visível, longe do topo; scrollbar 259,5 permaneceu igual e as nove verificações de viewport confirmaram a mesma grade.
+
+Cartões NEW! nas colunas 4, 7 e 8, intercalados com normais, não foram confundidos com seleção. Housekeeper ×3, Starlight Engine Replica ×3, Drill Rig - Red Axis ×2 e Steam Oven ×1 ficaram em observações separadas. Nome, A, nível 0/10, progressão 1 e travado conferem visualmente nos nove painéis; sem campos incertos ou posições falhas nesta linha.
+
+Hashes de 40 frames, nove imagens de posição e imagens inicial/final conferidos; destaques das nove posições reproduzidos offline, quatro módulos correspondentes ao commit e 260 arquivos upstream íntegros. Revisão separada em `row-review.json`, vinculada ao hash do manifesto original. Revisão do assistente, sem aprovação humana automática. Não demonstra exclusão B, item destravado, cobertura ou fim do inventário.
+
+O diagnóstico da linha está encerrado. O próximo chunk é P3.3-B, escopo e término; não pedir novamente a linha nem o prefixo de 54 para autorizar essa implementação. Ver o [roadmap revisado](ROADMAP.md).
