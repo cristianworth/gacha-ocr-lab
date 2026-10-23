@@ -172,7 +172,7 @@ Exercitar uma passagem entre telas/linhas e a linha final parcial com limites pe
 
 ### P3.3 Rolagem, escopo S/A e término
 
-**Recorte implementado em 23/10/2026:** [percurso integrado com limite](zzz-scan.md), comando `scan-zzz.ps1 -Run`, padrão de 54 posições (seis linhas e três rolagens). Reutiliza captura, OCR, guardas e comparação P3.2; percorre as três linhas iniciais e depois lê cada nova linha interna após uma roda verificada, sem reler posições anteriores. Preserva cópias, B como exclusão, campos incertos, imagens por posição e antes/depois das transições. Uma sessão fornece o diagnóstico de seleção, leitura, várias fronteiras e contagens do recorte. Quatro cenários integrados e a regressão anterior passaram localmente (120 casos no total). Ainda falta a prova real do percurso e a estratégia de fim/última linha do inventário. O total do cabeçalho permanece candidato global, não contagem S/A validada.
+**Recorte implementado em 23/10/2026:** [percurso integrado com limite](zzz-scan.md), comando `scan-zzz.ps1 -Run`, padrão de 54 posições (seis linhas e três rolagens). Reutiliza captura, OCR, guardas e comparação P3.2; percorre as três linhas iniciais e depois lê cada nova linha interna após uma roda verificada, sem reler posições anteriores. Preserva cópias, B como exclusão, campos incertos, imagens por posição e antes/depois das transições. Uma sessão fornece o diagnóstico de seleção, leitura, várias fronteiras e contagens do recorte. Quatro cenários integrados e a regressão anterior passaram localmente (120 casos no total). As duas primeiras sessões reais chegaram a 45 posições; etiquetas NEW! provocaram falso destaque na terceira roda e impediram continuar. O perfil v3 foi corrigido usando as imagens salvas, aceitando também nível zero e identidade literal completa de catálogo. Ainda falta confirmar a conclusão real das 54 posições e implementar fim/última linha do inventário. O total do cabeçalho permanece candidato global, não contagem S/A validada.
 
 - Verificar se o jogo permite filtro S/A e se o contador reflete esse filtro. Não presumir a semântica do número a partir de duas leituras OCR iguais.
 - Se o total incluir B, usá-lo apenas como total global. A quantidade S/A precisa de referência própria; registrar cobertura não confirmada quando faltar.
@@ -182,12 +182,15 @@ Exercitar uma passagem entre telas/linhas e a linha final parcial com limites pe
 
 **Critério:** percurso e escopo explicáveis com evidências, sem aceitar o fim só porque não houve mudança no nome ou no hash do painel.
 
+**Correção de 23/10:** os replays das duas sessões confirmam que a terceira roda ocorreu; o bloqueio era do detector de seleção, sem exigir aumento do timeout. Novo contorno topo+lateral exclui NEW! e preserva as 90 seleções de itens capturados. A cadência observada foi de cerca de 2,4–2,5 s entre cliques, incluindo estabilização, OCR serial/comparação e arquivamento. [Evidências e medidas](zzz-scan.md#parada-repetida-antes-da-posição-46--diagnóstico-de-23102026). Usar a mesma coleta integrada para conferir a correção, sem pedir fragmentos adicionais.
+
 ### P3.4 Aceite e pacote
 
 - Duas coletas completas do mesmo inventário sem alterações entre elas, comparadas com contagem S/A conferida e evidências das transições.
 - Mesma quantidade e conteúdo esperado, sem omissão/fusão silenciosa observada; divergências investigadas, não corrigidas no resultado bruto.
 - Campos incertos continuam disponíveis para revisão. Inventário coletado não é inventário aprovado.
 - Testar o pacote em ambiente Windows sem Node/Python de desenvolvimento. Incluir/explicitar dependências nativas e modelos. Preferir pacote de pasta, com um exe de entrada, antes de one-file.
+- Medir e reduzir os custos de diagnóstico do caminho normal (comparação OCR duplicada, PNG/HTML por tentativa), mantendo confirmação visual e evidências necessárias. A velocidade final ainda não foi medida; isso não abre outra bateria manual antes de concluir o percurso.
 - O experimento JS só sai do caminho normal depois do aceite novo. Dados e histórico permanecem intactos.
 
 ## P4 — HSR e consolidação do núcleo compartilhado
@@ -223,4 +226,4 @@ Capturas usadas para ajustar código passam a desenvolvimento/regressão. Reserv
 - Os novos IDs P0–P9 distinguem este ciclo dos marcos M antigos. O [guia Genshin](genshin-scanner.md) é documentação do experimento legado; Git preserva seu roadmap anterior.
 - GOOD/ZOD ou outro formato de consumidor podem ser entregas posteriores. O JSON de diagnóstico e revisão não deve perder incertezas para caber num export.
 
-**Próximo bloco:** uma única execução de `scan-zzz.ps1 -Run` para coletar 54 posições, seis linhas e três transições com evidências completas. Analisar essa sessão e corrigir offline o que ela demonstrar, sem pedir ensaios menores por comportamento. Depois concluir fim/última linha, semântica de contagem e escopo S/A em P3.3, agrupando sua validação em um percurso. P3.4 mantém duas coletas completas e pacote Windows; P4 vem após ZZZ funcional.
+**Próximo bloco:** uma única execução de `scan-zzz.ps1 -Run` para coletar 54 posições, seis linhas e três transições com evidências completas. A correção do falso destaque NEW! já foi validada offline sobre as duas sessões que pararam após 45 posições. Conferir o percurso corrigido e aproveitar todas as evidências, sem pedir ensaios menores por comportamento. Depois concluir fim/última linha, semântica de contagem e escopo S/A em P3.3, agrupando sua validação em um percurso. P3.4 mantém duas coletas completas e pacote Windows; P4 vem após ZZZ funcional.

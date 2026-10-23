@@ -17,7 +17,7 @@ LEVEL = (1464, 398, 1637, 440)
 RARITY = (1421, 402, 1452, 436)
 STARS = (1652, 399, 1810, 440)
 LOCK_ACTION = (1630, 1015, 1905, 1058)
-PROFILE = "zzz-wengine-1280x720-v2"
+PROFILE = "zzz-wengine-1280x720-v3"
 
 
 class PanelNotReady(RuntimeError):
@@ -68,7 +68,7 @@ def level_from_text(text):
     value = None
     if match:
         current, maximum = map(int, match.groups())
-        if maximum in (10, 20, 30, 40, 50, 60) and 1 <= current <= maximum:
+        if maximum in (10, 20, 30, 40, 50, 60) and 0 <= current <= maximum:
             value = {"current": current, "max": maximum}
     return field(value, evidence={"raw": text})
 
@@ -116,7 +116,9 @@ def read_frame(frame, calibration, output, *, recognizer=None):
     key, score = normalize_engine(raw_name.replace("\n", " ").strip())
     raw_identity = re.sub(r"[^a-z0-9]", "", raw_name.lower())
     key_identity = re.sub(r"[^a-z0-9]", "", key.lower())
-    exact = bool(key) and score == 100 and raw_identity == key_identity
+    # A complete literal catalog identity can score below 100 when the original
+    # fuzzy scorer penalizes punctuation, as with Drill Rig - Red Axis.
+    exact = bool(key) and raw_identity == key_identity
     title_line = None
     full_crop_score = score
     # Single-line titles put type/agent icons on the second visual line.
@@ -192,13 +194,19 @@ def read_frame(frame, calibration, output, *, recognizer=None):
 
 
 def selected_positions(frame, calibration, grid, limit):
+    def yellow_fraction(box):
+        pixels = np.array(crop(frame, calibration, box).convert("RGB"), dtype=float)
+        red, green, blue = pixels[:, :, 0], pixels[:, :, 1], pixels[:, :, 2]
+        yellow = (red > 130) & (green > 130) & (blue < 100) & (green >= red * .6)
+        return float(yellow.mean())
     found = []
     for index in range(limit):
         x, y = grid.cell_center(index % grid.columns, index // grid.columns)
-        pixels = np.array(crop(frame, calibration, (x - 63, y - 31, x + 63, y - 23)).convert("RGB"), dtype=float)
-        red, green, blue = pixels[:, :, 0], pixels[:, :, 1], pixels[:, :, 2]
-        yellow = (red > 130) & (green > 130) & (blue < 100) & (green >= red * .6)
-        if float(yellow.mean()) >= .16:
+        top = yellow_fraction((x - 63, y - 31, x + 63, y - 23))
+        # NEW labels occupy the top strip too. A real selection must also
+        # extend down the left edge, away from labels and equipped portraits.
+        left = yellow_fraction((x - 64, y - 18, x - 56, y + 65))
+        if top >= .16 and left >= .25:
             found.append(index)
     return found
 

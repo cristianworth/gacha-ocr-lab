@@ -34,6 +34,7 @@ def make_frame(count=1, selected=0):
         draw.polygon(points,fill='white' if index<count else (126,126,126))
     x,y=DEFAULT_GRID.cell_center(selected%9,selected//9)
     draw.rectangle((round((x-63)*2/3),round((y-31)*2/3),round((x+63)*2/3),round((y-23)*2/3)),fill=(220,240,10))
+    draw.rectangle((round((x-64)*2/3),round((y-18)*2/3),round((x-56)*2/3),round((y+65)*2/3)),fill=(220,240,10))
     return image
 
 
@@ -60,7 +61,7 @@ def test_lock_is_derived_from_exact_action_not_missing_text(raw,expected):
 
 
 @pytest.mark.parametrize('raw,expected',[('Lv. 1/10',{'current':1,'max':10}),('Lv. 37/40',{'current':37,'max':40}),
-    ('Lv. 60/60',{'current':60,'max':60}),('Lv. 60',None),('Lv. 61/60',None),('Lv. 0/60',None),('junk 60/60',None)])
+    ('Lv. 60/60',{'current':60,'max':60}),('Lv. 60',None),('Lv. 61/60',None),('Lv. 0/60',{'current':0,'max':60}),('Lv. 00/10',{'current':0,'max':10}),('junk 60/60',None)])
 def test_level_keeps_cap_and_rejects_missing_or_invalid_values(raw,expected):
     assert level_from_text(raw)['value']==expected
 
@@ -262,3 +263,32 @@ def test_literal_catalog_candidate_beats_case_sensitive_fuzzy_mismatch():
     key,score,exact=exact_name('Ode of Resurrected WINGS � .',normalizer,candidate)
     assert (key,score,exact)==('OdeOfResurrectedWings',95.65,True)
     assert exact_name('Ode of extra Resurrected WINGS',normalizer,candidate)[2] is False
+
+
+def test_new_labels_do_not_break_selection_and_settling_after_a_scroll():
+    frame=make_frame(selected=17)
+    draw=ImageDraw.Draw(frame)
+    # Reproduce the yellow top-strip coverage observed on four NEW cards.
+    for index in (27,30,33,34):
+        x,y=DEFAULT_GRID.cell_center(index%9,index//9)
+        draw.rectangle((round((x-5)*2/3),round((y-31)*2/3),round((x+63)*2/3),round((y-23)*2/3)),fill=(220,240,10))
+    calibration=calibrate(frame)
+    assert selected_positions(frame,calibration,DEFAULT_GRID,36)==[17]
+    clock,sleep=clock_fixture()
+    result=wait_for_panel(lambda:frame,calibration,DEFAULT_GRID,36,17,lambda:None,lambda *args:None,clock=clock,sleep=sleep)
+    assert result is frame
+    assert selected_positions(Image.new('RGB',(1280,720)),calibration,DEFAULT_GRID,36)==[]
+
+
+def test_literal_catalog_identity_accepts_level_zero_without_fuzzy_name_guess(tmp_path,monkeypatch):
+    import youkai_ocr.normalizer as normalizer
+    import youkai_ocr.wengine_scanner as scanner
+    frame=make_frame(count=4)
+    recognizer=SimpleNamespace(read_text=lambda *args:'Drill Rig - Red\nAxis',read_line=Mock(side_effect=['Lv. 00/10','T Unlock']))
+    monkeypatch.setattr(normalizer,'normalize_engine',lambda text:('DrillRigRedAxis',95))
+    monkeypatch.setattr(scanner,'scan_single_frame_engine',lambda *args,**kwargs:(None,{}))
+    result=read_frame(frame,calibrate(frame),tmp_path,recognizer=recognizer)
+    assert result['fields']['name']['value']=='DrillRigRedAxis'
+    assert result['fields']['name']['candidates'][0]['score']==95
+    assert result['fields']['level']['value']=={'current':0,'max':10}
+    assert result['fields']['name']['evidence']['additionalReads']==[]
