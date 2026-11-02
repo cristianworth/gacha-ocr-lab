@@ -1,5 +1,7 @@
 # Youkai — reprodução isolada P1.1
 
+> **Referência histórica/de diagnóstico.** Os resultados e pendências abaixo são datados. Para coleta normal, use o [guia ZZZ](zzz-scan.md); estado e próximo passo ficam no [ROADMAP](ROADMAP.md). Não repetir este ensaio por rotina.
+
 Executado em **20/10/2026**, America/Sao_Paulo. Base do laboratório: `main`, versão `0.1.0`, HEAD `241c2b7455571fa17af61d6ab36e78ffc0e00f8f`. Cristian autorizou a reprodução depois de revisar a proposta do sucessor.
 
 **Resultado:** o subconjunto upstream selecionado executa neste Windows, sem modificar o código original: **273 testes aprovados, 5 pulados, zero falhas/erros**. O caminho original de OCR estático também executou em duas referências públicas. Isso qualifica o ambiente e mede limitações; não aceita o leitor, o perfil atual do jogo nem um inventário completo. A comparação offline P1.2 foi executada posteriormente em [três imagens atuais](youkai-personal-images.md); os ensaios de captura/avanço reais permanecem pendentes.

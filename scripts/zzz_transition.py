@@ -1,12 +1,16 @@
 """P3.2: one bounded ZZZ viewport transition, without inventory end inference."""
 
 import hashlib
+import time
 import numpy as np
 
+from youkai_ocr.grid import DEFAULT_GRID
 from zzz_pilot import PanelNotReady, crop, read_frame, wait_for_panel
 
 # Same measured scrollbar geometry as pinned Youkai; no private API calls.
 SCROLLBAR = (1358, 232, 1373, 872)
+# The broader OCR header box includes animated scenery above the storage label.
+STORAGE_LABEL = (20, 120, 560, 155)
 SOURCE_CELL = (0, 2)
 RESULT_CELL = (0, 1)
 SCROLL_CELL = (4, 1)
@@ -23,6 +27,41 @@ def scrollbar_top(frame, calibration):
         return None
     top = calibration.scale_bbox(SCROLLBAR)[1] + int(bright[0])
     return top / calibration.scale_y
+
+
+
+def scrollbar_evidence(frame, calibration, *, confirmed_absent=False):
+    strip = np.asarray(crop(frame, calibration, SCROLLBAR).convert("L"), dtype=float)
+    bright = np.flatnonzero(strip.mean(axis=1) > 18)
+    if not len(bright):
+        return {"state": "absent" if confirmed_absent and float(strip.max()) <= 18 else "unreadable",
+                "top": None, "bottom": None}
+    contiguous = len(bright) >= 3 and np.all(np.diff(bright) == 1)
+    bounded = bright[0] > 0 and bright[-1] < len(strip) - 1
+    rows = strip.mean(axis=1)
+    background = np.delete(rows, bright)
+    contrast = float(rows[bright].mean() - background.mean()) if len(background) else 0
+    if not contiguous or not bounded or contrast < 12 or confirmed_absent:
+        return {"state": "unreadable", "top": None, "bottom": None}
+    top = calibration.scale_bbox(SCROLLBAR)[1]
+    return {"state": "present", "top": (top + int(bright[0])) / calibration.scale_y,
+            "bottom": (top + int(bright[-1])) / calibration.scale_y}
+
+
+def selection_stillness(before, after, calibration, grid, *, confirmed_absent=False):
+    """Distinguish motion evidence from insufficient evidence; darkness alone is not absence."""
+    overlap = compare_viewports(before, after, calibration, grid)
+    zero = overlap["candidates"][0]
+    first = scrollbar_evidence(before, calibration, confirmed_absent=confirmed_absent)
+    second = scrollbar_evidence(after, calibration, confirmed_absent=confirmed_absent)
+    same_art = zero["medianError"] <= 12 and zero["matchingFraction"] >= .70
+    visible = first["state"] == second["state"] == "present"
+    absent = first["state"] == second["state"] == "absent"
+    moved = (visible and abs(first["top"] - second["top"]) >= 1.5) or overlap["verified"]
+    unchanged = same_art and (absent or (visible and not moved))
+    return {"sameViewport": False if moved else True if unchanged else None,
+            "reason": "movement-confirmed" if moved else "stillness-confirmed" if unchanged else "stillness-unconfirmed",
+            "zeroRowOverlap": zero, "scrollbarBefore": first, "scrollbarAfter": second}
 
 
 def grid_patches(frame, calibration, grid):
@@ -53,6 +92,42 @@ def compare_viewports(before, after, calibration, grid):
                 and other["medianError"] - best["medianError"] >= 3)
     return {"verified": accepted, "relativeRowsAdvanced": 1 if accepted else None,
             "candidates": scores, "method": "overlap of thumbnail interiors; not item identity"}
+
+
+class ViewportNotReady(RuntimeError):
+    pass
+
+
+def wait_for_viewport(grab, calibration, check, record, *, timeout=4,
+                      clock=time.monotonic, sleep=time.sleep):
+    """Wait for the list/header/scrollbar, independently of selection or item fields."""
+    boxes = (DEFAULT_GRID.grid_bbox, STORAGE_LABEL, SCROLLBAR)
+    started = clock()
+    previous = None
+    stable_since = None
+    consecutive = 0
+    while clock() - started < timeout:
+        check()
+        frame = grab()
+        check()
+        if frame.size != (1280, 720):
+            raise ViewportNotReady("unexpected-frame-size")
+        signature = [np.array(crop(frame, calibration, box).convert("L"), dtype=float) for box in boxes]
+        differences = [float(np.abs(a - b).mean()) for a, b in zip(signature, previous)] if previous else None
+        if differences is not None and max(differences) <= 2.5:
+            stable_since = stable_since if stable_since is not None else clock()
+            consecutive += 1
+        else:
+            stable_since = None
+            consecutive = 0
+        settled = stable_since is not None and consecutive >= 2 and clock() - stable_since >= .25
+        record(frame, {"kind": "viewport", "differences": differences, "settled": settled,
+                       "selectionRequired": False, "panelRequired": False})
+        if settled:
+            return frame
+        previous = signature
+        sleep(.12)
+    raise ViewportNotReady("viewport-not-stable-within-4-seconds")
 
 
 def run_transition(calibration, grab, mouse, guard, record, report, output, save, grid, *,

@@ -1,6 +1,8 @@
 # Piloto ZZZ — dez posições (P2)
 
-Implementado em **22/10/2026** sobre a [prova real P1.3](youkai-selection.md). **P2.1/P2.2 implementados e verificados offline; Primeiro percurso real de dez posições conferido; paradas durante execução ainda pendentes.** O motor compartilhado e o inventário completo pertencem às próximas etapas.
+> **Referência histórica/de diagnóstico.** Os resultados e pendências abaixo são datados. Para coleta normal, use o [guia ZZZ](zzz-scan.md); estado e próximo passo ficam no [ROADMAP](ROADMAP.md). Não repetir este ensaio por rotina.
+
+Implementado em **22/10/2026** sobre a [prova real P1.3](youkai-selection.md). **Estado inicial de 22/10:** P2.1/P2.2 e dez posições conferidos; as paradas em execução ainda estavam pendentes naquele momento. Os resultados posteriores de F8/foco/geometria estão registrados ao fim deste documento.
 
 ## Percurso e segurança
 
@@ -101,7 +103,7 @@ A revisão separada `pilot-review.json` é vinculada ao SHA-256 do `session.json
 
 O piloto demonstra percurso limitado e legibilidade neste ambiente, com cópias reais preservadas. Essa coleta de dez posições não exercitou F8/foco/geometria durante o fluxo. O F8 foi conferido posteriormente na sessão registrada abaixo. A perda de foco também foi conferida posteriormente. Movimentação da janela também foi conferida posteriormente. Filtro B em imagem real, percurso completo, mudança real de tamanho/DPI e outras resoluções continuam pendentes.
 
-## Próximo aceite
+## Aceite planejado naquele recorte
 
 1. Concluir o aceite a partir da sessão já conferida e de seu replay corrigido. Não repetir as dez posições sem uma divergência que exija isso.
 2. F8 em curso, perda de foco e movimentação da janela confirmados em sessões separadas. Não repetir por rotina; a transição P3.2 foi conferida em 23/10, e a próxima ação é o percurso integrado P3.3.
@@ -176,4 +178,4 @@ Sessão `.cache/youkai-p1/runs/20261022-120911-985f905a-selection/`, leitor do c
 
 Uma leitura permaneceu salva: Steel Cushion, S, 60/60, progressão 1, travado, com destaque na primeira célula; campos conferidos visualmente pelo assistente. A posição `captured-pending` é do clique de preparação anterior. Foram conferidos 13 hashes de frames, a imagem da posição, os hashes dos módulos do leitor e 260 arquivos upstream. A revisão separada `geometry-test-review.json` está vinculada ao SHA-256 `920636a381be21ece785e457267e1bfc5f870c1b08f0c6b093fcd3b323dd8af3` do manifesto, preservado.
 
-Com essa evidência, os ensaios reais de F8, foco e origem das coordenadas estão conferidos no ambiente inicial. Mudança de tamanho/DPI continua simulada; não há aprovação humana de inventário nem percurso completo aceito. Não repetir os ensaios por rotina. O próximo passo é a [primeira transição real](zzz-transition.md), sem implementação adicional antes de medir seu comportamento.
+Com essa evidência, os ensaios reais de F8, foco e origem das coordenadas foram conferidos no ambiente inicial. Mudança de tamanho/DPI continuava simulada; naquele marco não havia aprovação humana de inventário nem percurso completo aceito. A etapa seguinte foi a [transição real](zzz-transition.md); os resultados posteriores estão nas [evidências ZZZ](zzz-evidence.md). Não repetir os ensaios por rotina.

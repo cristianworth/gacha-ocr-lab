@@ -1,5 +1,7 @@
 # Youkai — P1.2 por arquivo no perfil 1280×720
 
+> **Referência histórica/de diagnóstico.** Os resultados e pendências abaixo são datados. Para coleta normal, use o [guia ZZZ](zzz-scan.md); estado e próximo passo ficam no [ROADMAP](ROADMAP.md). Não repetir este ensaio por rotina.
+
 Conferido em **20/10/2026**, sobre a base `7ccbacada331d39293d9523d8bd74befc133478b`, versão `0.1.0`. Cristian informou resolução de jogo **1280×720**, modo janela, escala Windows **100%** e interface em **inglês**. Foram encontrados três PNGs em `examples/ZZZ/`, embora a mensagem mencionasse quatro. Os exemplos pessoais e seus resultados detalhados permanecem ignorados pelo Git.
 
 **Resultado:** o leitor original executa sobre os três arquivos atuais após remover somente barra de título/margens. Nomes e texto de nível conferem visualmente nos três; a consulta diagnóstica separada de raridade retornou A/A/S, também conforme a inspeção visual do assistente. A progressão retornou 1 em todos: divergência observada em dois casos e coincidência em um. Cristian confirmou explicitamente nome, raridade, nível/limite e progressão dos três exemplos em 20/10/2026. As referências locais, vinculadas aos hashes dos PNGs e resultados, estão em `data/datasets/youkai-zzz-p1.2-references.json` (ignorado); as saídas originais não foram alteradas. Isso confirma as duas divergências de progressão, sem aprovar um inventário. Nada atualiza o Advisor.

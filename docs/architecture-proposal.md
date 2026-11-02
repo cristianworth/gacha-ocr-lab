@@ -1,8 +1,8 @@
 # Proposta de arquitetura e retomada do scanner
 
-Pesquisa em 19–20/10/2026. **Arquitetura recomendada, ainda não implementada.** A sequência e o detalhamento de execução são mantidos somente no [planejamento canônico](ROADMAP.md).
+Pesquisa de fontes e direção de arquitetura em **19–20/10/2026**, preservada como referência. O núcleo multijogo ainda não foi extraído; a coleta ZZZ já funciona no recorte descrito no [guia atual](zzz-scan.md). A sequência de execução pertence somente ao [ROADMAP](ROADMAP.md).
 
-**Atualização de execução, 20/10/2026:** a [reprodução isolada P1.1](youkai-qualification.md) executou testes e OCR estático do Youkai. As indicações de não execução abaixo descrevem a pesquisa original, anterior a essa reprodução. A candidata ainda não foi aceita para captura/coleta real.
+**Atualização histórica, 20/10/2026:** a [reprodução isolada P1.1](youkai-qualification.md) executou testes e OCR estático do Youkai. As indicações de não execução abaixo descrevem a pesquisa original. Naquela data, captura/coleta real ainda não haviam sido aceitas; os resultados posteriores estão nas [evidências ZZZ](zzz-evidence.md).
 
 ## Objetivo e escopo confirmado
 
@@ -104,13 +104,9 @@ Um host C# moderno poderia usar [.NET 10 LTS](https://learn.microsoft.com/en-us/
 
 Não forçar todos os jogos a um motor OCR nem incorporar todas as dependências dos aplicativos originais. Separar processamento da aquisição permite repetir OCR sobre arquivos salvos e testar módulos sem controlar o jogo.
 
-## Plano de execução
+## Uso desta pesquisa
 
-O [ROADMAP.md](ROADMAP.md) contém os marcos P0–P9, os próximos subpassos ZZZ/HSR, as condições de aceite e a participação necessária de Cristian. P0 é o levantamento concluído; P1 reproduz o candidato, P2 entrega um piloto ZZZ com adaptação mínima, P3 aceita o inventário completo e P4 consolida o núcleo ao integrar HSR. Nenhum candidato passa a base aceita só por ter módulos, testes ou releases.
-
-A revisão de 20/10 confirmou release v1.0.8, testes específicos e fixtures, mas também incompatibilidades de contrato: fallback de estrelas para 1, classificação interna 4=S/3=A/2=B, raridade não preservada no item exportado e possibilidade de pular célula parada. Essas políticas precisam ser adaptadas e testadas para o escopo S/A.
-
-Não foi executado o scanner/testes do candidato. Dependências, runtime e catálogo devem ser fixados/conferidos durante P1. As condições documentadas do candidato e as referências públicas orientam a primeira prova; capturas atuais de Cristian confirmam compatibilidade.
+Esta pesquisa levantou contratos úteis e incompatibilidades da base, sem executar candidatos naquele momento. A reprodução do Youkai e as adaptações ZZZ posteriores estão em [qualificação](youkai-qualification.md) e [evidências](zzz-evidence.md). Não transformar recomendações de 20/10 em requisitos atuais nem inferir que módulos, testes ou release aceitam uma coleta real. O [ROADMAP](ROADMAP.md) mantém o plano único.
 
 ## Qualidade, evidências e procedência
 
@@ -126,6 +122,6 @@ Cristian aceita licença compatível para priorizar reaproveitamento. Conferir l
 
 Verificado: documentação, commits e licenças declaradas dos candidatos; módulos de armas de quatro jogos; pontos de extensão e acoplamentos citados. A leitura adicional de captura/grade/OCR confirmou que o Youkai é uma candidata a fonte do núcleo, com trabalho explícito de separação.
 
-Não verificado: execução comparativa dos scanners externos, build/empacotamento do novo motor, precisão dos cinco jogos ou funcionamento genérico dos módulos. Nenhum scanner externo foi executado e nenhum jogo foi controlado nesta pesquisa. A etapa atual alterou somente documentação de arquitetura, planejamento e contexto do experimento legado.
+Não verificado: execução comparativa dos scanners externos, build/empacotamento do novo motor, precisão dos cinco jogos ou funcionamento genérico dos módulos. Nenhum scanner externo foi executado e nenhum jogo foi controlado nesta pesquisa. A pesquisa de 19–20/10 alterou somente documentação de arquitetura, planejamento e contexto do experimento legado.
 
 **Direção recomendada:** um motor Python compartilhado, com perfis, parsers e estratégias por jogo; reutilização seletiva; ZZZ completo primeiro e HSR como primeira prova de expansão. O plano permanece separado do software atualmente executável.

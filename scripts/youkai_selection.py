@@ -1,4 +1,4 @@
-"""Bounded qualification of the original Youkai navigator on three first-row cells."""
+"""Guarded Youkai qualification and ZZZ inventory acquisition."""
 
 import argparse
 import hashlib
@@ -75,7 +75,18 @@ def await_geometry_trial(guard, report, save, *, timeout=30, notify=None, clock=
 def save_report(path, report):
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    # Windows readers can briefly deny replacement without denying file writes.
+    # Keep the last complete JSON intact and fail if the lock does not clear.
+    delays = (0, .025, .05, .1, .2)
+    for attempt, delay in enumerate(delays):
+        if delay:
+            time.sleep(delay)
+        try:
+            temporary.replace(path)
+            break
+        except PermissionError as exc:
+            if getattr(exc, 'winerror', None) not in (5, 32, 33) or attempt == len(delays) - 1:
+                raise
     if report.get("mode", "").startswith("zzz-"):
         from zzz_pilot import render_review
         render_review(path.with_name("review.html"), report)
@@ -244,9 +255,30 @@ def main():
     parser.add_argument("--transition", action="store_true")
     parser.add_argument("--scan", action="store_true")
     parser.add_argument("--selected-row", action="store_true")
+    parser.add_argument("--inventory", action="store_true")
+    parser.add_argument("--collect-references", action="store_true")
+    parser.add_argument("--max-positions", type=int, default=2000)
+    parser.add_argument("--min-level", type=int, choices=(20,), default=20)
+    parser.add_argument("--sa-filter-prepared", action="store_true")
+    parser.add_argument("--level-descending-prepared", action="store_true")
+    parser.add_argument("--full-inventory", action="store_true")
     parser.add_argument("--image", type=Path)
     parser.add_argument("--client")
     args = parser.parse_args()
+    if args.sa_filter_prepared and not args.inventory:
+        parser.error("--sa-filter-prepared requires --inventory")
+    if (args.level_descending_prepared or args.full_inventory) and not args.inventory:
+        parser.error("--level-descending-prepared/--full-inventory require --inventory")
+    if args.full_inventory and args.collect_references:
+        parser.error("--full-inventory cannot use --collect-references")
+    if args.inventory and (not args.scan or args.selected_row):
+        parser.error("--inventory requires --scan and cannot use --selected-row")
+    if args.collect_references and (not args.inventory or not args.run):
+        parser.error("--collect-references requires --inventory --run")
+    if args.inventory and args.run and not (args.collect_references or args.full_inventory or args.level_descending_prepared):
+        parser.error("Prepare Level descending and pass --level-descending-prepared, or use --full-inventory for diagnostics")
+    if not 1 <= args.max_positions <= 2000:
+        parser.error("--max-positions must be 1..2000")
     if args.selected_row:
         if not args.scan:
             parser.error("--selected-row requires --scan")
@@ -300,7 +332,23 @@ def main():
         report["observations"] = [{"position": i, "logicalRow": i // 9, "row": min(i // 9, 2), "column": i % 9,
                                    "positionMeaning": "ordinal within requested prefix; absolute inventory index unconfirmed",
                                    "status": "not-visited"} for i in range(args.limit)]
+    if args.inventory:
+        report.update({"mode": "zzz-inventory", "startMode": "prepared-top", "requestedPositions": None,
+                       "maxPositions": args.max_positions, "maxScrolls": (args.max_positions + 8) // 9 + 2,
+                       "observations": [], "referenceCollectionRequested": args.collect_references,
+                       "minLevel": args.min_level, "preparedListTotal": None,
+                       "inventoryStrategy": "full-list" if args.full_inventory or args.collect_references else "level-cutoff",
+                       "sortPreparation": {"key": "level", "direction": "descending",
+                                           "confirmed": args.level_descending_prepared,
+                                           "method": "manual-user-declaration" if args.level_descending_prepared else "unconfirmed"},
+                       "preparationMayLoseFocus": args.collect_references, "captureRequiresGameFocus": True,
+                       "scopePreparation": {"targetRanks": ["S", "A"], "confirmed": args.sa_filter_prepared,
+                                            "method": "manual-SA-filter" if args.sa_filter_prepared else "unconfirmed",
+                                            "provenance": "explicit user preparation declaration" if args.sa_filter_prepared else None,
+                                            "counterMeaning": "prepared-list count, not eligible level count"}})
+        report.pop("prefixTraversalComplete", None)
     listener = None
+    reference_listener = None
     event = None
     guarded_mouse = None
     guard = None
@@ -323,6 +371,8 @@ def main():
                 reader_files.append("zzz_transition.py")
             if args.scan:
                 reader_files.append("zzz_scan.py")
+            if args.inventory:
+                reader_files.append("zzz_inventory.py")
             report["readerSourceSha256"] = {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
                                              for name in reader_files}
         if args.image is not None:
@@ -397,7 +447,8 @@ def main():
             report["stopReceipt"] = str(args.stop_receipt.resolve())
         event, listener = grid.make_kill_listener(kill_key=Key.f8)
         if args.stop_receipt is None:
-            print("Before any mouse input: press and release F8 within 30 seconds to verify the stop hook.", flush=True)
+            print("Antes de comecar: pressione e solte F8 em ate 30 segundos. F8 tambem permite interromper." if args.inventory else
+                  "Before any mouse input: press and release F8 within 30 seconds to verify the stop hook.", flush=True)
             if not event.wait(30):
                 raise ProbeStopped("F8-not-observed-within-30-seconds")
             receipt = {"mode": "stop-check", "status": "verified", "key": "F8",
@@ -412,8 +463,11 @@ def main():
             print("This is a GEOMETRY TEST: after the first reading, wait for the pause, then move the game window using its title bar.", flush=True)
         if args.transition:
             print("One middle-row selection, then ONE downward wheel step inside the grid. No automatic retry.", flush=True)
-        purpose = "Selected row to column 9, no scroll" if args.selected_row else "One-transition test" if args.transition else f"Integrated {args.limit}-position scan" if args.scan else f"{args.limit}-position proof"
-        print(f"F8 verified. Release it. {purpose} in 5 seconds; F8/Ctrl+C now stops. Exclusive controls.", flush=True)
+        purpose = "Grouped inventory references; no automatic mouse inputs" if args.collect_references else "ZZZ inventory scan" if args.inventory else "Selected row to column 9, no scroll" if args.selected_row else "One-transition test" if args.transition else f"Integrated {args.limit}-position scan" if args.scan else f"{args.limit}-position proof"
+        if args.inventory:
+            print("F8 confirmado. Solte a tecla. Aguarde cinco segundos; durante a captura mantenha o jogo na frente. F8 interrompe.", flush=True)
+        else:
+            print(f"F8 verified. Release it. {purpose} in 5 seconds; F8/Ctrl+C now stops. Exclusive controls.", flush=True)
         time.sleep(5)
         if event.is_set():
             raise ProbeStopped("stopped-before-focus")
@@ -434,15 +488,18 @@ def main():
         count = read_engine_count(baseline, calibration, HeaderRecorder())
         report["headerReads"] = header_reads
         report["globalCountCandidate"] = count
+        if args.inventory:
+            from zzz_inventory import parse_storage_count
+            report["preparedListTotal"] = parse_storage_count(header_reads)
         normalized = "".join(ch for ch in " ".join(header_reads).lower() if ch.isalnum())
-        if "wenginestorage" not in normalized or count is None or count < (1 if args.selected_row else args.limit):
+        if "wenginestorage" not in normalized or (not args.inventory and (count is None or count < (1 if args.selected_row else args.limit))):
             raise ProbeStopped("W-Engine-storage-header-not-confirmed")
 
-        def check_window():
+        def check_window(*, require_focus=True):
             hwnd = window["hwnd"]
             if not win32gui.IsWindow(hwnd) or not win32gui.IsWindowVisible(hwnd) or win32gui.IsIconic(hwnd):
                 raise ProbeStopped("game-window-unavailable")
-            if win32gui.GetForegroundWindow() != hwnd:
+            if require_focus and win32gui.GetForegroundWindow() != hwnd:
                 raise ProbeStopped("game-focus-lost")
             if win32process.GetWindowThreadProcessId(hwnd)[1] != pid:
                 raise ProbeStopped("game-process-changed")
@@ -480,6 +537,16 @@ def main():
         report["scrollTarget"] = list(scroll_target) if scroll_target is not None else None
         report["frameBudget"] = args.limit * 12 + 60 if args.scan else 600 if args.pilot else 80
         report["inputDeadlineSeconds"] = max(180, args.limit * 6 + 30) if args.scan else 30 if args.transition else 180 if args.pilot else 60
+        if args.inventory:
+            guard.targets = []
+            guard.max_presses = 0 if args.collect_references else args.max_positions
+            guard.max_scrolls = 0 if args.collect_references else report["maxScrolls"]
+            input_seconds = 4500 if args.collect_references else max(180, args.max_positions * 6 + 30)
+            guard.deadline = guard.clock() + input_seconds
+            report.update({"targets": [], "pressBudget": guard.max_presses, "scrollBudget": guard.max_scrolls,
+                           "scrollAllowed": not args.collect_references, "inputDeadlineSeconds": input_seconds,
+                           "frameBudget": 600 if args.collect_references else args.max_positions * 12 + 60,
+                           "upstreamCountArgumentMeaning": "upstream navigator unused; prepared-list count cross-checked with occupancy and motion"})
         report["frames"] = []
         frame_dir = output / "frames"
         frame_dir.mkdir()
@@ -528,6 +595,58 @@ def main():
 
         raw_mouse = pynput.mouse.Controller()
         guarded_mouse = GuardedMouse(raw_mouse, guard)
+        if args.inventory:
+            from zzz_inventory import (AlignedInventoryObserver, collect_inventory_references, parse_storage_count,
+                                       read_grid_level, run_inventory)
+            report["status"] = "running"
+            save_report(report_path, report)
+            def record_inventory(frame, evidence):
+                capture_and_record(frame=frame)
+                report["frames"][-1]["inventoryCheck"] = evidence
+                save_report(report_path, report)
+                return report["frames"][-1]
+            def current_count(frame):
+                raw = recognizer.read_line(frame.crop(calibration.scale_bbox((20, 95, 560, 155))), "white_text_on_dark")
+                value = parse_storage_count([raw])
+                report.setdefault("inventoryHeaderReads", []).append({"raw": raw, "value": value})
+                return value
+            def inventory():
+                observer = AlignedInventoryObserver(report["preparedListTotal"], current_count)
+                run_inventory(calibration, original_grab, guarded_mouse, guard, record_inventory,
+                              report, output, lambda: save_report(report_path, report), grid.DEFAULT_GRID,
+                              observe=observer,
+                              level_probe=lambda frame, calib, center: read_grid_level(frame, calib, center, recognizer))
+            if args.collect_references:
+                import threading
+                from pynput.keyboard import Listener
+                checkpoint = threading.Event()
+                reference_listener = Listener(on_release=lambda key: checkpoint.set() if key == Key.f9 else None)
+                reference_listener.start()
+                def await_stage(name, instruction):
+                    checkpoint.clear()
+                    print(f"ETAPA {name}: {instruction} Pode conversar no chat enquanto prepara. Volte ao jogo antes do F9. F8 encerra.", flush=True)
+                    ctypes.windll.kernel32.Beep(880, 150)
+                    deadline = guard.clock() + 600
+                    while not checkpoint.is_set():
+                        if event.is_set() or not listener.is_alive() or guard.clock() >= guard.deadline:
+                            guard.check()
+                        check_window(require_focus=False)
+                        if not reference_listener.is_alive():
+                            raise ProbeStopped("reference-listener-unavailable")
+                        if guard.clock() >= deadline:
+                            raise ProbeStopped("reference-checkpoint-time-limit")
+                        time.sleep(.05)
+                    check_window(require_focus=False)
+                def reference_header(frame):
+                    before = len(header_reads)
+                    candidate = read_engine_count(frame, calibration, HeaderRecorder())
+                    return {"raw": header_reads[before:], "globalCountCandidate": candidate, "meaning": "unconfirmed"}
+                collect_inventory_references(calibration, original_grab, guard, record_inventory, report,
+                                             output, lambda: save_report(report_path, report), grid.DEFAULT_GRID,
+                                             await_stage, read_header=reference_header)
+            else:
+                inventory()
+            return 0
         if args.scan:
             from zzz_scan import run_scan
             report["status"] = "running"
@@ -625,6 +744,12 @@ def main():
                 guarded_mouse.close()
             except Exception as exc:
                 cleanup_errors.append(f"mouse release: {exc}")
+        if reference_listener is not None:
+            try:
+                reference_listener.stop()
+                reference_listener.join(timeout=2)
+            except Exception as exc:
+                cleanup_errors.append(f"reference listener cleanup: {exc}")
         if listener is not None:
             try:
                 listener.stop()
@@ -633,7 +758,7 @@ def main():
                 cleanup_errors.append(f"listener cleanup: {exc}")
         if guard is not None:
             report.update({"pressRequests": guard.presses, "scrollRequests": guard.scrolls, "mouseMoves": guard.moves,
-                           "inputEvents": guard.events, "liveInputTested": guard.presses > 0,
+                           "inputEvents": guard.events, "liveInputTested": guard.presses > 0 or guard.scrolls > 0,
                            "selectionDeliveryVerified": False})
         if guard is not None and guard.failure is not None:
             report["guardStop"] = {**guard.failure, "noPressesAfterObservation": guard.presses == guard.failure["pressRequests"],
@@ -662,7 +787,13 @@ def main():
             report["processedPositions"] = sum(o["status"] == "read" for o in report["observations"])
             report["scopeCounts"] = {scope: sum(o.get("reading", {}).get("scope") == scope for o in report["observations"])
                                      for scope in ("included", "excluded-B", "pending-rarity")}
-            if args.scan:
+            if args.inventory:
+                from zzz_inventory import summarize_inventory, write_inventory_summary
+                summarize_inventory(report)
+                if args.run and not args.collect_references:
+                    report['summaryFile'] = str(output / 'summary.md')
+                    write_inventory_summary(output / 'summary.md', report)
+            elif args.scan:
                 from zzz_scan import summarize_scan
                 summarize_scan(report)
             if not args.transition and not args.scan and args.image is None:

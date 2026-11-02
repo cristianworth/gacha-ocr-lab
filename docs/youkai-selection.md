@@ -1,6 +1,8 @@
 # Youkai — prova limitada de seleção ZZZ (P1.3)
 
-Implementação preparada em 20/10/2026, após a [captura cliente real](youkai-capture.md). **Primeira seleção real conferida posteriormente nesta data:** três posições e quatro cliques normais; interrupção durante execução ainda pendente. O comando limita a prova às duas ou três primeiras posições da primeira linha, sem rolagem. Não é o piloto de dez posições nem coleta de inventário.
+> **Referência histórica/de diagnóstico.** Os resultados e pendências abaixo são datados. Para coleta normal, use o [guia ZZZ](zzz-scan.md); estado e próximo passo ficam no [ROADMAP](ROADMAP.md). Não repetir este ensaio por rotina.
+
+Implementação preparada em 20/10/2026, após a [captura cliente real](youkai-capture.md). **Primeira seleção real conferida posteriormente nesta data:** três posições e quatro cliques normais; interrupção durante execução ainda estava pendente nesse recorte. O comando limita a prova às duas ou três primeiras posições da primeira linha, sem rolagem. Não é o piloto de dez posições nem coleta de inventário.
 
 ## Reaproveitamento
 

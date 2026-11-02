@@ -268,6 +268,16 @@ def render_review(path, report):
     if report.get("mode") == "zzz-scan":
         summary += '<p>Integrated bounded traversal. Completion means the requested prefix was read; inventory coverage and end remain unconfirmed.</p>'
         summary += f'<pre>{html.escape(json.dumps(report.get("scanSummary", {}), indent=2))}</pre>'
+    if report.get("mode") == "zzz-inventory":
+        summary += '<p>ZZZ S/A 20+. Cobertura dos elegíveis, percurso até o fundo e aprovação humana são resultados distintos.</p>'
+        if report.get('summaryFile'):
+            summary += '<p><a href="summary.md">Resumo dos elegíveis e pendências para revisão</a></p>'
+        summary += f'<pre>{html.escape(json.dumps(report.get("inventorySummary", {}), indent=2))}</pre>'
+        summary += '<h2>Grouped references</h2>'
+        for reference in report.get("references", []):
+            relative = Path(reference["frame"]).resolve().relative_to(path.parent.resolve()).as_posix()
+            summary += (f'<p>{html.escape(reference["stage"])}: '
+                        f'<a href="{html.escape(relative, quote=True)}"><img width="640" src="{html.escape(relative, quote=True)}"></a></p>')
     rows = []
     for observation in report.get("observations", []):
         reading = observation.get("reading", {})
@@ -277,8 +287,15 @@ def render_review(path, report):
         if observation.get("frame"):
             relative = Path(observation["frame"]).resolve().relative_to(path.parent.resolve()).as_posix()
             image = f'<a href="{html.escape(relative, quote=True)}"><img width="640" src="{html.escape(relative, quote=True)}"></a>'
+        scope_label = reading.get("scope", "pending")
+        grid_evidence = ""
+        if "levelEligibility" in observation:
+            scope_label += " / " + observation["levelEligibility"]
+            grid_evidence = '<pre>' + html.escape(json.dumps({"gridLevel": observation.get("gridLevel"),
+                "exclusionSource": observation.get("exclusionSource"), "levelDecisionSource": observation.get("levelDecisionSource")},
+                ensure_ascii=False, indent=2)) + '</pre>'
         rows.append(f'<tr><td>{observation["position"] + 1}</td><td>{html.escape(observation["status"])}</td>'
-                    f'<td>{html.escape(reading.get("scope", "pending"))}<pre>{html.escape(json.dumps(fields, ensure_ascii=False, indent=2))}</pre>'
+                    f'<td>{html.escape(scope_label)}{grid_evidence}<pre>{html.escape(json.dumps(fields, ensure_ascii=False, indent=2))}</pre>'
                     f'{html.escape(observation.get("reason", ""))}'
                     f'<details><summary>Raw OCR / original comparison</summary><pre>{html.escape(json.dumps(reading, ensure_ascii=False, indent=2))}</pre></details></td><td>{image}</td></tr>')
     path.write_text('<!doctype html><meta charset="utf-8"><title>ZZZ session review</title>'

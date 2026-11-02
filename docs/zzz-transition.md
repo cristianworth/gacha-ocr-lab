@@ -1,5 +1,7 @@
 # P3.2 — transição ZZZ com um passo de roda
 
+> **Referência histórica/de diagnóstico.** Os resultados e pendências abaixo são datados. Para coleta normal, use o [guia ZZZ](zzz-scan.md); estado e próximo passo ficam no [ROADMAP](ROADMAP.md). Não repetir este ensaio por rotina.
+
 Atualizado em **22/10/2026**. O primeiro ensaio real selecionou o cartão, mas não rolou a grade. A estratégia foi corrigida para uma seleção em linha interna seguida de um passo explícito de roda. **Roda confirmada no jogo em 23/10/2026. Próxima validação: percurso integrado P3.3, sem repetir o ensaio isolado.** F8, perda de foco e movimentação da janela foram conferidos em P2. Este recorte não implementa inventário completo, contagem S/A ou executável independente.
 
 ## Diagnóstico do primeiro ensaio real

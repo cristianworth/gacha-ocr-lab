@@ -1,5 +1,7 @@
 # Youkai — P1.3 captura cliente única
 
+> **Referência histórica/de diagnóstico.** Os resultados e pendências abaixo são datados. Para coleta normal, use o [guia ZZZ](zzz-scan.md); estado e próximo passo ficam no [ROADMAP](ROADMAP.md). Não repetir este ensaio por rotina.
+
 Preparado em **20/10/2026**, base `f579f122648d47cc900a2ac8e4a60665bad73937`. Cristian pediu revisar o planejamento existente e avançar ao próximo passo. Este recorte executa somente a aquisição de uma imagem pelo caminho original; seleção, cliques, teclas e rolagem ficam para a prova limitada seguinte.
 
 ## Preparação e comando
