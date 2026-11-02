@@ -3,9 +3,12 @@ param([switch]$CheckStop, [switch]$Run, [string]$StopReceipt, [ValidateRange(1,1
       [switch]$Pilot, [string]$ImagePath, [string]$ClientArea, [switch]$TestStop, [switch]$TestGeometry, [switch]$Transition, [switch]$Scan, [switch]$SelectedRow,
       [switch]$Inventory, [switch]$CollectReferences, [ValidateRange(1,2000)][int]$MaxPositions = 2000,
       [ValidateSet(20)][int]$MinLevel = 20, [switch]$SAFilterPrepared,
-      [switch]$LevelDescendingPrepared, [switch]$FullInventory, [string]$RunDirectory)
+      [switch]$LevelDescendingPrepared, [switch]$FullInventory, [switch]$Diagnostics,
+      [switch]$SynchronousEvidence, [string]$RunDirectory)
 
 $ErrorActionPreference = 'Stop'
+if ($Diagnostics -and !$Inventory) { throw 'Diagnostics requires Inventory.' }
+if ($SynchronousEvidence -and !$Inventory) { throw 'SynchronousEvidence requires Inventory.' }
 if ($CheckStop -and $Run) { throw 'Choose CheckStop or Run.' }
 if ($TestStop -and $TestGeometry) { throw 'Choose TestStop or TestGeometry.' }
 if (($TestStop -or $TestGeometry) -and (!$Run -or !$Pilot -or $ImagePath -or $Transition)) { throw 'Trials require Run and Pilot, without ImagePath/Transition.' }
@@ -65,6 +68,8 @@ try {
     if ($SAFilterPrepared) { $probeArgs += '--sa-filter-prepared' }
     if ($LevelDescendingPrepared) { $probeArgs += '--level-descending-prepared' }
     if ($FullInventory) { $probeArgs += '--full-inventory' }
+    if ($Diagnostics) { $probeArgs += '--diagnostics' }
+    if ($SynchronousEvidence) { $probeArgs += '--synchronous-evidence' }
     if ($CollectReferences) { $probeArgs += '--collect-references' }
     if ($ImagePath) { $probeArgs += @('--image', (Resolve-Path -LiteralPath $ImagePath).Path, '--client', $ClientArea) }
     if ($CheckStop) { $probeArgs += '--check-stop' }

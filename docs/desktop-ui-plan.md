@@ -2,6 +2,10 @@
 
 Plano de implementação solicitado em 01/11/2026. **Ainda não implementado.** Executar depois da melhoria localizada de velocidade e **antes do HSR**, conforme o [ROADMAP](ROADMAP.md). Este documento é um plano técnico; não cria chat, handoff ou novo escopo de scanner.
 
+## Base recebida — 02/11/2026
+
+P3.5 foi conferido por Cristian na sessão `20261102-193652-86205124-selection`, pacote `20261102-184806-173bed9f`: 34 itens, zero falhas/pendências, tempo ativo 34,04 s contra 43,78 s (22,2% menor), cinco campos preservados. [Evidência final](zzz-performance-plan.md#validação-integrada-final--etapa-encerrada). Não repetir essa coleta para iniciar a janela. O executor normal já usa OCR persistente, leitura detalhada após captura e gravação de imagens em segundo plano, com checkpoints por seleção. A UI deve preservar esse caminho e o fechamento do gravador, sem copiar o loop.
+
 ## Resultado esperado e limite
 
 Cristian consegue abrir uma janela, confirmar a preparação, iniciar ZZZ, acompanhar o andamento e abrir o resultado sem operar o prompt. O scanner validado continua responsável pelos inputs, OCR, corte 20+, guardas e artefatos. A interface não prepara menus do jogo nem resolve nomes incertos automaticamente.
@@ -29,7 +33,7 @@ Nomes candidatos de arquivos novos: `scripts/start-desktop.ps1` para janela/orqu
 - **Jogo:** seletor com ZZZ disponível e HSR indisponível até P4. Não criar submenus para jogos sem executor.
 - **Preparação:** instruções curtas e confirmação explícita de S+A, Level decrescente, filtro fechado/topo e controles soltos. Manter o corte 20 fixo e a exigência de idioma/resolução/escala do guia atual.
 - **Iniciar coleta:** habilitado somente sem outra coleta ativa e depois de confirmar preparação. A confirmação da tela substitui Enter no prompt; não presume filtros/ordenação automaticamente.
-- **Estado:** pronta, aguardando F8, coletando, finalizada, parcial/erro. Mostrar etapa/mensagens e último progresso conhecido; sem percentual inventado, promessa de tempo restante ou termos técnicos desnecessários.
+- **Estado:** pronta, aguardando F8, capturando, processando imagens, finalizada, parcial/erro. O primeiro recorte de velocidade já separa aquisição/processamento; usar as mensagens dessas fases sem ler o manifesto ativo. Mostrar último progresso conhecido; sem percentual inventado, promessa de tempo restante ou termos técnicos desnecessários.
 - **Interromper:** disponível na janela e orientação permanente “F8 interrompe no jogo”. O botão deve usar uma solicitação cooperativa; ver detalhe de cancelamento abaixo.
 - **Resultado:** abrir resumo e pasta da execução corrente. Se ainda não houver arquivos, informar isso. Manter os diagnósticos acessíveis sem expor implementação no fluxo normal.
 
@@ -53,6 +57,8 @@ O foco no jogo continua obrigatório durante aquisição automática. Clicar na 
 O executor atual oferece F8; **não existe ainda um cancelamento cooperativo por arquivo ou API para o botão da UI**. Não documentar esse canal como implementado.
 
 Planejar um sinal pequeno por sessão, por exemplo um arquivo de solicitação dentro da pasta exata, consultado pelo mesmo predicado de parada usado pelo `InputGuard`. O CLI continua funcionando sem esse sinal. A solicitação externa só pode parar; não pode mover/clicar, aprovar dados ou alterar preparação. Usar o caminho explícito da própria execução, sem canal global, arquivo em pasta de outro projeto ou dependência de biblioteca IPC.
+
+O sinal precisa ser avaliado também na espera inicial por F8 e nos cinco segundos de preparação, se o botão da janela estiver disponível nessas fases; hoje esses pontos usam `event.wait(30)` e `time.sleep(5)`. Durante aquisição, aproveitar o predicado existente do `InputGuard`. Depois da aquisição, o comportamento atual é processar os painéis já salvos, sem exigir foco; definir o texto de parada da janela para não prometer encerramento imediato nem descartar essas imagens. Não há esse canal externo pronto.
 
 Verificar no código real os pontos de checagem e o `finally` que libera botão, encerra listeners e salva parcial antes de adotar essa proposta. O botão/fechamento devem pedir parada e aguardar saída com janela responsiva. Não matar o processo como caminho normal: isso pode impedir cleanup e gravação. Erro de foco pode chegar antes da solicitação; ambos precisam terminar sem mais inputs e com motivo visível. Evitar confirmação modal enquanto houver aquisição ativa; exibir estado “interrompendo” sem tomar foco.
 

@@ -18,8 +18,9 @@ Filtro e ordenação são diferentes: uma referência antiga mostra **Rarity**, 
 1. Depois de preparar o jogo, abrir **`scan-zzz.cmd`**, na raiz do laboratório ou na pasta portátil extraída. Aceitar o aviso de Administrador do Windows. Isso abre um console visível; ainda não deve clicar ou rolar o jogo.
 2. Ler a preparação no console e confirmar com **Enter**. **0 cancela** antes da coleta. A lista deve permanecer parada; não precisa clicar em item.
 3. Quando aparecer **“Antes de comecar: pressione e solte F8”**, voltar ao jogo e pressionar/soltar **F8 uma vez**, em até 30 segundos. Não esperar mensagem do chat. Aguardar os cinco segundos de preparação com o jogo na frente.
-4. Durante a captura, não clicar nem rolar. A lista se move somente pelo programa. **F9 não é usado**; **F8 interrompe** a execução se necessário.
-5. Aguardar o encerramento. O resumo da própria sessão abre no **Bloco de Notas**, inclusive quando o resultado for parcial. Se não houver resumo, o lançador tenta o relatório visual ou mostra a pasta/diagnóstico disponível.
+4. Durante a captura, não clicar nem rolar. A lista se move somente pelo programa. **F9 não é usado**; **F8 interrompe os inputs** se necessário.
+5. No caminho normal, o programa salva os painéis confirmados e faz a leitura detalhada depois. Quando aparecer **“Captura encerrada. Processando imagens salvas”**, não haverá novos cliques ou rolagens; já pode usar o computador enquanto aguarda. Nível ilegível na grade ainda recebe leitura imediata para decidir o corte com segurança.
+6. Aguardar o encerramento do processamento. O resumo da própria sessão abre no **Bloco de Notas**, inclusive quando o resultado for parcial. Se não houver resumo, o lançador tenta o relatório visual ou mostra a pasta/diagnóstico disponível.
 
 No repositório, o lançador reutiliza a instalação local de Python/Tesseract/cache. No [pacote portátil](zzz-portable.md), usa o executável e o OCR incluídos na pasta, sem instalar dependências. O `gacha-ocr-lab.exe` antigo pertence ao experimento Genshin e não inicia esta coleta ZZZ.
 
@@ -46,11 +47,19 @@ A revisão recomendada é focada nas pendências; não exigir conferência dos 3
 
 ## Se parar ou falhar
 
-A execução preserva o resultado parcial quando possível. Não preparar outra campanha de teste antes de analisar os arquivos. Em atendimento acompanhado, enviar **somente o caminho de `session.json`**; não é necessário copiar o terminal ou mandar capturas soltas quando os arquivos já contêm a evidência.
+A execução preserva o resultado parcial quando possível. Não preparar outra campanha de teste antes de analisar os arquivos. Em atendimento acompanhado, basta avisar que terminou: o agente pode localizar a execução mais recente na instalação conhecida, conferir a pasta/horário e esperar `exit-code.txt` antes de ler o resultado. Usar horário como pista, sem confundir outra instalação ou sessão em andamento com a coleta informada. Pedir **somente o caminho de `session.json`** quando a pasta mudou, está inacessível ou há ambiguidade; não é necessário copiar o terminal ou mandar capturas soltas. O lançador e a futura interface continuam vinculados à pasta exata criada por eles.
 
 F8, perda de foco, mudança de janela/geometria/DPI e limites de segurança interrompem os inputs. Elevação do comando precisa ser compatível com o jogo; aprovação da ferramenta do agente não equivale a PowerShell Administrador no desktop.
 
 Durante a execução, acompanhar apenas `console.log`. Ler `session.json` depois de existir `exit-code.txt`: leitores podem bloquear sua substituição atômica no Windows. A gravação tem retentativas curtas e limitadas para bloqueio temporário; erro persistente continua explícito.
+
+O caminho normal mantém PNGs, hashes, crops e OCR bruto. O JSON continua sendo salvo nos checkpoints; o HTML é gerado ao finalizar ou parar, sem ser refeito a cada frame. Imagens aguardando leitura são `captured-pending` e não contam como escopo concluído. Uma imagem alterada, erro de leitura ou conflito entre nível da grade e painel mantém resultado parcial. F8/perda de foco encerram os inputs; os painéis já salvos ainda podem ser processados sem exigir foco no jogo.
+
+A coleta normal usa um gravador com fila limitada a quatro imagens, em paralelo às verificações do painel. O JSON continua sob responsabilidade do processo principal; cada seleção só é confirmada depois de todas as suas imagens estarem gravadas. F8/perda de foco encerram os inputs e a limpeza espera as imagens aceitas. Falha de gravação deixa a saída parcial; não autoriza mais inputs nem cobertura concluída. Interromper o processo à força pode perder imagens ainda na fila.
+
+As verificações normais são agendadas a cada 60 ms, contando o trabalho já executado e respeitando os mesmos 0,25 s de estabilidade. A diferença visual também é limitada em relação ao início dessa janela; aumentar a frequência não autoriza aceitar uma animação lenta. Isso pode gerar aproximadamente o dobro de PNGs intermediários; evidências não são descartadas para ganhar tempo. `evidenceWriting` registra fila, gravações e falhas; `performance.panelPolling` registra a política. Para comparação técnica com o modo anterior, `scan-zzz.ps1 -Inventory -SAFilterPrepared -LevelDescendingPrepared -Run -SynchronousEvidence`; OCR nativo e leitura após captura continuam. `-Diagnostics`/`-FullInventory` preservam seus modos anteriores.
+
+O leitor normal reutiliza um engine da DLL Tesseract que acompanha o pacote, em vez de iniciar o executável para cada crop. Modelo e regras dos campos permanecem. `ocrBackend` identifica esse caminho ou registra fallback para CLI se a inicialização nativa falhar. As evidências usam PNG lossless com compressão mais rápida: pixels preservados e arquivos maiores. Os modos de diagnóstico mantêm seu leitor CLI/comparação original.
 
 ## Instalação e comandos técnicos
 
@@ -67,6 +76,10 @@ A CLI continua disponível para desenvolvimento, em PowerShell como Administrado
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\scan-zzz.ps1 -Inventory -SAFilterPrepared -LevelDescendingPrepared -Run
 ```
+
+Para diagnosticar com o caminho síncrono anterior e a comparação OCR upstream adicional, acrescentar `-Diagnostics`. `-FullInventory` mantém esse comportamento diagnóstico. Nenhum desses modos precisa ser repetido por rotina. A leitura de uma imagem estática continua com a comparação por padrão. No caminho normal, `originalComparison.state=not-requested` distingue comparação dispensada de falha; os cinco campos mantêm seu leitor e suas regras.
+
+O relatório normal registra `phase` (`acquiring`, `processing`, `finished`) e `performance`: tempo de aquisição, processamento posterior, OCR imediato por nível ilegível, captura, espera da lista/painel, OCR do nível na grade e gravação dos frames intermediários. Esperas incluem as capturas/gravações chamadas dentro delas: **não somar esses spans como se fossem etapas independentes**. Esses tempos não incluem toda a preparação anterior ao percurso. [Medições e limites da melhoria](zzz-performance-plan.md).
 
 `-SAFilterPrepared` e `-LevelDescendingPrepared` registram a preparação manual, sem abrir menus. O corte é fixo em 20; o parâmetro de compatibilidade `-MinLevel` aceita somente 20. O fluxo normal não oferece 40+.
 

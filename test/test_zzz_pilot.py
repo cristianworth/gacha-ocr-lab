@@ -111,6 +111,49 @@ def test_stop_during_settling_prevents_more_captures():
     assert grab.call_count==1
 
 
+def test_scheduled_poll_keeps_full_stability_interval_and_counts_recording_work():
+    frame = make_frame(selected=1)
+    clock, sleep = clock_fixture()
+    calls = []
+    def record(frame, evidence):
+        calls.append((clock(), dict(evidence)))
+        sleep(.04)
+    result = wait_for_panel(lambda: frame, calibrate(frame), DEFAULT_GRID, 10, 1,
+                            lambda: None, record, clock=clock, sleep=sleep,
+                            poll_interval=.06, schedule_poll=True)
+    assert result is frame
+    assert calls[1][0] == pytest.approx(.06)
+    assert calls[-1][0] - calls[1][0] >= .25
+    assert calls[-1][0] <= .35  # One in-flight recording may cross the stability deadline.
+    assert calls[-1][1]['settled'] is True
+
+
+def test_scheduled_poll_never_accepts_the_previous_selection():
+    frame = make_frame(selected=0)
+    clock, sleep = clock_fixture()
+    with pytest.raises(PanelNotReady):
+        wait_for_panel(lambda: frame, calibrate(frame), DEFAULT_GRID, 10, 1,
+                       lambda: None, lambda *args: None, clock=clock, sleep=sleep,
+                       poll_interval=.06, schedule_poll=True)
+
+
+@pytest.mark.parametrize('interval,scheduled', [(.12, False), (.06, True)])
+def test_faster_poll_cannot_promote_slow_panel_animation_to_stability(interval, scheduled):
+    from zzz_pilot import NAME
+    clock, sleep = clock_fixture()
+    frame = make_frame(selected=1)
+    calibration = calibrate(frame)
+    def grab():
+        moving = frame.copy()
+        shade = 80 + int(clock() * 25)
+        ImageDraw.Draw(moving).rectangle(calibration.scale_bbox(NAME), fill=(shade, shade, shade))
+        return moving
+    with pytest.raises(PanelNotReady):
+        wait_for_panel(grab, calibration, DEFAULT_GRID, 10, 1, lambda: None,
+                       lambda *args: None, clock=clock, sleep=sleep, timeout=.6,
+                       poll_interval=interval, schedule_poll=scheduled)
+
+
 def test_ten_position_prefix_keeps_second_row_and_equal_items():
     navigator=SimpleNamespace(scan=lambda limit:iter((i,i//9,'same item') for i in range(10)),stuck_cells=[],incomplete=None)
     observations=[{'status':'not-visited'} for _ in range(10)]

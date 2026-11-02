@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SHA = '86a8b34511c86ec864d8f40c558789f7ccad4cc9'
 ARCHIVE_SHA256 = '399fd104152b1b7867af103c09580f62d4314d4c77f45cfa995461f26992b50f'
 READER_FILES = ('youkai_selection.py', 'youkai_capture.py', 'youkai-offline.py',
-                'zzz_pilot.py', 'zzz_transition.py', 'zzz_scan.py', 'zzz_inventory.py')
+                'zzz_pilot.py', 'zzz_transition.py', 'zzz_scan.py', 'zzz_inventory.py', 'zzz_ocr.py', 'zzz_evidence.py')
 
 
 def digest(path):

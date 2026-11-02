@@ -14,6 +14,11 @@ class CaptureRejected(RuntimeError):
     pass
 
 
+def save_evidence_image(image, path):
+    """Use faster lossless PNG compression; decoded pixels and image geometry stay intact."""
+    image.save(path, format='PNG', compress_level=1)
+
+
 def _window(api):
     candidates = api.list_game_windows()
     if not candidates:

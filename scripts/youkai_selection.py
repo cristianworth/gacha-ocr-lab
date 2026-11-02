@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from youkai_capture import capture_once
+from youkai_capture import capture_once, save_evidence_image
 
 
 class ProbeStopped(RuntimeError):
@@ -87,7 +87,10 @@ def save_report(path, report):
         except PermissionError as exc:
             if getattr(exc, 'winerror', None) not in (5, 32, 33) or attempt == len(delays) - 1:
                 raise
-    if report.get("mode", "").startswith("zzz-"):
+    active_deferred = (report.get('performance', {}).get('mode') == 'capture-then-read'
+                       and report.get('phase') in ('acquiring', 'processing')
+                       and report.get('status') in ('running', 'processing'))
+    if report.get("mode", "").startswith("zzz-") and not active_deferred:
         from zzz_pilot import render_review
         render_review(path.with_name("review.html"), report)
 
@@ -256,15 +259,21 @@ def main():
     parser.add_argument("--scan", action="store_true")
     parser.add_argument("--selected-row", action="store_true")
     parser.add_argument("--inventory", action="store_true")
+    parser.add_argument('--synchronous-evidence', action='store_true')
     parser.add_argument("--collect-references", action="store_true")
     parser.add_argument("--max-positions", type=int, default=2000)
     parser.add_argument("--min-level", type=int, choices=(20,), default=20)
     parser.add_argument("--sa-filter-prepared", action="store_true")
     parser.add_argument("--level-descending-prepared", action="store_true")
     parser.add_argument("--full-inventory", action="store_true")
+    parser.add_argument("--diagnostics", action="store_true")
     parser.add_argument("--image", type=Path)
     parser.add_argument("--client")
     args = parser.parse_args()
+    if args.synchronous_evidence and not args.inventory:
+        parser.error('--synchronous-evidence requires --inventory')
+    if args.diagnostics and not args.inventory:
+        parser.error('--diagnostics requires --inventory')
     if args.sa_filter_prepared and not args.inventory:
         parser.error("--sa-filter-prepared requires --inventory")
     if (args.level_descending_prepared or args.full_inventory) and not args.inventory:
@@ -352,6 +361,8 @@ def main():
     event = None
     guarded_mouse = None
     guard = None
+    session_recognizer = None
+    evidence_recorder = None
     result_code = 1
     try:
         import ctypes
@@ -372,7 +383,7 @@ def main():
             if args.scan:
                 reader_files.append("zzz_scan.py")
             if args.inventory:
-                reader_files.append("zzz_inventory.py")
+                reader_files.extend(["zzz_inventory.py", "zzz_ocr.py", "zzz_evidence.py", "youkai_capture.py"])
             report["readerSourceSha256"] = {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
                                              for name in reader_files}
         if args.image is not None:
@@ -479,7 +490,12 @@ def main():
         report["scrollAllowed"] = args.transition or (args.scan and not args.selected_row)
         report["upstreamCountArgumentMeaning"] = "qualification-prefix-only; not the inventory total"
         header_reads = []
-        recognizer = make_recognizer("tesseract")
+        if args.inventory and not (args.diagnostics or args.full_inventory or args.collect_references):
+            from zzz_ocr import make_session_recognizer
+            session_recognizer, report['ocrBackend'] = make_session_recognizer(args.cache, make_recognizer)
+            recognizer = session_recognizer
+        else:
+            recognizer = make_recognizer("tesseract")
         class HeaderRecorder:
             def read_line(self, image, profile):
                 text = recognizer.read_line(image, profile)
@@ -496,6 +512,8 @@ def main():
             raise ProbeStopped("W-Engine-storage-header-not-confirmed")
 
         def check_window(*, require_focus=True):
+            if evidence_recorder is not None:
+                evidence_recorder.check()
             hwnd = window["hwnd"]
             if not win32gui.IsWindow(hwnd) or not win32gui.IsWindowVisible(hwnd) or win32gui.IsIconic(hwnd):
                 raise ProbeStopped("game-window-unavailable")
@@ -555,7 +573,7 @@ def main():
             bound_calibration.frame_width, bound_calibration.frame_height) != initial_identity:
             raise ProbeStopped("bound-capture-window-mismatch")
         selected_frames = {}
-        def capture_and_record(evidence=None, frame=None):
+        def capture_and_record(evidence=None, frame=None, inventory_evidence=None):
             guard.check()
             if len(report["frames"]) >= report["frameBudget"]:
                 raise ProbeStopped("capture-budget-exhausted")
@@ -563,10 +581,15 @@ def main():
             guard.check()
             if frame.size != (1280, 720):
                 raise ProbeStopped("unexpected-frame-size")
+            evidence_started = time.perf_counter()
             path = frame_dir / f"{len(report['frames']):04d}.png"
-            frame.save(path)
+            save_evidence_image(frame, path)
             entry = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                      "pressCount": guard.presses, "scrollCount": guard.scrolls, "at": guard.clock()}
+            if inventory_evidence is not None:
+                entry['inventoryCheck'] = inventory_evidence
+            if report.get('performance', {}).get('mode') == 'capture-then-read':
+                report['performance']['frameEvidenceSeconds'] += time.perf_counter() - evidence_started
             if evidence is not None:
                 entry["panelCheck"] = evidence
                 expected = evidence["expectedPosition"]
@@ -601,9 +624,7 @@ def main():
             report["status"] = "running"
             save_report(report_path, report)
             def record_inventory(frame, evidence):
-                capture_and_record(frame=frame)
-                report["frames"][-1]["inventoryCheck"] = evidence
-                save_report(report_path, report)
+                capture_and_record(frame=frame, inventory_evidence=evidence)
                 return report["frames"][-1]
             def current_count(frame):
                 raw = recognizer.read_line(frame.crop(calibration.scale_bbox((20, 95, 560, 155))), "white_text_on_dark")
@@ -611,10 +632,26 @@ def main():
                 report.setdefault("inventoryHeaderReads", []).append({"raw": raw, "value": value})
                 return value
             def inventory():
+                nonlocal evidence_recorder
+                from functools import partial
+                from zzz_pilot import read_frame
                 observer = AlignedInventoryObserver(report["preparedListTotal"], current_count)
-                run_inventory(calibration, original_grab, guarded_mouse, guard, record_inventory,
-                              report, output, lambda: save_report(report_path, report), grid.DEFAULT_GRID,
+                deferred = not args.diagnostics and not args.full_inventory
+                report['diagnosticsRequested'] = args.diagnostics or args.full_inventory
+                record, checkpoint = record_inventory, lambda: save_report(report_path, report)
+                background = deferred and not args.synchronous_evidence
+                if background:
+                    from zzz_evidence import InventoryEvidenceRecorder
+                    evidence_recorder = InventoryEvidenceRecorder(report, frame_dir, guard, checkpoint)
+                    record, checkpoint = evidence_recorder.record, evidence_recorder.checkpoint
+                else:
+                    report['evidenceWriting'] = {'mode': 'synchronous'}
+                run_inventory(calibration, original_grab, guarded_mouse, guard, record,
+                              report, output, checkpoint, grid.DEFAULT_GRID,
                               observe=observer,
+                              reader=partial(read_frame, recognizer=recognizer if deferred else None,
+                                             compare_original=not deferred), defer_details=deferred,
+                              panel_poll_interval=.06 if background else None,
                               level_probe=lambda frame, calib, center: read_grid_level(frame, calib, center, recognizer))
             if args.collect_references:
                 import threading
@@ -744,6 +781,19 @@ def main():
                 guarded_mouse.close()
             except Exception as exc:
                 cleanup_errors.append(f"mouse release: {exc}")
+        if evidence_recorder is not None:
+            try:
+                evidence_recorder.close()
+            except Exception as exc:
+                cleanup_errors.append(f'evidence writer cleanup: {exc}')
+                report.update(scopeComplete=False, coverageConfirmed=False, captureComplete=False,
+                              status='inventory-inconclusive', reason=str(exc))
+                result_code = 1
+        if session_recognizer is not None and hasattr(session_recognizer, 'close'):
+            try:
+                session_recognizer.close()
+            except Exception as exc:
+                cleanup_errors.append(f'OCR cleanup: {exc}')
         if reference_listener is not None:
             try:
                 reference_listener.stop()

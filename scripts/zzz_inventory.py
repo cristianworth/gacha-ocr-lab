@@ -4,8 +4,10 @@ from dataclasses import asdict, dataclass
 import hashlib
 import math
 import re
+import time
 
 import numpy as np
+from youkai_capture import save_evidence_image
 
 from youkai_ocr.grid import DEFAULT_GRID
 from zzz_pilot import crop, read_frame, wait_for_panel
@@ -191,6 +193,7 @@ def summarize_inventory(report):
                                  for item in report["observations"]),
         "pendingLevel": sum(item.get("levelEligibility") == "pending-level" for item in report["observations"]),
         "pendingSelection": sum(item["status"] == "pending-selection" for item in report["observations"]),
+        "pendingProcessing": sum(item["status"] == "captured-pending" for item in report["observations"]),
         "scopeCounts": {scope: sum(item["reading"]["scope"] == scope for item in read)
                         for scope in ("included", "excluded-B", "pending-rarity")},
         "uncertainFields": [{"position": item["position"], "fields": [name for name, value in item["reading"]["fields"].items()
@@ -230,6 +233,7 @@ def write_inventory_summary(path, report):
              f"- Elegíveis identificados: {summary['eligiblePositions']}; exclusões por nível observadas: {summary['excludedByLevel']}.",
              f"- Restantes não lidos por ordenação: {summary['notReadByLevelOrder'] if summary['notReadByLevelOrder'] is not None else 'quantidade não confirmada'}.",
              f"- Níveis pendentes: {summary['pendingLevel']}; seleções pendentes: {summary['pendingSelection']}.",
+             f"- Imagens aguardando leitura: {summary['pendingProcessing']}.",
              f"- Todas as posições processadas: {'sim' if report.get('captureComplete') else 'não'}.", '']
     if report.get('executionMode') == 'saved-session-replay':
         lines[2:2] = ['**Replay de arquivos salvos; nenhuma coleta ou entrada real no jogo foi executada.**', '']
@@ -249,7 +253,7 @@ def write_inventory_summary(path, report):
     lines += ['## Elegíveis', ''] + (table(eligible) if eligible else ['Nenhum elegível identificado.']) + ['']
     pending = [item for item in report['observations'] if item.get('levelEligibility') == 'pending-level'
                or item.get('reading', {}).get('scope') == 'pending-rarity'
-               or item['status'] in ('failed', 'pending-selection')]
+               or item['status'] in ('failed', 'pending-selection', 'captured-pending')]
     if pending:
         lines += ['## Elegibilidade ou leitura pendente', ''] + table(pending) + ['']
     uncertain = [item for item in eligible if any(value.get('state') != 'recognized'
@@ -269,7 +273,7 @@ def write_inventory_summary(path, report):
 
 def save_image(frame, output, name):
     path = output / name
-    frame.save(path)
+    save_evidence_image(frame, path)
     return {"frame": str(path), "frameSha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
 
@@ -330,8 +334,105 @@ class MappedGrid:
         return self.cards[row * self.columns + column].center
 
 
+def apply_detail_reading(observation, reading, minimum):
+    """Reconcile the saved panel with its grid level without promoting a conflict."""
+    observation['reading'] = reading
+    if minimum:
+        level = reading['fields'].get('level', {})
+        current = level.get('value', {}).get('current') if isinstance(level.get('value'), dict) else None
+        if observation['levelEligibility'] == 'pending-level':
+            observation['levelEligibility'] = level_decision({'state': level.get('state'), 'value': current}, minimum)
+            observation['levelDecisionSource'] = 'detail-panel' if current is not None else 'pending'
+        elif level.get('state') == 'recognized' and current != observation['gridLevel']['value']:
+            observation.update(levelEligibility='pending-level', levelDecisionSource='grid-detail-conflict')
+    if observation['levelEligibility'] == 'excluded-level':
+        observation['exclusionSource'] = 'detail-level-after-detailed-OCR'
+    observation.update(status='read', humanApproved=False)
+
+
 def run_inventory(calibration, grab, mouse, guard, record, report, output, save, grid, *,
-                  observe=None, click=None, reader=None, viewport_wait=None, panel_wait=None, level_probe=None):
+                  observe=None, click=None, reader=None, viewport_wait=None, panel_wait=None, level_probe=None,
+                  defer_details=False, panel_poll_interval=None):
+    if panel_poll_interval is not None:
+        from functools import partial
+        panel_wait = partial(panel_wait or wait_for_panel, poll_interval=panel_poll_interval, schedule_poll=True)
+    options = dict(observe=observe, click=click, reader=reader, viewport_wait=viewport_wait,
+                   panel_wait=panel_wait, level_probe=level_probe)
+    if not defer_details:
+        return _acquire_inventory(calibration, grab, mouse, guard, record, report, output, save, grid, **options)
+    pending = []
+    started = time.perf_counter()
+    failure = None
+    report.update(phase='acquiring', performance={'mode': 'capture-then-read', 'inlineReadSeconds': 0.0,
+                  'grabSeconds': 0.0, 'viewportWaitSeconds': 0.0, 'panelWaitSeconds': 0.0,
+                  'gridLevelSeconds': 0.0, 'frameEvidenceSeconds': 0.0,
+                  'clickSeconds': 0.0, 'viewObservationSeconds': 0.0})
+    if panel_poll_interval is not None:
+        report['performance']['panelPolling'] = {'intervalSeconds': panel_poll_interval,
+                                                'includesVerificationWork': True, 'stableSeconds': .25}
+    def timed_grab():
+        before = time.perf_counter()
+        try:
+            return grab()
+        finally:
+            report['performance']['grabSeconds'] += time.perf_counter() - before
+    try:
+        _acquire_inventory(calibration, timed_grab, mouse, guard, record, report, output, save, grid,
+                           deferred=pending, **options)
+    except BaseException as exc:
+        failure = exc
+        raise
+    finally:
+        # No input may follow this point, including after F8/focus loss. OCR uses files only.
+        if hasattr(mouse, 'close'):
+            mouse.close()
+        report['performance']['acquisitionSeconds'] = time.perf_counter() - started
+        report.update(phase='processing', status='processing', scopeComplete=False, coverageConfirmed=False)
+        report['performance']['deferredReadings'] = len(pending)
+        save()
+        print('Captura encerrada. Processando imagens salvas; nenhum novo clique ou roda.', flush=True)
+        processing_started = time.perf_counter()
+        from PIL import Image
+        detail_reader = reader or read_frame
+        for observation in pending:
+            try:
+                path = output / f"position-{observation['position']:04d}.png"
+                if hashlib.sha256(path.read_bytes()).hexdigest() != observation['frameSha256']:
+                    raise RuntimeError('captured-image-hash-mismatch')
+                with Image.open(path) as image:
+                    frame = image.convert('RGB')
+                reading = detail_reader(frame, calibration, output / f"reading-{observation['position']:04d}")
+                apply_detail_reading(observation, reading, report.get('minLevel', 0))
+            except Exception as exc:
+                observation.update(status='failed', reason=str(exc))
+            summarize_inventory(report)
+            save()
+            print(f"Leitura {observation['position'] + 1}: {observation['status']}.", flush=True)
+        report['performance']['processingSeconds'] = time.perf_counter() - processing_started
+        report['phase'] = 'finished'
+        outcome = report.get('acquisitionOutcome', {})
+        unresolved = any(item['status'] in ('failed', 'pending-selection', 'captured-pending')
+                         or item.get('levelEligibility') == 'pending-level'
+                         or item.get('reading', {}).get('scope') == 'pending-rarity'
+                         for item in report['observations'])
+        complete = outcome.get('complete', False) and not unresolved and failure is None
+        scoped = (outcome.get('scopeComplete', False) or outcome.get('complete', False)) and not unresolved and failure is None
+        report.update(captureComplete=complete, scopeComplete=scoped,
+                      coverageConfirmed=scoped and report.get('scopePreparation', {}).get('confirmed') is True)
+        acquisition_complete = outcome.get('scopeComplete', False) or outcome.get('complete', False)
+        report['reason'] = (str(failure) if failure else 'detail-processing-unresolved'
+                            if unresolved and acquisition_complete else outcome.get('reason'))
+        report['status'] = ('inventory-captured' if complete else 'scope-captured') if report['coverageConfirmed'] else 'inventory-inconclusive'
+        report['summaryFile'] = str(output / 'summary.md')
+        write_inventory_summary(output / 'summary.md', report)
+        save()
+        print('Coleta do escopo finalizada; resultado salvo para revisao.' if report['coverageConfirmed']
+              else 'Coleta parada; resultado parcial salvo para revisao.', flush=True)
+
+
+def _acquire_inventory(calibration, grab, mouse, guard, record, report, output, save, grid, *,
+                       observe=None, click=None, reader=None, viewport_wait=None, panel_wait=None, level_probe=None,
+                       deferred=None):
     from youkai_ocr.input_utils import natural_click
     observe = observe or uncalibrated_view
     click, reader = click or natural_click, reader or read_frame
@@ -346,7 +447,21 @@ def run_inventory(calibration, grab, mouse, guard, record, report, output, save,
         report["levelOrder"] = {"lastKnownLevel": None, "observedContradiction": False}
     previous = None
     next_position = 0
+    def measured(name, callback, *args):
+        performance = report.get('performance')
+        if not performance:
+            return callback(*args)
+        before = time.perf_counter()
+        try:
+            return callback(*args)
+        finally:
+            performance[name] += time.perf_counter() - before
     def finish(reason, *, complete=False, scope_complete=False):
+        if deferred is not None:
+            report['acquisitionOutcome'] = {'reason': reason, 'complete': complete, 'scopeComplete': scope_complete}
+            report.update(status='processing', scopeComplete=False, coverageConfirmed=False)
+            save()
+            return
         scope_complete = complete or scope_complete
         if stop_by_level:
             scope_complete = scope_complete and not any(
@@ -401,8 +516,8 @@ def run_inventory(calibration, grab, mouse, guard, record, report, output, save,
             return
 
     while True:
-        frame = viewport_wait(grab, calibration, guard.check, record)
-        view = observe(frame, calibration, grid)
+        frame = measured('viewportWaitSeconds', viewport_wait, grab, calibration, guard.check, record)
+        view = measured('viewObservationSeconds', observe, frame, calibration, grid)
         evidence = {**asdict(view), **save_image(frame, output, f"inventory-view-{len(report['inventoryViews']):03d}.png")}
         report["inventoryViews"].append(evidence)
         issue = validate_view(view, previous, next_position, grid)
@@ -438,7 +553,7 @@ def run_inventory(calibration, grab, mouse, guard, record, report, output, save,
             try:
                 guard.check()
                 minimum = report.get("minLevel", 0)
-                probe = level_probe(frame, calibration, card.center) if level_probe and minimum else None
+                probe = measured('gridLevelSeconds', level_probe, frame, calibration, card.center) if level_probe and minimum else None
                 guard.check()
                 observation["gridLevel"] = probe
                 observation["levelEligibility"] = level_decision(probe, minimum) if minimum else "eligible-level"
@@ -456,8 +571,8 @@ def run_inventory(calibration, grab, mouse, guard, record, report, output, save,
                 guard.targets = [calibration.to_screen(*card.center)]
                 report["targets"] = guard.targets
                 guard.check()
-                click(mouse, *guard.targets[0])
-                selected = panel_wait(grab, calibration, mapped_grid, len(view.cards), visual_index, guard.check, record)
+                measured('clickSeconds', click, mouse, *guard.targets[0])
+                selected = measured('panelWaitSeconds', panel_wait, grab, calibration, mapped_grid, len(view.cards), visual_index, guard.check, record)
                 observation.update({"status": "captured", "selectionVerified": True,
                                     **save_image(selected, output, f"position-{card.ordinal:04d}.png")})
                 stillness = selection_stillness(frame, selected, calibration, grid,
@@ -471,19 +586,23 @@ def run_inventory(calibration, grab, mouse, guard, record, report, output, save,
                     return
                 save()
                 guard.check()
-                observation["reading"] = reader(selected, calibration, output / f"reading-{card.ordinal:04d}")
+                if deferred is not None and observation['levelEligibility'] == 'eligible-level':
+                    observation['status'] = 'captured-pending'
+                    deferred.append(observation)
+                    next_position += 1
+                    summarize_inventory(report)
+                    save()
+                    print(f'Posicao {next_position}: imagem confirmada e salva; leitura ao encerrar a captura.', flush=True)
+                    if not check_level_order(observation):
+                        return
+                    continue
+                reading_started = time.perf_counter()
+                reading = reader(selected, calibration, output / f"reading-{card.ordinal:04d}")
+                observation['reading'] = reading
+                if deferred is not None:
+                    report['performance']['inlineReadSeconds'] += time.perf_counter() - reading_started
                 guard.check()
-                if minimum:
-                    level = observation["reading"]["fields"].get("level", {})
-                    current = level.get("value", {}).get("current") if isinstance(level.get("value"), dict) else None
-                    if observation["levelEligibility"] == "pending-level":
-                        observation["levelEligibility"] = level_decision({"state": level.get("state"), "value": current}, minimum)
-                        observation["levelDecisionSource"] = "detail-panel" if current is not None else "pending"
-                    elif level.get("state") == "recognized" and current != probe["value"]:
-                        observation.update({"levelEligibility": "pending-level", "levelDecisionSource": "grid-detail-conflict"})
-                if observation["levelEligibility"] == "excluded-level":
-                    observation["exclusionSource"] = "detail-level-after-detailed-OCR"
-                observation.update({"status": "read", "humanApproved": False})
+                apply_detail_reading(observation, reading, minimum)
                 next_position += 1
                 summarize_inventory(report)
                 save()

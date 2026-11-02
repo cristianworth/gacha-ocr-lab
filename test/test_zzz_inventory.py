@@ -306,6 +306,9 @@ def inventory_desktop(monkeypatch):
     import youkai_selection as selection
     import zzz_inventory as inventory
     from youkai_ocr import capture, grid, recognize, wengine_scanner
+    import zzz_ocr
+    monkeypatch.setattr(zzz_ocr, 'make_session_recognizer', lambda cache, factory:
+                        (factory('tesseract'), {'engine': 'simulated-pytesseract'}))
     frame = Image.new('RGB', (1280, 720), (20, 20, 20))
     calibration = calibrate(frame)
     window = {'hwnd': 1, 'title': 'ZenlessZoneZero', 'left': 0, 'top': 0, 'w': 1280, 'h': 720}

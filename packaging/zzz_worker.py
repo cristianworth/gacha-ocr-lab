@@ -20,17 +20,23 @@ def self_check(cache):
     from youkai_ocr import capture, grid, normalizer, recognize, wengine_scanner
     import youkai_selection
     import zzz_inventory
+    import zzz_evidence
 
     offline_path = Path(youkai_selection.__file__).with_name('youkai-offline.py')
     spec = importlib.util.spec_from_file_location('youkai_offline', offline_path)
     offline = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(offline)
     checked = offline.verify_source(cache, cache / f'youkai-{offline.SHA}')
+    from PIL import Image
+    from zzz_ocr import NativeTesseract
+    with NativeTesseract(cache) as native:
+        native.read_line(Image.new('RGB', (120, 40), 'black'), 'white_text_on_dark')
     # Tesseract must come from this package even if another copy is installed.
     version = subprocess.run([str(cache / 'tesseract/tesseract.exe'), '--version'],
                              capture_output=True, text=True, check=True).stdout.splitlines()[0]
     result = {'status': 'ready', 'frozen': bool(getattr(sys, 'frozen', False)),
               'sourceFilesChecked': checked, 'tesseract': version,
+              'nativeOCRChecked': True, 'backgroundWriterAvailable': True,
               'capturePerformed': False, 'inputPerformed': False}
     print(json.dumps(result))
     return 0

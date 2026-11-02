@@ -1,6 +1,6 @@
 # ROADMAP — coleta útil para o Advisor
 
-Atualizado em **01/11/2026**. Este é o plano único do projeto. [README](../README.md) orienta a entrada, [guia ZZZ](zzz-scan.md) descreve o uso e [AGENTS.md](../AGENTS.md) reúne regras duráveis. A cronologia e os hashes ficam em [evidências ZZZ](zzz-evidence.md).
+Atualizado em **02/11/2026**. Este é o plano único do projeto. [README](../README.md) orienta a entrada, [guia ZZZ](zzz-scan.md) descreve o uso e [AGENTS.md](../AGENTS.md) reúne regras duráveis. A cronologia e os hashes ficam em [evidências ZZZ](zzz-evidence.md).
 
 ## Objetivo e escopo
 
@@ -10,7 +10,7 @@ Poupar a digitação de equipamentos úteis ao Advisor, começando por uma colet
 
 A direção multijogo permanece **ZZZ → HSR → Genshin → WuWa → NTE**. O motor genérico não é pré-requisito para o primeiro produto útil; a extração compartilhada deve surgir dos dois primeiros usos reais.
 
-**Ordem de execução definida por Cristian:** consolidar ZZZ → melhorar velocidade → **interface simples** → HSR 20+ → demais jogos. A interface começa com ZZZ; HSR fica indisponível até existir um executor real. Planos técnicos: [velocidade](zzz-performance-plan.md) e [interface](desktop-ui-plan.md). Esses planos não são handoffs e sua implementação fica para outro chat, quando solicitado.
+**Ordem de execução definida por Cristian:** consolidar ZZZ → melhorar velocidade → **interface simples** → HSR 20+ → demais jogos. A interface começa com ZZZ; HSR fica indisponível até existir um executor real. Planos técnicos: [velocidade](zzz-performance-plan.md) e [interface](desktop-ui-plan.md). Cristian solicitou e validou a melhoria de velocidade neste chat em 02/11; depois pediu a passagem de contexto para implementar a interface. A interface continua apenas planejada.
 
 ## Estado por entrega
 
@@ -23,7 +23,7 @@ A direção multijogo permanece **ZZZ → HSR → Genshin → WuWa → NTE**. O 
 | Revisão de dados | Três nomes confirmados por Cristian somente nesses campos; resumo revisado separado do bruto | Usar o resumo e investigar dúvidas pontuais, sem revisão obrigatória de 34×5 campos |
 | Entrada de duplo clique (P3.4) | Implementada: `scan-zzz.cmd` → `scripts/start-zzz.ps1`; 21 testes e execução real de 01/11 concluída pelo lançador, com 34 elegíveis | Concluída no ambiente local: encerramento, pasta correta e abertura automática do resumo confirmados |
 | Distribuição portátil (P3.4) | Pasta/ZIP, 25 testes, relocação e coleta real em `D:\Repo\gacha-ocr-zzz`: 34 elegíveis; 614 hashes íntegros | Concluída para uso local; outro computador e publicação pública fora da validação atual |
-| Desempenho ZZZ (P3.5) | Sessão portátil: 116,32 s totais, 101,48 s entre primeiro/último frame, 34 leituras e 151 frames | Próximo recorte técnico: medir etapas e reduzir custo comprovado; consolidação Git não melhora velocidade |
+| Desempenho ZZZ (P3.5) | Combinação conferida no jogo: 34 itens preservados, 405 imagens/618 arquivos íntegros; tempo ativo 43,78 → 34,04 s (22,2% menor) | Encerrado no ambiente local; entrega de desempenho versionada. Próxima implementação: interface |
 | Interface simples (P3.6) | Solicitada por Cristian: escolher jogo e iniciar coleta sem operar o prompt | Depois da melhoria de velocidade, antes do HSR; ZZZ habilitado, HSR “em breve” |
 | HSR (P4) | Nível 20+ definido por Cristian; filtro 4/5 estrelas opcional | Consultar configurações/código relevante antes de adaptar o piloto |
 | Outros jogos (P5–P7) | Referências pesquisadas; núcleo multijogo não extraído | Genshin, WuWa e NTE depois dos dois primeiros fluxos e da interface mínima |
@@ -56,8 +56,12 @@ O lançador implementado:
 
 ## Próximos recortes
 
-1. **Consolidação ZZZ — entrega atual:** conferir o diff acumulado, separar código/documentação de arquivos locais e registrar a entrega já validada com commit e push normal para `origin/main`, autorizados por Cristian. Sem changelog encontrado; versão 0.1.0 mantida, igual ao pacote testado. Marcador de memória, handoffs, modelos, dependências e resultados ficam fora dos commits. Não refatorar o scanner, melhorar velocidade ou criar interface nesta consolidação. P3.4 está validado para uso local; outro Windows e avisos dos binários transitivos do Tesseract só bloqueiam uma futura publicação pública.
-2. **P3.5 — desempenho ZZZ:** executar o [plano de velocidade](zzz-performance-plan.md). Medir captura, estabilização, OCR/comparação diagnóstica e escrita separadamente; escolher uma melhoria localizada pelo custo comprovado. Preservar resultados, incertezas, guardas e recuperação parcial. Replays primeiro; aquisição integrada única apenas se necessária. Não implementar nesta consolidação.
+**Experimento de gravação em 02/11, após reavaliação:** protótipo isolado com um gravador e fila de quatro imagens, sem integração ao scanner. Replay pareado das 34 seleções: confirmações 33,41 → 27,72 s; economia 5,69 s, projetando 13% do total ativo, abaixo do mínimo de 20%. Dez testes passaram e 446 imagens mantiveram pixels/hashes. Pausado, sem novo pacote ou teste manual. [Medição e limites](zzz-performance-plan.md#experimento-de-gravação--pausado-após-medição). O ganho no jogo não foi medido; recomendação continua interface antes de HSR.
+
+**Reavaliação de desempenho em 02/11:** Cristian pediu priorizar o maior custo e pausar abaixo de 20% de ganho. A triagem do agendamento das verificações projetou 9–19% no tempo ativo, com limitações de amostragem; foi pausada antes de mudar o scanner ou gerar pacote. [Diagnóstico e limite do modelo](zzz-performance-plan.md#terceiro-recorte--pausado-pelo-limite-de-retorno). P3.5 já validado permanece disponível; a recomendação continua P3.6, sujeita à reavaliação por Cristian.
+
+1. **Consolidação ZZZ — concluída:** commit `fa44553`, publicado em `origin/main` em 01/11. Sem changelog encontrado; versão 0.1.0 mantida, igual ao pacote testado. Marcador de memória, handoffs, modelos, dependências e resultados ficaram fora do commit. P3.4 está validado para uso local; outro Windows e avisos dos binários transitivos do Tesseract só bloqueiam uma futura publicação pública.
+2. **P3.5 — desempenho encerrado no recorte local:** sessão real `20261102-193652-86205124-selection`, pacote `20261102-184806-173bed9f`. Tempo ativo 43,78 → 34,04 s (22,2% menor); total incluindo preparação/encerramento 57,29 → 51,11 s. Mesmos valores/estados dos cinco campos nos 34 itens, zero falhas ou gravações pendentes; 405 imagens e 618 arquivos do pacote íntegros. A fila chegou a duas imagens, sem pressão. É evidência local, não garantia geral de velocidade nem aceite humano do inventário. Não há nova coleta pendente. Entrega de desempenho versionada; seguir para P3.6. [Validação final](zzz-performance-plan.md#validação-integrada-final--etapa-encerrada).
 3. **P3.6 — interface mínima antes do HSR:** executar o [plano da janela](desktop-ui-plan.md). ZZZ disponível e HSR identificado como futuro; iniciar, acompanhar, interromper e abrir resultado sem operar prompt. Reaproveitar o executor/pacote, manter foco/UAC/F8 e distinguir parcial de sucesso. Primeiro candidato técnico: WinForms em PowerShell 5.1, sujeito a prova pequena de responsividade e processo filho; não há GUI pronta. Não implementar nesta consolidação.
 4. **P4 — HSR útil:** Cones de Luz nível 20+, raridade 4/5 opcional, preparação manual e resumo revisável. Consultar as opções e o caminho relevante do HSR-Scanner para verificar ordenação, limites e parada antes de implementar. Integrar esse recorte à janela existente e extrair apenas captura/input/OCR/sessão/revisão efetivamente compartilhados. Não portar o aplicativo inteiro nem presumir defaults de progressão.
 5. **P5–P7 — Genshin, WuWa e NTE:** um por vez, com pesquisa focada e coleta útil primeiro. NTE exige confirmar categoria e suporte em inglês antes de prometer módulo pronto. Experimentos JavaScript permanecem preservados e não definem a nova arquitetura.
@@ -70,4 +74,4 @@ Uma entrega avança quando reduz trabalho manual, produz saída utilizável com 
 
 Usar arquivos/replays primeiro e uma intervenção real somente para uma dúvida concreta. Falha deve ser analisada pelos artefatos antes de pedir repetição. Não exigir duas novas coletas até o fundo, revisão manual integral ou uma suíte inteira por rotina. A revisão técnica com o main, quando combinada, segue por Cristian; identificar o chat não autoriza mensagens diretas.
 
-**Próximo passo recomendado:** depois do commit/push desta consolidação, outro chat executa o plano de velocidade e então o plano de interface, mediante a continuidade solicitada por Cristian. HSR 20+ vem depois da interface; sua estratégia de parada ainda precisa ser verificada na referência e no jogo. Não criar handoff agora, automatizar menus ou iniciar essas implementações durante a consolidação.
+**Próximo passo recomendado:** implementar P3.6, interface simples desacoplada do executor validado, no chat sucessor solicitado por Cristian. Não há nova coleta de desempenho pendente. Não repetir pilotos, guardas ou percurso completo encerrados. Depois: HSR 20+ e extração das responsabilidades comprovadamente compartilhadas. Não criar handoff sem pedido.

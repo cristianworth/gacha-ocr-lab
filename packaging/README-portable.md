@@ -5,10 +5,13 @@ Extraia a pasta inteira em um local com permissão de escrita. Não mova somente
 1. No jogo em inglês, use área cliente 1280×720 e escala Windows 100%.
 2. Abra W-Engine Storage. Marque S+A, desmarque B/especialidades e ordene por Level do maior para o menor. Feche o filtro, volte ao topo, solte os controles e espere a lista parar. Não precisa clicar em item.
 3. Abra `scan-zzz.cmd`, aceite o aviso de Administrador e confirme a preparação com Enter. Digite 0 para cancelar sem coletar.
-4. Quando o console pedir, volte ao jogo e pressione/solte F8 uma vez. Mantenha o jogo na frente e não mexa nos controles. F8 interrompe; F9 não é usado.
-5. Espere terminar. O resumo da própria execução abre no Bloco de Notas, inclusive se a coleta parar antes do fim.
+4. Quando o console pedir, volte ao jogo e pressione/solte F8 uma vez. Mantenha o jogo na frente e não mexa nos controles. F8 interrompe os inputs; F9 não é usado.
+5. Quando aparecer “Captura encerrada. Processando imagens salvas”, não haverá novos cliques ou rolagens. Já pode usar o computador enquanto aguarda a leitura das imagens. Se o nível na grade estiver ilegível durante a captura, o programa ainda lê esse painel imediatamente para decidir o corte.
+6. Espere terminar o processamento. O resumo da própria execução abre no Bloco de Notas, inclusive se a coleta parar antes do fim. Falha de captura ou leitura continua visível como parcial.
 
 O corte é fixo: S/A nível 20+. A primeira leitura confiável abaixo de 20 encerra o percurso com Level decrescente declarado. Nível ilegível permanece pendente. Nomes incertos não são substituídos por palpites. Não há verificação automática do seletor de ordenação.
+
+O leitor normal mantém o Tesseract incluído carregado durante a sessão. Se a DLL/modelo não inicializar, usa o leitor CLI e registra o motivo em `ocrBackend`. PNGs usam compressão rápida sem perda de pixels, com arquivos um pouco maiores. O pacote mantém os critérios de seleção, estabilidade de 0,25 segundo, foco e término. A coleta normal grava as imagens em segundo plano e agenda novas verificações a cada 60 ms incluindo o trabalho já feito. A estabilidade também é comparada ao início da janela de confirmação para não aceitar uma animação lenta só porque as imagens são mais próximas. Antes de confirmar cada item, espera todas as imagens daquela seleção serem gravadas. Isso gera mais imagens intermediárias e usa mais espaço.
 
 Resultados ficam nesta pasta em `.cache/youkai-p1/runs/<sessão>/`: `summary.md`, `review.html` e `session.json`. O caminho também aparece no console. O pacote não inclui resultados pessoais. Preserve a pasta de resultados antes de trocar de versão.
 
@@ -16,4 +19,6 @@ Nada é enviado ou aplicado ao Advisor. Ausência nesta coleta parcial não apag
 
 Para conferir somente arquivos: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-zzz.ps1 -Check`. Para conferir também os módulos/OCR sem capturar ou controlar o jogo: `runtime\zzz-worker\zzz-worker.exe --self-check .cache\youkai-p1`.
 
-Pacote local de desenvolvimento, ainda sem nova coleta pelo executável empacotado ou verificação em outro computador. Não altere `portable-build.json`: identifica o runtime portátil e registra a origem/hashes do build. Dependências e avisos em `THIRD-PARTY/` e no diretório do Tesseract; a fonte Youkai fixada acompanha o pacote para conferência.
+Pacote local de desenvolvimento. O engine persistente e PNG rápido já foram conferidos em coleta real. A combinação de gravação em segundo plano e verificações agendadas também foi conferida no jogo em 02/11: mesmos 34 itens, zero falhas/pendências e 22,2% menos tempo ativo no ambiente local. Isso não garante o mesmo tempo em outras contas ou máquinas. Não foi testado em outro computador. Não altere `portable-build.json`: identifica o runtime portátil e registra a origem/hashes do build. Dependências e avisos em `THIRD-PARTY/` e no diretório do Tesseract; a fonte Youkai fixada acompanha o pacote para conferência.
+
+Diagnóstico técnico: `scripts/scan-zzz.ps1 -Inventory -SAFilterPrepared -LevelDescendingPrepared -Run -SynchronousEvidence` usa gravação/verificações síncronas anteriores com o mesmo OCR nativo. Não é necessário para o uso normal e requer executar o comando como Administrador quando o jogo estiver elevado.

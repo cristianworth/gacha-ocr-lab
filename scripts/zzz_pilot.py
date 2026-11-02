@@ -96,7 +96,7 @@ def exact_name(text, normalizer, candidate=None):
     return key, score, bool(key) and score == 100 and identity(text) == identity(key)
 
 
-def read_frame(frame, calibration, output, *, recognizer=None):
+def read_frame(frame, calibration, output, *, recognizer=None, compare_original=True):
     from youkai_ocr.matchers import detect_rarity
     from youkai_ocr.normalizer import normalize_engine
     from youkai_ocr.recognize import make_recognizer
@@ -182,14 +182,19 @@ def read_frame(frame, calibration, output, *, recognizer=None):
     original = None
     scores = {}
     comparison_error = None
-    try:
-        original, scores = scan_single_frame_engine(frame, calibration, archive_dir=output / "upstream")
-    except Exception as exc:
-        comparison_error = str(exc)
+    comparison_state = "not-requested"
+    if compare_original:
+        try:
+            original, scores = scan_single_frame_engine(frame, calibration, archive_dir=output / "upstream")
+            comparison_state = "completed"
+        except Exception as exc:
+            comparison_error = str(exc)
+            comparison_state = "failed"
     return {"profile": PROFILE, "fields": fields, "scope": scope_for(rarity),
             "requiresManualReview": True, "humanApproved": False,
             "originalOutput": original.to_dict() if original else None,
             "upstreamConfidence": scores, "originalComparisonError": comparison_error,
+            "originalComparison": {"state": comparison_state},
             "evidenceDirectory": str(output.resolve())}
 
 
@@ -217,13 +222,15 @@ def panel_signature(frame, calibration):
 
 
 def wait_for_panel(grab, calibration, grid, limit, expected, check, record, *, timeout=4,
-                   clock=time.monotonic, sleep=time.sleep):
+                   clock=time.monotonic, sleep=time.sleep, poll_interval=.12, schedule_poll=False):
     """Require selection evidence, visible stars and consecutive stable captures."""
     started = clock()
     stable_since = None
+    stable_signature = None
     previous = None
     consecutive = 0
     while clock() - started < timeout:
+        sampled_at = clock()
         check()
         frame = grab()
         check()
@@ -235,20 +242,35 @@ def wait_for_panel(grab, calibration, grid, limit, expected, check, record, *, t
         ready = selected_ok and stars["state"] == "recognized"
         signature = panel_signature(frame, calibration)
         difference = max(float(np.abs(a - b).mean()) for a, b in zip(signature, previous)) if previous else None
-        if ready and difference is not None and difference <= 2.5:
+        window_difference = (max(float(np.abs(a - b).mean()) for a, b in zip(signature, stable_signature))
+                             if schedule_poll and stable_signature is not None else None)
+        if (ready and difference is not None and difference <= 2.5
+                and (window_difference is None or window_difference <= 2.5)):
+            if stable_since is None:
+                stable_signature = previous
             stable_since = stable_since if stable_since is not None else clock()
             consecutive += 1
         else:
             stable_since = None
+            stable_signature = None
             consecutive = 0
         settled = stable_since is not None and consecutive >= 2 and clock() - stable_since >= .25
         evidence = {"expectedPosition": expected, "selectedPositions": selected,
                     "ready": ready, "difference": difference, "settled": settled}
+        if schedule_poll:
+            # Adjacent frames become more similar at higher sample rates; bound drift over the window too.
+            evidence['stabilityWindowDifference'] = window_difference
         record(frame, evidence)
         if settled:
             return frame
         previous = signature
-        sleep(.12)
+        delay = poll_interval
+        if schedule_poll:
+            delay = max(0, poll_interval - (clock() - sampled_at))
+            if stable_since is not None:
+                delay = min(delay, max(0, .25 - (clock() - stable_since)))
+        if delay:
+            sleep(delay)
     raise PanelNotReady("selection-or-panel-not-stable-within-4-seconds")
 
 

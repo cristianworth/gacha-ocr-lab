@@ -2,9 +2,12 @@
 param([switch]$Run, [ValidateRange(1,180)][int]$Limit = 54,
       [switch]$Inventory, [switch]$CollectReferences, [ValidateRange(1,2000)][int]$MaxPositions = 2000,
       [ValidateSet(20)][int]$MinLevel = 20, [switch]$SAFilterPrepared,
-      [switch]$LevelDescendingPrepared, [switch]$FullInventory, [string]$RunDirectory)
+      [switch]$LevelDescendingPrepared, [switch]$FullInventory, [switch]$Diagnostics,
+      [switch]$SynchronousEvidence, [string]$RunDirectory)
 
 $ErrorActionPreference = 'Stop'
+if ($Diagnostics -and !$Inventory) { throw 'Diagnostics requires Inventory.' }
+if ($SynchronousEvidence -and !$Inventory) { throw 'SynchronousEvidence requires Inventory.' }
 if ($Inventory -and $PSBoundParameters.ContainsKey('Limit')) { throw 'Inventory uses MaxPositions as a safety limit; omit Limit.' }
 if ($CollectReferences -and (!$Inventory -or !$Run)) { throw 'CollectReferences requires Inventory and Run.' }
 if (($LevelDescendingPrepared -or $FullInventory) -and !$Inventory) { throw 'LevelDescendingPrepared/FullInventory require Inventory.' }
@@ -16,6 +19,8 @@ if ($Inventory) { $arguments.Inventory = $true; $arguments.MaxPositions = $MaxPo
 if ($SAFilterPrepared) { $arguments.SAFilterPrepared = $true }
 if ($LevelDescendingPrepared) { $arguments.LevelDescendingPrepared = $true }
 if ($FullInventory) { $arguments.FullInventory = $true }
+if ($Diagnostics) { $arguments.Diagnostics = $true }
+if ($SynchronousEvidence) { $arguments.SynchronousEvidence = $true }
 if ($RunDirectory) { $arguments.RunDirectory = $RunDirectory }
 if ($CollectReferences) { $arguments.CollectReferences = $true }
 if ($Run) { $arguments.Run = $true }

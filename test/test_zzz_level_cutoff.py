@@ -185,7 +185,8 @@ def test_short_cli_confirms_empty_list_without_panel_and_writes_summary(tmp_path
     controller.press.assert_not_called()
 
 
-def test_saved_full_session_replays_short_path_with_same_eligible_fields(tmp_path):
+@pytest.mark.parametrize('defer_details', [False, True])
+def test_saved_full_session_replays_short_path_with_same_eligible_fields(tmp_path, defer_details):
     root = Path(__file__).resolve().parents[1] / '.cache/youkai-p1/runs/20261028-185740-399e71f1-selection'
     manifest = root / 'session.json'
     if not manifest.exists():
@@ -212,7 +213,8 @@ def test_saved_full_session_replays_short_path_with_same_eligible_fields(tmp_pat
     kwargs.update(observe=observer,
                   level_probe=lambda *args: copy.deepcopy(source['observations'][report['observations'][-1]['position']]['gridLevel']),
                   panel_wait=lambda *args: load(source['observations'][report['observations'][-1]['position']]),
-                  reader=lambda *args: copy.deepcopy(source['observations'][report['observations'][-1]['position']]['reading']))
+                  reader=lambda frame, calibration, output: copy.deepcopy(source['observations'][int(output.name.rsplit('-', 1)[1])]['reading']),
+                  defer_details=defer_details)
     run_inventory(*args, **kwargs)
     assert report['scopeComplete'] is report['coverageConfirmed'] is True
     assert report['captureComplete'] is report['inventoryAccepted'] is False

@@ -13,7 +13,7 @@ SCRIPTS = ROOT / 'scripts'
 sys.path[:0] = [str(SOURCE / 'src'), str(SCRIPTS)]
 cv_data, cv_binaries, cv_imports = collect_all('cv2')
 reader_names = ['youkai_selection.py', 'youkai_capture.py', 'youkai-offline.py',
-                'zzz_pilot.py', 'zzz_transition.py', 'zzz_scan.py', 'zzz_inventory.py']
+                'zzz_pilot.py', 'zzz_transition.py', 'zzz_scan.py', 'zzz_inventory.py', 'zzz_ocr.py', 'zzz_evidence.py']
 a = Analysis(
     [str(ROOT / 'packaging/zzz_worker.py')],
     pathex=[str(SOURCE / 'src'), str(SCRIPTS)],
@@ -22,7 +22,7 @@ a = Analysis(
           [(str(SCRIPTS / name), '.') for name in reader_names],
     hiddenimports=cv_imports + collect_submodules('comtypes') + [
         'youkai_selection', 'youkai_capture', 'zzz_pilot', 'zzz_transition',
-        'zzz_scan', 'zzz_inventory', 'pynput.keyboard._win32', 'pynput.mouse._win32',
+        'zzz_scan', 'zzz_inventory', 'zzz_ocr', 'zzz_evidence', 'pynput.keyboard._win32', 'pynput.mouse._win32',
         'win32gui', 'win32process', 'win32api', 'win32con', 'pywintypes', 'dxcam',
     ],
     excludes=['pytest', 'pytest_cov', 'tkinter', 'matplotlib', 'IPython'],
