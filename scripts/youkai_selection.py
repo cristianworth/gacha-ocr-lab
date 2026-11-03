@@ -16,6 +16,39 @@ class ProbeStopped(RuntimeError):
     pass
 
 
+def check_external_stop(path):
+    if path.is_file():
+        raise ProbeStopped('external-stop-requested')
+
+
+def wait_for_f8(event, listener, stop_path, *, timeout=30, clock=time.monotonic):
+    deadline = clock() + timeout
+    while True:
+        check_external_stop(stop_path)
+        if not listener.is_alive():
+            raise ProbeStopped('stop-listener-unavailable')
+        remaining = deadline - clock()
+        if remaining <= 0:
+            return False
+        if event.wait(min(.05, remaining)):
+            check_external_stop(stop_path)
+            return True
+
+
+def wait_for_preparation(event, listener, stop_path):
+    # Preserve the five seconds for focus while observing external stop and F8.
+    for _ in range(100):
+        check_external_stop(stop_path)
+        if event.is_set():
+            raise ProbeStopped('stopped-before-focus')
+        if not listener.is_alive():
+            raise ProbeStopped('stop-listener-unavailable')
+        time.sleep(.05)
+    check_external_stop(stop_path)
+    if event.is_set():
+        raise ProbeStopped('stopped-before-focus')
+
+
 class TrialFinished(ProbeStopped):
     def __init__(self, passed, reason):
         self.passed = passed
@@ -316,10 +349,13 @@ def main():
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     report_path = output / "session.json"
+    stop_path = output / 'stop.request'
     report = {"schemaVersion": 1, "mode": "stop-check" if args.check_stop else "selection" if args.run else "preflight",
               "status": "preflight", "startedAt": datetime.now(timezone.utc).isoformat(),
               "liveInputTested": False, "captureComplete": False, "inventoryAccepted": False,
               "observations": [{"position": i, "row": 0, "column": i, "status": "not-visited"} for i in range(args.limit)]}
+    if args.run:
+        report['externalStop'] = {'requestFile': str(stop_path), 'observed': False}
     if args.pilot:
         from zzz_pilot import PROFILE
         report.update({"mode": "zzz-pilot-image" if args.image else "zzz-pilot", "game": "zzz", "itemType": "w-engine",
@@ -342,7 +378,7 @@ def main():
                                    "positionMeaning": "ordinal within requested prefix; absolute inventory index unconfirmed",
                                    "status": "not-visited"} for i in range(args.limit)]
     if args.inventory:
-        report.update({"mode": "zzz-inventory", "startMode": "prepared-top", "requestedPositions": None,
+        report.update({"mode": "zzz-inventory", "startMode": "prepared-top", "requestedPositions": None, "scopeComplete": False,
                        "maxPositions": args.max_positions, "maxScrolls": (args.max_positions + 8) // 9 + 2,
                        "observations": [], "referenceCollectionRequested": args.collect_references,
                        "minLevel": args.min_level, "preparedListTotal": None,
@@ -365,6 +401,8 @@ def main():
     evidence_recorder = None
     result_code = 1
     try:
+        if args.run:
+            check_external_stop(stop_path)
         import ctypes
         from ctypes import wintypes
         import win32gui
@@ -460,7 +498,7 @@ def main():
         if args.stop_receipt is None:
             print("Antes de comecar: pressione e solte F8 em ate 30 segundos. F8 tambem permite interromper." if args.inventory else
                   "Before any mouse input: press and release F8 within 30 seconds to verify the stop hook.", flush=True)
-            if not event.wait(30):
+            if not wait_for_f8(event, listener, stop_path):
                 raise ProbeStopped("F8-not-observed-within-30-seconds")
             receipt = {"mode": "stop-check", "status": "verified", "key": "F8",
                        "sourceSha": offline.SHA, "verifiedAt": datetime.now(timezone.utc).isoformat()}
@@ -479,9 +517,7 @@ def main():
             print("F8 confirmado. Solte a tecla. Aguarde cinco segundos; durante a captura mantenha o jogo na frente. F8 interrompe.", flush=True)
         else:
             print(f"F8 verified. Release it. {purpose} in 5 seconds; F8/Ctrl+C now stops. Exclusive controls.", flush=True)
-        time.sleep(5)
-        if event.is_set():
-            raise ProbeStopped("stopped-before-focus")
+        wait_for_preparation(event, listener, stop_path)
         baseline, calibration, window = capture_once(capture, win32gui.GetForegroundWindow, get_dpi, focus=True)
         baseline.save(output / "before.png")
         report["window"] = window
@@ -545,7 +581,10 @@ def main():
         if args.selected_row:
             targets = []
             scroll_target = None
-        guard = InputGuard(check_window, lambda: event.is_set() or not listener.is_alive(), targets,
+        def stopped():
+            check_external_stop(stop_path)
+            return event.is_set() or not listener.is_alive()
+        guard = InputGuard(check_window, stopped, targets,
                            args.limit if args.scan else 1 if args.transition else 1 + args.limit * (1 + grid.PANEL_STUCK_RECLICKS),
                            timeout=max(180, args.limit * 6 + 30) if args.scan else 30 if args.transition else 180 if args.pilot else 60,
                            scroll_target=scroll_target, max_scrolls=0 if args.selected_row else scroll_budget(args.limit) if args.scan else 1 if args.transition else 0)
@@ -682,6 +721,7 @@ def main():
                                              output, lambda: save_report(report_path, report), grid.DEFAULT_GRID,
                                              await_stage, read_header=reference_header)
             else:
+                print('Capturando W-Engines S/A 20+. Mantenha o jogo na frente; F8 interrompe.', flush=True)
                 inventory()
             return 0
         if args.scan:
@@ -767,6 +807,8 @@ def main():
         report.update({"status": "stopped", "reason": "Ctrl+C"})
     except Exception as exc:
         report.update({"status": "stopped", "reason": str(exc)})
+        if str(exc) == 'external-stop-requested' and args.run:
+            report['externalStop']['observed'] = True
         if args.transition and report["observations"][0]["status"] != "read":
             report["observations"][0].update({"status": "failed", "reason": str(exc)})
         if args.test_stop and event is not None and event.is_set() and guard is not None and guard.presses > 0:

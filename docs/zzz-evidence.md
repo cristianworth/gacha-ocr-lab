@@ -2,6 +2,20 @@
 
 Registro técnico, sem novos pedidos de teste. Para uso normal, siga o [guia ZZZ](zzz-scan.md); próximos passos ficam somente no [ROADMAP](ROADMAP.md). Sessões, imagens e revisões citadas estão no cache local e não acompanham o clone. Os números demonstram os recortes descritos, não a precisão geral do OCR.
 
+## Primeiro uso da interface ZZZ — 02/11/2026
+
+Sessão `D:\Repo\gacha-ocr-lab\.cache\desktop-ready\gacha-ocr-zzz\.cache\youkai-p1\runs\20261102-213358-ac9ca5c4-selection\session.json`, SHA256 `3c4110f009729df787d18375b25f8619a1d6912ba22d6fad73569718817b92bc`. Pacote `20261102-212533-c72eee8e`, ZIP SHA256 `afb2d198ee774eaab6d459e149811cb787b61536c30658421f6c1f0b4e7317b7`. A entrada `gacha-ocr-zzz.exe` chama o CMD adjacente, que abre a janela PowerShell/WinForms. Cristian confirmou explicitamente UAC, término claro e abertura do resumo pelo botão **Abrir resultado**.
+
+- Saída zero, fase finalizada, `scope-captured`/`level-cutoff-reached`: 34 elegíveis lidos, 35 posições observadas, 34 cliques e uma roda. Zero níveis/seleções/processamentos pendentes ou falhas. Corte na posição 35, nível 0, com ordenação declarada e sem contradição observada.
+- `scopeComplete`/`coverageConfirmed` verdadeiros; `captureComplete=false`, `endOfInventory=null`, `inventoryAccepted=false`. O cabeçalho 1567 é o total observado da lista preparada, sem validação independente de S/A. As 1532 posições restantes não foram lidas individualmente.
+- Os valores **e estados** dos cinco campos dos 34 itens coincidem com a sessão final de performance `20261102-193652-86205124-selection`. Os nomes humanos 14/25/34 continuam incertos no bruto; confirmações anteriores não foram transferidas. A comparação não é uma avaliação independente de precisão.
+- Conferidos 400 hashes de imagens referenciadas, oito módulos e os 622 arquivos do pacote, sem divergências. Gravador em segundo plano: 365 imagens submetidas/gravadas, zero pendências/erros, pico de duas na fila. Sem erro de cleanup; OCR nativo. Acompanhamento só por log durante atividade; manifesto lido após código de saída e fim do worker.
+- Parada externa durante F8/preparação/aquisição e fechamento têm testes do CLI com desktop simulado e processo filho de stub; o worker congelado também reconheceu parada antes do início, sem inputs. **Interromper/X não foram acionados nesta coleta real** (`externalStop.observed=false`). Não repetir aquisição/guardas por rotina nem apresentar essas simulações como uma interrupção real no jogo. Performance não foi reaberta.
+
+Revisão técnica separada em `.cache/youkai-p1/analyses/20261102-desktop-live-ac9ca5c4/review.json`. Após abrir o resumo, Cristian confirmou somente o nome da posição 34 como **“Demara Battery”**. `name-review.json` preserva esse texto exato, vínculo/hash do original e imagem; nenhum sufixo ou identificador de catálogo foi inferido. `reviewed-summary.md` aplica essa confirmação apenas à cópia. Os demais nomes/campos continuam do OCR, sem aceite humano global. Manifesto e resumo originais preservados por hash. Nada foi aplicado ao Advisor.
+
+P3.6 concluído no fluxo local de abrir/coletar/acompanhar/resultado. 116 casos automatizados focados passaram; montagem, relocação e self-check sem inputs conferidos. O pacote testado foi preservado com seu README do momento do build (que ainda descrevia a validação real como pendente); os documentos-fonte agora registram o resultado, sem remonta ou nova coleta por alteração documental. Sem push/publicação remota; outra máquina não foi testada.
+
 ## Revisão humana dos nomes — 29/10/2026
 
 A coleta curta sinalizou somente três nomes. Cristian confirmou explicitamente, apenas para esses campos:

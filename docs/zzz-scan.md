@@ -11,7 +11,15 @@ Guia de uso atual. O aplicativo coleta W-Engines **S/A com nível atual >=20**, 
 
 Filtro e ordenação são diferentes: uma referência antiga mostra **Rarity**, mesmo com níveis decrescentes naquela conta. O corte antecipado requer **Level decrescente declarado na preparação**; o aplicativo não confirma visualmente o seletor.
 
-## Abrir por duplo clique
+## Abrir a janela
+
+Abra `gacha-ocr-zzz.exe` ou `scan-desktop.cmd` junto da instalação completa e aceite o aviso de Administrador. O `.exe` é só a chamada do CMD. Confirme a preparação na janela e clique **Iniciar coleta**. HSR fica “em breve”, sem coleta. Quando o andamento solicitar F8, volte ao jogo e pressione/solte uma vez; os cinco segundos para foco continuam.
+
+Durante aquisição, mantenha o jogo na frente. F8 interrompe sem tirar o foco; clicar na janela pode disparar a proteção de foco e preservar parcial. **Interromper** ou **X** envia uma solicitação cooperativa e aguarda o processo; painéis já salvos ainda são processados. Depois do término, **Abrir resultado** abre o resumo da própria tentativa (ou relatório/pasta como fallback) e **Abrir pasta** mostra seus arquivos. A janela só consulta o manifesto depois de o processo sair.
+
+A integração gráfica tem testes com processos reais de stub e testes do sinal no CLI com desktop simulado. A coleta pela janela em 02/11 preservou os 34 elegíveis; Cristian confirmou UAC, término e abertura do resumo. Parada/X não foram acionados nessa coleta; permanecem cobertos por simulações. [Evidências](zzz-evidence.md#primeiro-uso-da-interface-zzz--02112026). O fluxo de console abaixo continua disponível e já foi conferido anteriormente.
+
+## Fallback — console por duplo clique
 
 **Objetivo:** obter um resumo dos W-Engines 20+ sem digitar comandos ou percorrer os níveis baixos.
 
@@ -50,6 +58,8 @@ A revisão recomendada é focada nas pendências; não exigir conferência dos 3
 A execução preserva o resultado parcial quando possível. Não preparar outra campanha de teste antes de analisar os arquivos. Em atendimento acompanhado, basta avisar que terminou: o agente pode localizar a execução mais recente na instalação conhecida, conferir a pasta/horário e esperar `exit-code.txt` antes de ler o resultado. Usar horário como pista, sem confundir outra instalação ou sessão em andamento com a coleta informada. Pedir **somente o caminho de `session.json`** quando a pasta mudou, está inacessível ou há ambiguidade; não é necessário copiar o terminal ou mandar capturas soltas. O lançador e a futura interface continuam vinculados à pasta exata criada por eles.
 
 F8, perda de foco, mudança de janela/geometria/DPI e limites de segurança interrompem os inputs. Elevação do comando precisa ser compatível com o jogo; aprovação da ferramenta do agente não equivale a PowerShell Administrador no desktop.
+
+O executor também observa `stop.request` na pasta exata da sessão, inclusive durante a espera inicial de F8 e os cinco segundos. A janela entrega esse sinal sem pré-criar a pasta exigida pelo probe. `externalStop.observed` no bruto distingue observação efetiva do sinal de uma perda de foco que tenha ocorrido antes. Nenhum comando de input, configuração ou aprovação é recebido por esse arquivo. Após cessar a aquisição, o processamento já previsto continua sem novos inputs.
 
 Durante a execução, acompanhar apenas `console.log`. Ler `session.json` depois de existir `exit-code.txt`: leitores podem bloquear sua substituição atômica no Windows. A gravação tem retentativas curtas e limitadas para bloqueio temporário; erro persistente continua explícito.
 

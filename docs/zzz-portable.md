@@ -1,10 +1,10 @@
 # ZZZ — pacote portátil local
 
-O pacote em pasta mantém `scan-zzz.cmd`, a preparação manual e o resumo no Bloco de Notas. A diferença é usar `runtime/zzz-worker/zzz-worker.exe` com runtime Python incluído. Não precisa instalar Python, Node ou Tesseract para executar. Requer Windows x64 e os componentes do Windows usados pelo lançador: PowerShell 5.1, aviso de Administrador e Bloco de Notas.
+O pacote em pasta inclui a janela por `gacha-ocr-zzz.exe`/`scan-desktop.cmd`, conserva `scan-zzz.cmd` como fallback e usa o mesmo `runtime/zzz-worker/zzz-worker.exe` com runtime Python incluído. A integração gráfica foi conferida na coleta local de 02/11. Não precisa instalar Python, Node ou Tesseract para executar. Requer Windows x64 e os componentes do Windows usados pelo lançador: PowerShell 5.1, aviso de Administrador e Bloco de Notas.
 
 ## Usar
 
-Extraia o ZIP inteiro em uma pasta com permissão de escrita. Abra `scan-zzz.cmd` nessa pasta e siga o [guia de coleta](zzz-scan.md). Para conferir só a abertura, aceite o aviso do Windows e digite 0; não é necessário iniciar outra coleta. No próximo uso normal, use essa entrada no lugar da entrada do repositório e confira se o resumo abre na pasta do pacote.
+Extraia o ZIP inteiro em uma pasta com permissão de escrita. Abra `gacha-ocr-zzz.exe` nessa pasta e siga o [guia de coleta](zzz-scan.md). O `.exe` é uma chamada pequena do CMD adjacente, sem outro scanner. Para conferir só a abertura, aceite o aviso do Windows e feche a janela sem confirmar/iniciar; não é necessário coletar. Os botões de resultado ficam vinculados à pasta da própria execução.
 
 Cada pacote possui seu próprio `.cache/youkai-p1/runs/`. Antes de substituir um pacote, preserve seus resultados. Não mova apenas o executável e não misture partes de versões diferentes. Se `portable-build.json` estiver presente e o executável faltar, o lançador recusa a execução; não tenta usar o Python do computador como alternativa.
 
@@ -32,7 +32,7 @@ Se falhar, o script preserva a montagem e os logs para diagnóstico. Não distri
 
 ## O que acompanha a pasta
 
-- O executor atual e os scripts de lançamento; sem outro scanner, UI ou alterações nas guardas.
+- O executor atual, janela WinForms e entradas EXE/CMD; sem outro scanner ou relaxamento das guardas. A simulação do repositório não acompanha o pacote.
 - Runtime Python, módulos necessários, dados do leitor e Tesseract com OCR inglês.
 - Arquivo original e fonte fixada do Youkai: a verificação dos 260 arquivos permanece. Essa duplicação aumenta o pacote, mas conserva a verificação já usada na coleta.
 - Avisos disponíveis das dependências, documentação do Tesseract e licença Python. A distribuição é um protótipo local; os avisos dos binários transitivos do Tesseract ainda precisam de conferência antes de publicação pública.
@@ -45,6 +45,7 @@ Sem jogo ou aviso de Administrador:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-zzz.ps1 -Check
+powershell -NoProfile -STA -ExecutionPolicy Bypass -File scripts/start-desktop.ps1 -Check
 runtime\zzz-worker\zzz-worker.exe --self-check .cache\youkai-p1
 ```
 

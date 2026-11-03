@@ -2,7 +2,7 @@
 param([switch]$Check, [switch]$Elevated)
 
 function Get-ZzzInstallation {
-    param([Parameter(Mandatory)][string]$Root)
+    param([Parameter(Mandatory)][string]$Root, [switch]$Desktop)
     $rootPath = (Resolve-Path -LiteralPath $Root -ErrorAction Stop).Path
     $required = @(
         'scripts\scan-zzz.ps1', 'scripts\probe-youkai.ps1', 'scripts\youkai_selection.py',
@@ -10,6 +10,7 @@ function Get-ZzzInstallation {
         '.cache\youkai-p1\tesseract\tesseract.exe',
         '.cache\youkai-p1\tesseract\tessdata\eng.traineddata'
     )
+    if ($Desktop) { $required += @('scan-desktop.cmd', 'scripts\start-desktop.ps1', 'scripts\run-desktop-zzz.ps1') }
     if (Test-Path -LiteralPath (Join-Path $rootPath 'portable-build.json') -PathType Leaf) {
         $required += 'runtime\zzz-worker\zzz-worker.exe'
     } else {
@@ -38,12 +39,14 @@ function Test-ZzzAdministrator {
 }
 
 function Request-ZzzElevation {
-    param([Parameter(Mandatory)][string]$ScriptPath)
+    param([Parameter(Mandatory)][string]$ScriptPath, [switch]$Graphical)
     $powershell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $arguments = @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass')
+    if ($Graphical) { $arguments += @('-STA', '-WindowStyle', 'Hidden') }
+    $arguments += @('-File', ('"{0}"' -f $ScriptPath), '-Elevated')
+    $style = if ($Graphical) { 'Hidden' } else { 'Normal' }
     try {
-        Start-Process -FilePath $powershell -ArgumentList @(
-            '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"{0}"' -f $ScriptPath), '-Elevated'
-        ) -Verb RunAs -WindowStyle Normal -ErrorAction Stop | Out-Null
+        Start-Process -FilePath $powershell -ArgumentList $arguments -Verb RunAs -WindowStyle $style -ErrorAction Stop | Out-Null
         return $true
     } catch {
         $errorObject = $_.Exception

@@ -83,9 +83,15 @@ def main():
     with (stage / 'build.log').open('w', encoding='utf-8') as log:
         subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
     (output / 'scripts').mkdir()
-    for name in (*READER_FILES, 'start-zzz.ps1', 'scan-zzz.ps1', 'probe-youkai.ps1'):
+    for name in (*READER_FILES, 'start-zzz.ps1', 'scan-zzz.ps1', 'probe-youkai.ps1',
+                 'start-desktop.ps1', 'run-desktop-zzz.ps1'):
         shutil.copy2(ROOT / 'scripts' / name, output / 'scripts' / name)
     shutil.copy2(ROOT / 'scan-zzz.cmd', output / 'scan-zzz.cmd')
+    shutil.copy2(ROOT / 'scan-desktop.cmd', output / 'scan-desktop.cmd')
+    subprocess.run([str(Path(os.environ['WINDIR']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'),
+                    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+                    str(ROOT / 'scripts/build-desktop-launcher.ps1'), '-OutputPath',
+                    str(output / 'gacha-ocr-zzz.exe')], check=True)
     shutil.copy2(ROOT / 'packaging/README-portable.md', output / 'README.md')
     package_cache = output / '.cache/youkai-p1'
     package_cache.mkdir(parents=True)
