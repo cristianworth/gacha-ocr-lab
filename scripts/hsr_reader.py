@@ -175,24 +175,36 @@ def downward_viewport_shift(before, after, selection, previous=None):
     if selection[0] > previous[0]+3 or delta_y < -2 or delta_y > previous[3]*.8:
         return None
     width, height = after.size
-    box = (round(width*.15), round(height*.15), round(width*.65), round(height*.78))
-    old = np.array(before.crop(box).convert('L'), dtype=np.int16)
-    new = np.array(after.crop(box).convert('L'), dtype=np.int16)
-    unchanged = float(np.abs(old-new).mean())
-    if unchanged < 5:
-        return None
+    old = np.array(before.convert('L'), dtype=np.int16)
+    new = np.array(after.convert('L'), dtype=np.int16)
     expected = previous[3]*1.08-delta_y
     offsets = range(max(1,round(expected)-6), max(1,round(expected)+6)+1)
-    scores = [(float(np.abs(old[offset:]-new[:-offset]).mean()), offset) for offset in offsets]
-    score, offset = min(scores)
-    difference = np.abs(old[offset:]-new[:-offset])
-    # Rasterized card art changes slightly at fractional scroll positions.
-    # Require agreement across six grid strips as well as a strong global match.
-    matching_strips = sum(float(strip.mean()) <= 12 for strip in np.array_split(difference,7,axis=1))
-    if score <= 10 and score <= unchanged*.25 and unchanged-score >= 5 and matching_strips >= 6:
-        return {'upwardPixels': offset, 'outlineDeltaY': delta_y, 'matchingGridStrips': matching_strips,
-                'meanDifference': score, 'unshiftedMeanDifference': unchanged}
-    return None
+    candidates = []
+    for offset in offsets:
+        matches = []
+        for row in range(-5,1):
+            y = round(previous[1]+row*previous[3]*1.08)+14
+            bottom = y+round(previous[3]*.56)
+            if y-offset < height*.11 or bottom > height*.87:
+                continue
+            for column in range(8):
+                x = round(width*(.072+.0725*column))+12
+                right = x+round(previous[2]*.73)
+                source = old[y:bottom,x:right]
+                moved = float(np.median(np.abs(source-new[y-offset:bottom-offset,x:right])))
+                unmoved = float(np.median(np.abs(source-new[y:bottom,x:right])))
+                # Card interiors exclude moving backgrounds, borders and badges.
+                # Median error tolerates rasterized edges but requires most pixels
+                # to agree, in regions that differ without the proposed shift.
+                if moved <= 6 and unmoved >= 15 and moved <= unmoved*.3:
+                    matches.append((row,column,moved))
+        columns = len({match[1] for match in matches})
+        rows = len({match[0] for match in matches})
+        if len(matches) >= 12 and columns >= 6 and rows >= 2:
+            candidates.append({'upwardPixels':offset,'outlineDeltaY':delta_y,'matchingGridPatches':len(matches),
+                               'matchingColumns':columns,'matchingRows':rows,
+                               'medianDifference':float(np.median([match[2] for match in matches]))})
+    return min(candidates,key=lambda value:(-value['matchingGridPatches'],value['medianDifference'])) if candidates else None
 
 
 def panel_signature(frame):

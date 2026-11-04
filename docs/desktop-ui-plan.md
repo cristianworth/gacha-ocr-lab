@@ -102,6 +102,8 @@ Verificar no código real os pontos de checagem e o `finally` que libera botão,
 
 ## Verificações e aceite
 
+O leitor incremental preserva BOM UTF-16 LE, linhas/caracteres incompletos e offset. Violações temporárias de compartilhamento do log adiam a leitura para o próximo timer por até cinco segundos, inclusive na drenagem final; não provocam parada imediata nem bloqueiam o formulário. Outros erros continuam visíveis. Correção e testes com arquivo realmente exclusivo, formulário e filho separados registrados em [evidências HSR](hsr-evidence.md#compartilhamento-do-log-e-segunda-translação--04112026).
+
 1. **Sem jogo:** usar stubs de processo para pronto, esperando F8, progresso, término, parcial, erro sem manifesto, cancelamento/UAC cancelado e término rápido. Conferir janela responsiva, um filho por vez, cwd diferente, espaços/apóstrofo no caminho e abertura só da própria sessão.
 2. **Persistência/stop:** reutilizar testes existentes de gravação e guardas; acrescentar apenas o teste do novo sinal e seu efeito real no encerramento/cleanup. Não criar um framework de processos/UI para testar botões.
 3. **Instalação:** conferir pelo pacote em pasta e pela instalação do laboratório, sem dependência nova no PATH. Garantir captura de diagnóstico caso a janela falhe antes de abrir; mensagens de erro precisam continuar acessíveis sem prompt operacional.

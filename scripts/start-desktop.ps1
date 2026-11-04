@@ -13,6 +13,7 @@ function New-DesktopLogReader {
     [pscustomobject]@{
         Path = $Path; Offset = [long]0; HeaderRead = $false; Pending = ''; Finished = $false
         Decoder = [Text.UnicodeEncoding]::new($false, $true, $true).GetDecoder()
+        SharingWait = $null; SharingTimeoutMilliseconds = 5000
     }
 }
 
@@ -23,8 +24,24 @@ function Read-DesktopLog {
     if (!(Test-Path -LiteralPath $Reader.Path -PathType Leaf)) {
         return [pscustomobject]@{ Lines = @(); Drained = [bool]$Final }
     }
-    $stream = [IO.File]::Open($Reader.Path, [IO.FileMode]::Open, [IO.FileAccess]::Read,
-                              ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+    try {
+        $stream = [IO.File]::Open($Reader.Path, [IO.FileMode]::Open, [IO.FileAccess]::Read,
+                                  ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+    } catch {
+        $failure = $_.Exception
+        while ($null -ne $failure.InnerException) { $failure = $failure.InnerException }
+        $nativeCode = $failure.HResult -band 0xffff
+        if ($failure -is [IO.IOException] -and $nativeCode -in @(32,33)) {
+            if ($null -eq $Reader.SharingWait) { $Reader.SharingWait = [Diagnostics.Stopwatch]::StartNew() }
+            if ($Reader.SharingWait.ElapsedMilliseconds -lt $Reader.SharingTimeoutMilliseconds) {
+                # Retry on the next UI timer tick without changing decoder/offset
+                # or stopping the child for a writer's brief exclusive open.
+                return [pscustomobject]@{ Lines = @(); Drained = $false }
+            }
+        }
+        throw
+    }
+    $Reader.SharingWait = $null
     try {
         if ($stream.Length -lt $Reader.Offset) { throw 'O log foi truncado durante a execucao.' }
         if (!$Reader.HeaderRead) {

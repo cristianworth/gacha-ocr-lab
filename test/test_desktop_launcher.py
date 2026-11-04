@@ -93,6 +93,41 @@ Write-Output ('__RESULT__' + (@{FirstDrained=$first.Drained; Offset=$firstOffset
     assert result['Rejected']
 
 
+def test_log_retries_real_exclusive_lock_preserving_partial_character_and_final_drain(tmp_path):
+    result=run_driver(tmp_path,r'''
+$path=Join-Path $testRoot 'locked.log'
+$reader=New-DesktopLogReader $path
+$bytes=[Text.Encoding]::Unicode.GetBytes("a$([char]0xe7)`n")
+$writer=[IO.File]::Open($path,'Create','Write','None')
+try {
+    $writer.WriteByte(255); $writer.WriteByte(254); $writer.Write($bytes,0,1); $writer.Flush()
+    $locked=Read-DesktopLog $reader
+    $initialOffset=$reader.Offset
+} finally { $writer.Dispose() }
+$partial=Read-DesktopLog $reader
+$partialOffset=$reader.Offset
+$writer=[IO.File]::Open($path,'Append','Write','None')
+try {
+    $writer.Write($bytes,1,$bytes.Length-1); $writer.Flush()
+    $lockedFinal=Read-DesktopLog $reader -Final
+    $lockedOffset=$reader.Offset
+    $reader.SharingTimeoutMilliseconds=0
+    $rejected=$false
+    try { Read-DesktopLog $reader -Final | Out-Null } catch { $rejected=$true }
+} finally { $writer.Dispose() }
+$reader.SharingTimeoutMilliseconds=5000
+$final=Read-DesktopLog $reader -Final
+Write-Output ('__RESULT__'+(@{Locked=$locked.Lines;LockedDrained=$locked.Drained;InitialOffset=$initialOffset;
+    Partial=$partial.Lines;PartialOffset=$partialOffset;LockedFinalDrained=$lockedFinal.Drained;
+    LockedOffset=$lockedOffset;Rejected=$rejected;Final=$final.Lines;FinalDrained=$final.Drained;
+    Finished=$reader.Finished;SharingWaitReset=($null -eq $reader.SharingWait)}|ConvertTo-Json -Compress))
+''')
+    assert result['Locked']==[] and not result['LockedDrained'] and result['InitialOffset']==0
+    assert result['Partial']==[] and result['PartialOffset']==result['LockedOffset']==3
+    assert not result['LockedFinalDrained'] and result['Rejected']
+    assert result['Final']==['aç'] and result['FinalDrained'] and result['Finished'] and result['SharingWaitReset']
+
+
 # The driver runs Application.Run, a displayed Form and its production timer/handlers.
 # A second timer injects button events while the real child advances independently.
 MESSAGE_LOOP = r'''
@@ -165,6 +200,34 @@ def test_displayed_message_loop_stays_responsive_and_classifies_child(tmp_path, 
     assert not result['Stop']
     if outcome != 'Quick':
         assert result['Progress']
+
+
+def test_displayed_loop_survives_exclusive_child_log_without_requesting_stop(tmp_path):
+    setup=r'''
+$worker=Join-Path $testRoot 'exclusive-child.ps1'
+[IO.File]::WriteAllText($worker,@'
+param($RunDirectory,$Outcome,$StepMilliseconds)
+$stream=[IO.File]::Open((Join-Path $RunDirectory 'console.log'),'Create','Write','None')
+$writer=[IO.StreamWriter]::new($stream,[Text.Encoding]::Unicode)
+try {
+    $writer.WriteLine('STATE|capturing|Child holds log');$writer.Flush()
+    for ($index=0;$index -lt 6;$index++) {
+        $writer.WriteLine("PROGRESS|$index");$writer.Flush()
+        Start-Sleep -Milliseconds 80
+    }
+    $writer.WriteLine('RESULT|complete');$writer.Flush()
+} finally {$writer.Dispose()}
+Start-Sleep -Milliseconds 250
+Set-Content -LiteralPath (Join-Path $RunDirectory 'exit-code.txt') -Value 0 -Encoding ASCII
+'@,[Text.Encoding]::UTF8)
+$script:DesktopSimulationWorker=$worker
+'''
+    body=setup+MESSAGE_LOOP.replace('__OUTCOME__','Complete').replace('__ACTION__','')
+    result=run_driver(tmp_path,body)
+    assert result['Result']=='complete' and result['Receipt']=='0' and not result['Stop']
+    assert result['Shown'] and result['Pings']>=3 and result['Progress'] and result['ClosedAfterChild']
+    assert 'Falha ao acompanhar log' not in result['Log']
+    assert result['Log'].count('PROGRESS|')==6
 
 
 @pytest.mark.parametrize('when,close', [('before-log', False), ('capturing', False), ('capturing', True)])
