@@ -150,17 +150,29 @@ def next_selection(previous, current, size, *, direction='d'):
     if direction == 'a':
         return width*.8 <= x-nx <= width*1.6 and same_row
     if direction == 's':
-        return abs(nx-x) <= width*.12 and height*.8 <= ny-y <= height*1.5
+        # The game can clamp to the last existing column of a short final row.
+        return size[0]*.065 <= nx <= x+width*.12 and height*.8 <= ny-y <= height*1.5
     return False
 
 
-def downward_viewport_shift(before, after, selection):
-    """Prove a one-row upward grid shift when S keeps the outline in place.
+def grid_column(selection, size):
+    """Column in the qualified eight-column 1280x720 inventory profile."""
+    origin, pitch = size[0]*.072, size[0]*.0725
+    column = round((selection[0]-origin)/pitch)
+    return column if 0 <= column < 8 and abs(selection[0]-(origin+pitch*column)) <= 4 else None
+
+
+def downward_viewport_shift(before, after, selection, previous=None):
+    """Confirm that outline motion plus grid scrolling adds up to one row.
 
     Equal card art or a changed detail panel alone never proves this movement.
     Ambiguous/repeated grid patterns fail closed.
     """
     if before is None or before.size != after.size:
+        return None
+    previous = previous or selection
+    delta_y = selection[1]-previous[1]
+    if selection[0] > previous[0]+3 or delta_y < -2 or delta_y > previous[3]*.8:
         return None
     width, height = after.size
     box = (round(width*.15), round(height*.15), round(width*.65), round(height*.78))
@@ -169,11 +181,17 @@ def downward_viewport_shift(before, after, selection):
     unchanged = float(np.abs(old-new).mean())
     if unchanged < 5:
         return None
-    scores = [(float(np.abs(old[offset:]-new[:-offset]).mean()), offset)
-              for offset in range(round(selection[3]*.95), round(selection[3]*1.2)+1)]
+    expected = previous[3]*1.08-delta_y
+    offsets = range(max(1,round(expected)-6), max(1,round(expected)+6)+1)
+    scores = [(float(np.abs(old[offset:]-new[:-offset]).mean()), offset) for offset in offsets]
     score, offset = min(scores)
-    if score <= 3 and unchanged-score >= 5:
-        return {'upwardPixels': offset, 'meanDifference': score, 'unshiftedMeanDifference': unchanged}
+    difference = np.abs(old[offset:]-new[:-offset])
+    # Rasterized card art changes slightly at fractional scroll positions.
+    # Require agreement across six grid strips as well as a strong global match.
+    matching_strips = sum(float(strip.mean()) <= 12 for strip in np.array_split(difference,7,axis=1))
+    if score <= 10 and score <= unchanged*.25 and unchanged-score >= 5 and matching_strips >= 6:
+        return {'upwardPixels': offset, 'outlineDeltaY': delta_y, 'matchingGridStrips': matching_strips,
+                'meanDifference': score, 'unshiftedMeanDifference': unchanged}
     return None
 
 

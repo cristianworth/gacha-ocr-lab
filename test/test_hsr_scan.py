@@ -125,7 +125,7 @@ def fixture_inventory(tmp_path,monkeypatch,levels, *, total=99):
     state={'current':0}
     guard=InputGuard(lambda:None,lambda:False,[],0)
     def settle(grab, guard, previous=None):
-        return frame_at(50+90*state['current']),[50+90*state['current'],150,81,111]
+        return frame_at(92+93*state['current'],90),[92+93*state['current'],90,81,111]
     def next_item():
         state['current']+=1
     advance=SimpleNamespace(next=next_item)
@@ -151,10 +151,13 @@ def test_cutoff_preserves_copies_and_includes_exact_twenty(tmp_path,monkeypatch)
     assert [item['position'] for item in report['observations']]==[0,1,2,3]
 
 
-@pytest.mark.parametrize('stop_during_return',[False,True])
-def test_extended_traversal_confirms_grid_navigation_viewport_and_literal_cutoff(tmp_path,monkeypatch,stop_during_return):
+@pytest.mark.parametrize('scenario',['extended','stop-on-s','reverse-boundary','short-row','unreadable-reverse'])
+def test_alternating_rows_preserve_order_scope_and_partial_viewport(tmp_path,monkeypatch,scenario):
     import hsr_inventory as inventory
-    levels = [80]*39 + [20, 1]
+    levels = ([80]*8+[60,50,40,30,20,10,1,1] if scenario in ('reverse-boundary','unreadable-reverse')
+              else [80]*10 if scenario=='short-row' else [80]*39+[20,1])
+    if scenario=='unreadable-reverse':
+        levels[12]=None
     state = {'row': 0, 'column': 0, 'clock': 0.0, 'stopped':False}
     report = {'maxPositions': 2000}
     keyboard = Mock()
@@ -163,49 +166,68 @@ def test_extended_traversal_confirms_grid_navigation_viewport_and_literal_cutoff
             assert state['column']<7, 'D does not wrap at the right edge'
             state['column']+=1
         elif key=='a':
+            assert state['column']>0
             state['column']-=1
-            if stop_during_return:
-                state['stopped']=True
         elif key=='s':
             state['row']+=1
+            state['column']=min(state['column'],len(levels)-state['row']*8-1)
+            if scenario=='stop-on-s':
+                state['stopped']=True
     keyboard.press.side_effect=press
     guard = InputGuard(lambda:None,lambda:state['stopped'],[],0,clock=lambda:state['clock'])
-    advance = GuardedAdvance(keyboard,guard,3742)
+    advance = GuardedAdvance(keyboard,guard,1999)
     def grab():
         frame=Image.new('RGB',(1280,720),(20,20,20))
         draw=ImageDraw.Draw(frame)
-        first_row=max(0,state['row']-3)
-        for visible_row in range(5):
-            row=first_row+visible_row
+        scroll=max(0,90+state['row']*116-476)
+        for row in range(8):
             for column in range(8):
-                x,y=92+93*column,90+116*visible_row
+                if row*8+column>=len(levels):
+                    continue
+                x,y=92+93*column,90+116*row-scroll
                 draw.rectangle((x,y,x+90,y+107),fill=(30+(row*53)%140,40+column*12,50+(row*43)%140))
                 if row==state['row'] and column==state['column']:
                     draw.rectangle((x,y,x+90,y+107),outline='white',width=3)
+        draw.rectangle((0,0,1280,78),fill=(20,20,20))
         return frame
     def settle(grab,guard,**kwargs):
         return settled_frame(grab,guard,clock=lambda:state['clock'],
                              sleep=lambda seconds:state.__setitem__('clock',state['clock']+seconds),**kwargs)
-    monkeypatch.setattr(inventory,'read_header',lambda *a:{'categoryConfirmed':True,'sortConfirmed':True,'quantity':{'value':252}})
+    total=10 if scenario=='short-row' else 252
+    monkeypatch.setattr(inventory,'read_header',lambda *a:{'categoryConfirmed':True,'sortConfirmed':True,'quantity':{'value':total}})
     def read(*args,**kwargs):
+        current=levels[state['row']*8+state['column']]
         return {'layoutVerified':True,'fields':{
             'name':{'state':'recognized','value':'Same literal name'},
-            'level':{'state':'recognized','value':{'current':levels[state['row']*8+state['column']],'max':80}},
+            'level':{'state':'recognized' if current is not None else 'uncertain',
+                     'value':{'current':current,'max':80} if current is not None else None},
             'superimposition':{'state':'recognized','value':1}}}
     monkeypatch.setattr(inventory,'read_panel',read)
-    if stop_during_return:
+    if scenario=='stop-on-s':
         with pytest.raises(ProbeStopped):
             run_inventory(grab,advance,guard,object(),tmp_path,report,settle=settle)
         saved=json.loads((tmp_path/'session.json').read_text())
         assert len(saved['observations'])==8 and not saved['scopeComplete']
-        assert [call.args[0] for call in keyboard.press.call_args_list]==['d']*7+['a']
+        assert [call.args[0] for call in keyboard.press.call_args_list]==['d']*7+['s']
         assert keyboard.release.call_count==8 and not advance.held
         return
     run_inventory(grab,advance,guard,object(),tmp_path,report,settle=settle)
+    assert len({item['position'] for item in report['observations']})==len(levels)
+    assert [item['position'] for item in report['observations']][:10]==list(range(8))+[min(15,len(levels)-1),min(15,len(levels)-1)-1]
+    assert advance.requests==len(levels)-1==keyboard.release.call_count and not advance.held
+    if scenario=='short-row':
+        assert not report['scopeComplete'] and report['reason']=='prepared-count-reached-physical-end-unverified'
+        return
+    if scenario in ('reverse-boundary','unreadable-reverse'):
+        assert report['levelBoundary']=={'position':13,'level':10,'source':'selected-panel-OCR'}
+        assert report['scopeComplete'] is (scenario=='reverse-boundary')
+        assert report['inventorySummary']['eligiblePositions']==(13 if scenario=='reverse-boundary' else 12)
+        assert report['notReadByLevelOrder']==236
+        assert all(item['levelEligibility']=='eligible-level' for item in report['observations'] if 8<=item['position']<=11)
+        return
     assert report['scopeComplete'] and report['reason']=='level-cutoff-reached'
-    assert len(report['observations'])==41 and advance.requests==75
-    assert keyboard.release.call_count==75 and not advance.held
-    assert [call.args[0] for call in keyboard.press.call_args_list][:15]==['d']*7+['a']*7+['s']
+    assert len(report['observations'])==41 and advance.requests==40
+    assert [call.args[0] for call in keyboard.press.call_args_list][:16]==['d']*7+['s']+['a']*7+['s']
     assert sum('viewportShift' in step for step in report['navigationSteps'])==2
     assert report['inventorySummary']['eligiblePositions']==40
     assert report['levelBoundary']=={'position':40,'level':1,'source':'selected-panel-OCR'}
@@ -238,6 +260,21 @@ def test_directional_navigation_rejects_wrong_key_delivery_and_unknown_keys():
 def test_identical_grid_cannot_prove_downward_viewport_delivery():
     frame=frame_at()
     assert downward_viewport_shift(frame,frame,[50,150,81,111]) is None
+
+
+def test_partial_scroll_requires_the_correct_grid_translation_not_a_changed_panel():
+    import numpy as np
+    pixels=np.random.default_rng(71).integers(20,140,(720,1280),dtype=np.uint8)
+    before=Image.fromarray(pixels).convert('RGB')
+    previous=[92,437,90,107]
+    current=[92,475,90,107]
+    correct=Image.fromarray(np.roll(pixels,-77,axis=0)).convert('RGB')
+    assert downward_viewport_shift(before,correct,current,previous)['upwardPixels']==77
+    skipped=Image.fromarray(np.roll(pixels,-155,axis=0)).convert('RGB')
+    assert downward_viewport_shift(before,skipped,current,previous) is None
+    changed=before.copy()
+    ImageDraw.Draw(changed).rectangle((922,65,1241,620),fill='white')
+    assert downward_viewport_shift(before,changed,current,previous) is None
 
 
 @pytest.mark.parametrize('box',[[188,90,91,108],[91,209,91,108]])
