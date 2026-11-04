@@ -104,9 +104,10 @@ def main():
             check_external_stop(stop)
             return event.is_set() or not listener.is_alive()
         guard = InputGuard(window.check, stopped, [], 0, timeout=3600)
-        advance = GuardedAdvance(Controller(), guard, args.max_positions-1)
+        moves = args.max_positions-1
+        advance = GuardedAdvance(Controller(), guard, moves + 7*(moves//8))
         reader, report['ocrBackend'] = make_session_recognizer(args.cache, make_recognizer)
-        print('Capturando Cones de Luz 20+. HSR avanca por D; F8 interrompe.', flush=True)
+        print('Capturando Cones de Luz 20+. D avanca na linha; A/S trocam de linha. F8 interrompe.', flush=True)
         run_inventory(window.grab, advance, guard, reader, output, report)
         code = 0
     except Exception as exc:

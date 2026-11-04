@@ -5,7 +5,8 @@ import json
 import time
 from pathlib import Path
 
-from hsr_reader import next_selection, panel_signature, read_header, read_panel, selected_card, stable_panels
+from hsr_reader import (downward_viewport_shift, next_selection, panel_signature, read_header,
+                        read_panel, selected_card, stable_panels)
 from scan_runtime import ProbeStopped, write_manifest
 from youkai_capture import save_evidence_image
 
@@ -62,7 +63,8 @@ def save_session(output, report):
     (output / 'review.html').write_text("<!doctype html><meta charset='utf-8'><title>HSR — revisao</title><style>body{font:16px sans-serif;margin:24px}article{border-top:1px solid #888}pre{white-space:pre-wrap}img{max-width:100%}</style><h1>HSR — evidencia original</h1><p>Dados sem aprovacao humana. Cada posicao pertence somente a esta sessao.</p>" + ''.join(rows), encoding='utf-8')
 
 
-def settled_frame(grab, guard, *, previous=None, clock=time.monotonic, sleep=time.sleep, timeout=3):
+def settled_frame(grab, guard, *, previous=None, direction='d', previous_frame=None,
+                  clock=time.monotonic, sleep=time.sleep, timeout=3):
     deadline = clock() + timeout
     anchor = last = None
     stable_since = None
@@ -75,7 +77,10 @@ def settled_frame(grab, guard, *, previous=None, clock=time.monotonic, sleep=tim
         guard.check()
         last_frame = frame
         selection = selected_card(frame)
-        delivered = selection is not None and (previous is None or next_selection(previous, selection, frame.size))
+        delivered = selection is not None and (previous is None or next_selection(previous, selection, frame.size, direction=direction))
+        if not delivered and direction == 's' and previous is not None and selection is not None:
+            same_outline = all(abs(a-b) <= 2 for a,b in zip(previous,selection))
+            delivered = same_outline and downward_viewport_shift(previous_frame, frame, selection) is not None
         signature = panel_signature(frame)
         if not delivered or anchor is None or not stable_panels(anchor, signature) or selection != last:
             anchor, last, stable_since = signature, selection, clock() if delivered else None
@@ -86,9 +91,34 @@ def settled_frame(grab, guard, *, previous=None, clock=time.monotonic, sleep=tim
               'selection-advance-unconfirmed' if not delivered else 'panel-stability-unconfirmed')
     error = ProbeStopped(reason)
     error.frame = last_frame
-    error.wait_evidence = {'lastSelection': selection, 'deliveryConfirmed': delivered,
+    error.wait_evidence = {'previousSelection': previous, 'lastSelection': selection, 'direction': direction,
+                           'deliveryConfirmed': delivered,
                            'stableWindowSeconds': .30, 'timeoutSeconds': timeout}
     raise error
+
+
+def advance_inventory(grab, advance, guard, settle, frame, selection, position, output, report):
+    # D stops at the right edge. Return over the already-read row before S so
+    # a shorter final row still starts at its first item, preserving level order.
+    keys = ('a',)*7 + ('s',) if (position+1) % 8 == 0 else ('d',)
+    if len(keys) > 1:
+        print(f'Trocando de linha apos a posicao HSR {position+1}: A ate a primeira coluna, depois S.', flush=True)
+    for key in keys:
+        previous, previous_frame = selection, frame
+        if key == 'd':
+            advance.next()
+        else:
+            advance.next(key)
+        arguments = {'previous': previous}
+        if key != 'd':
+            arguments.update(direction=key, previous_frame=previous_frame)
+        frame, selection = settle(grab, guard, **arguments)
+        step = {'afterPosition': position, 'key': key, 'from': previous, 'to': selection, 'verified': True}
+        if key == 's' and not next_selection(previous,selection,frame.size,direction='s'):
+            step['viewportShift'] = downward_viewport_shift(previous_frame,frame,selection)
+        report.setdefault('navigationSteps',[]).append(step)
+        save_session(output,report)
+    return frame, selection
 
 
 def run_inventory(grab, advance, guard, reader, output, report, *, settle=settled_frame):
@@ -152,9 +182,8 @@ def run_inventory(grab, advance, guard, reader, output, report, *, settle=settle
             return
         if position+1 >= report['maxPositions']:
             break
-        advance.next()
         try:
-            frame, selection = settle(grab, guard, previous=selection)
+            frame, selection = advance_inventory(grab, advance, guard, settle, frame, selection, position, output, report)
         except ProbeStopped as exc:
             if getattr(exc, 'frame', None) is not None:
                 failed_frame = output / 'unconfirmed-advance.png'

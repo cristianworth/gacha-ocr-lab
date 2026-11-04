@@ -137,7 +137,7 @@ def selected_card(frame):
     return candidates[0] if len(candidates) == 1 else None
 
 
-def next_selection(previous, current, size):
+def next_selection(previous, current, size, *, direction='d'):
     if previous is None or current is None:
         return False
     x, y, width, height = previous
@@ -145,9 +145,36 @@ def next_selection(previous, current, size):
     if abs(nw-width) > width*.15 or abs(nh-height) > height*.15:
         return False
     same_row = abs(ny-y) <= height*.12
-    across = width*.8 <= nx-x <= width*1.6 and same_row
-    wrap = x > size[0]*.55 and nx < size[0]*.105 and -.15*height <= ny-y <= height*1.5
-    return across or wrap
+    if direction == 'd':
+        return width*.8 <= nx-x <= width*1.6 and same_row
+    if direction == 'a':
+        return width*.8 <= x-nx <= width*1.6 and same_row
+    if direction == 's':
+        return abs(nx-x) <= width*.12 and height*.8 <= ny-y <= height*1.5
+    return False
+
+
+def downward_viewport_shift(before, after, selection):
+    """Prove a one-row upward grid shift when S keeps the outline in place.
+
+    Equal card art or a changed detail panel alone never proves this movement.
+    Ambiguous/repeated grid patterns fail closed.
+    """
+    if before is None or before.size != after.size:
+        return None
+    width, height = after.size
+    box = (round(width*.15), round(height*.15), round(width*.65), round(height*.78))
+    old = np.array(before.crop(box).convert('L'), dtype=np.int16)
+    new = np.array(after.crop(box).convert('L'), dtype=np.int16)
+    unchanged = float(np.abs(old-new).mean())
+    if unchanged < 5:
+        return None
+    scores = [(float(np.abs(old[offset:]-new[:-offset]).mean()), offset)
+              for offset in range(round(selection[3]*.95), round(selection[3]*1.2)+1)]
+    score, offset = min(scores)
+    if score <= 3 and unchanged-score >= 5:
+        return {'upwardPixels': offset, 'meanDifference': score, 'unshiftedMeanDifference': unchanged}
+    return None
 
 
 def panel_signature(frame):

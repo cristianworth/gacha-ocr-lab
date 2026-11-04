@@ -9,7 +9,7 @@ import pytest
 from PIL import Image, ImageDraw
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
-from hsr_reader import next_selection, parse_field, prepared_text, selected_card
+from hsr_reader import downward_viewport_shift, next_selection, parse_field, prepared_text, selected_card
 from hsr_inventory import run_inventory, save_session, settled_frame
 from scan_runtime import GuardedAdvance, InputGuard, ProbeStopped, check_external_stop
 
@@ -103,7 +103,8 @@ def test_stable_equal_panels_are_allowed_after_visible_selection_advance():
     assert selection==selected_card(second) and clock[0]>=.30
 
 
-def test_keyboard_releases_our_key_and_stops_before_another_native_press(tmp_path):
+@pytest.mark.parametrize('key',['a','s','d'])
+def test_keyboard_releases_our_key_and_stops_before_another_native_press(tmp_path,key):
     stopped=[False]
     guard=InputGuard(lambda:None,lambda:stopped[0],[],0)
     keyboard=Mock()
@@ -111,10 +112,10 @@ def test_keyboard_releases_our_key_and_stops_before_another_native_press(tmp_pat
         stopped[0]=True
     keyboard.press.side_effect=press
     advance=GuardedAdvance(keyboard,guard,3)
-    advance.next()
-    keyboard.release.assert_called_once_with('d')
+    advance.next(key)
+    keyboard.release.assert_called_once_with(key)
     with pytest.raises(ProbeStopped):
-        advance.next()
+        advance.next(key)
     assert keyboard.press.call_count==1 and not advance.held
 
 
@@ -150,21 +151,37 @@ def test_cutoff_preserves_copies_and_includes_exact_twenty(tmp_path,monkeypatch)
     assert [item['position'] for item in report['observations']]==[0,1,2,3]
 
 
-def test_extended_traversal_confirms_row_wraps_viewport_and_literal_cutoff(tmp_path,monkeypatch):
+@pytest.mark.parametrize('stop_during_return',[False,True])
+def test_extended_traversal_confirms_grid_navigation_viewport_and_literal_cutoff(tmp_path,monkeypatch,stop_during_return):
     import hsr_inventory as inventory
     levels = [80]*39 + [20, 1]
-    state = {'position': 0, 'clock': 0.0}
+    state = {'row': 0, 'column': 0, 'clock': 0.0, 'stopped':False}
     report = {'maxPositions': 2000}
     keyboard = Mock()
-    keyboard.press.side_effect = lambda key: state.__setitem__('position',state['position']+1)
-    guard = InputGuard(lambda:None,lambda:False,[],0,clock=lambda:state['clock'])
-    advance = GuardedAdvance(keyboard,guard,1999)
+    def press(key):
+        if key=='d':
+            assert state['column']<7, 'D does not wrap at the right edge'
+            state['column']+=1
+        elif key=='a':
+            state['column']-=1
+            if stop_during_return:
+                state['stopped']=True
+        elif key=='s':
+            state['row']+=1
+    keyboard.press.side_effect=press
+    guard = InputGuard(lambda:None,lambda:state['stopped'],[],0,clock=lambda:state['clock'])
+    advance = GuardedAdvance(keyboard,guard,3742)
     def grab():
-        column, row = state['position'] % 8, state['position'] // 8
-        # The game can keep the selected row visible while scrolling its viewport.
-        x, y = 92+93*column, 90+116*min(row,3)
         frame=Image.new('RGB',(1280,720),(20,20,20))
-        ImageDraw.Draw(frame).rectangle((x,y,x+90,y+107),outline='white',width=3)
+        draw=ImageDraw.Draw(frame)
+        first_row=max(0,state['row']-3)
+        for visible_row in range(5):
+            row=first_row+visible_row
+            for column in range(8):
+                x,y=92+93*column,90+116*visible_row
+                draw.rectangle((x,y,x+90,y+107),fill=(30+(row*53)%140,40+column*12,50+(row*43)%140))
+                if row==state['row'] and column==state['column']:
+                    draw.rectangle((x,y,x+90,y+107),outline='white',width=3)
         return frame
     def settle(grab,guard,**kwargs):
         return settled_frame(grab,guard,clock=lambda:state['clock'],
@@ -173,13 +190,23 @@ def test_extended_traversal_confirms_row_wraps_viewport_and_literal_cutoff(tmp_p
     def read(*args,**kwargs):
         return {'layoutVerified':True,'fields':{
             'name':{'state':'recognized','value':'Same literal name'},
-            'level':{'state':'recognized','value':{'current':levels[state['position']],'max':80}},
+            'level':{'state':'recognized','value':{'current':levels[state['row']*8+state['column']],'max':80}},
             'superimposition':{'state':'recognized','value':1}}}
     monkeypatch.setattr(inventory,'read_panel',read)
+    if stop_during_return:
+        with pytest.raises(ProbeStopped):
+            run_inventory(grab,advance,guard,object(),tmp_path,report,settle=settle)
+        saved=json.loads((tmp_path/'session.json').read_text())
+        assert len(saved['observations'])==8 and not saved['scopeComplete']
+        assert [call.args[0] for call in keyboard.press.call_args_list]==['d']*7+['a']
+        assert keyboard.release.call_count==8 and not advance.held
+        return
     run_inventory(grab,advance,guard,object(),tmp_path,report,settle=settle)
     assert report['scopeComplete'] and report['reason']=='level-cutoff-reached'
-    assert len(report['observations'])==41 and advance.requests==40
-    assert keyboard.release.call_count==40 and not advance.held
+    assert len(report['observations'])==41 and advance.requests==75
+    assert keyboard.release.call_count==75 and not advance.held
+    assert [call.args[0] for call in keyboard.press.call_args_list][:15]==['d']*7+['a']*7+['s']
+    assert sum('viewportShift' in step for step in report['navigationSteps'])==2
     assert report['inventorySummary']['eligiblePositions']==40
     assert report['levelBoundary']=={'position':40,'level':1,'source':'selected-panel-OCR'}
     assert report['notReadByLevelOrder']==211 and not report['captureComplete']
@@ -194,6 +221,23 @@ def test_extended_traversal_confirms_row_wraps_viewport_and_literal_cutoff(tmp_p
 @pytest.mark.parametrize('current',[[92,322,91,108],[185,206,91,108],[742,90,91,108]])
 def test_row_wrap_rejects_skipped_row_wrong_column_or_no_delivery(current):
     assert not next_selection([742,90,91,108],current,(1280,720))
+
+
+def test_directional_navigation_rejects_wrong_key_delivery_and_unknown_keys():
+    assert next_selection([742,90,91,108],[649,90,91,108],(1280,720),direction='a')
+    assert next_selection([92,90,91,108],[92,206,91,108],(1280,720),direction='s')
+    assert not next_selection([92,90,91,108],[92,90,91,108],(1280,720),direction='s')
+    assert not next_selection([92,90,91,108],[185,90,91,108],(1280,720),direction='a')
+    keyboard=Mock()
+    advance=GuardedAdvance(keyboard,InputGuard(lambda:None,lambda:False,[],0),10)
+    with pytest.raises(ProbeStopped,match='only-HSR-grid'):
+        advance.next('e')
+    assert advance.requests==0 and not keyboard.press.called
+
+
+def test_identical_grid_cannot_prove_downward_viewport_delivery():
+    frame=frame_at()
+    assert downward_viewport_shift(frame,frame,[50,150,81,111]) is None
 
 
 @pytest.mark.parametrize('box',[[188,90,91,108],[91,209,91,108]])

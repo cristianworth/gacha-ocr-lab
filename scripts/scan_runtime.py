@@ -138,30 +138,36 @@ class GuardedMouse:
 
 
 class GuardedAdvance:
-    """Only the HSR public next-item key; release our held key even after a stop."""
+    """Bounded HSR grid keys; release our held key even after a stop."""
     def __init__(self, keyboard, guard, maximum):
         self.keyboard, self.guard, self.maximum = keyboard, guard, maximum
         self.requests = 0
         self.held = False
+        self.held_key = None
 
-    def next(self):
+    def next(self, key='d'):
+        if key not in ('a', 's', 'd'):
+            raise ProbeStopped('only-HSR-grid-navigation-keys-allowed')
         self.guard.check()
         if self.requests >= self.maximum:
             raise ProbeStopped('advance-budget-exhausted')
         self.requests += 1
-        self.guard.events.append({'event': 'advance-requested', 'key': 'd', 'number': self.requests,
+        self.guard.events.append({'event': 'advance-requested', 'key': key, 'number': self.requests,
                                   'at': self.guard.clock()})
         self.held = True
+        self.held_key = key
         try:
-            self.keyboard.press('d')
+            self.keyboard.press(key)
         finally:
             self.close()
 
     def close(self):
         if self.held:
-            self.keyboard.release('d')
+            key = self.held_key
+            self.keyboard.release(key)
             self.held = False
-            self.guard.events.append({'event': 'key-release', 'key': 'd', 'at': self.guard.clock()})
+            self.held_key = None
+            self.guard.events.append({'event': 'key-release', 'key': key, 'at': self.guard.clock()})
 
 
 def write_manifest(path, report):

@@ -303,7 +303,7 @@ function New-DesktopForm {
     $game.Add_SelectedIndexChanged({
         $context.Prepared.Checked = $false
         if ($context.Game.SelectedIndex -eq 1) {
-            $context.Notice.Text = "HSR em ingles, cliente 1280x720, escala Windows 100%. Fundo escuro no painel.`r`nInventory > Light Cone: Lv decrescente, lista no topo e primeiro Cone selecionado.`r`nFiltro 4/5 estrelas opcional. Corte fixo 20+. Solte mouse e teclado.`r`nO scanner avanca por D. F8 interrompe; mantenha HSR na frente. Perfil em validacao."
+            $context.Notice.Text = "HSR em ingles, cliente 1280x720, escala Windows 100%. Fundo escuro no painel.`r`nInventory > Light Cone: Lv decrescente, lista no topo e primeiro Cone selecionado.`r`nFiltro 4/5 estrelas opcional. Corte fixo 20+. Solte mouse e teclado.`r`nD avanca na linha; A/S trocam de linha. F8 interrompe; mantenha HSR na frente."
             $context.Status.Text = 'HSR: percorre ate nivel abaixo de 20; limite de seguranca de 2000 posicoes. Confirme a preparacao.'
         } else {
             $context.Notice.Text = $context.ZzzNotice
