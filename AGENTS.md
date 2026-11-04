@@ -29,3 +29,4 @@
 - Regras duráveis ficam aqui; escopo, estado e próximos passos ficam no guia/roadmap. Documente limitações materiais sem duplicar cronologia em cada arquivo.
 - Não criar handoff por cerimônia. Antes de commit ou merge, siga as regras de versão/changelog aplicáveis; não incremente versão a cada commit do mesmo recorte.
 - Entregue mudança, verificações, limites e um roteiro prático proporcional. Em português, feche com Para testar (quando aplicável), Workflow e TL;DR.
+- Ao orientar um teste pelo aplicativo, informe a pasta exata do `.exe` e se é necessário fechar/reabrir a janela para carregar a atualização. Diferencie o repositório atual de pacotes já extraídos.

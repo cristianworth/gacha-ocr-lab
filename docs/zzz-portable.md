@@ -2,6 +2,8 @@
 
 O pacote em pasta inclui a janela por `gacha-ocr-zzz.exe`/`scan-desktop.cmd`, conserva `scan-zzz.cmd` como fallback e usa o mesmo `runtime/zzz-worker/zzz-worker.exe` com runtime Python incluído. A integração gráfica foi conferida na coleta local de 02/11. Não precisa instalar Python, Node ou Tesseract para executar. Requer Windows x64 e os componentes do Windows usados pelo lançador: PowerShell 5.1, aviso de Administrador e Bloco de Notas.
 
+Montagem de 04/11 inclui também **HSR em validação**, com guia e candidato atual em [HSR](hsr-scan.md). O novo pacote passou por relocação, hashes e leitura de três imagens no worker congelado; coleta HSR pelo portátil ainda pendente. Pacotes ZZZ anteriores permanecem preservados. Ao testar uma atualização, feche a janela anterior e abra o `.exe` da pasta exata indicada; alterar os fontes do repositório não atualiza um pacote extraído.
+
 ## Usar
 
 Extraia o ZIP inteiro em uma pasta com permissão de escrita. Abra `gacha-ocr-zzz.exe` nessa pasta e siga o [guia de coleta](zzz-scan.md). O `.exe` é uma chamada pequena do CMD adjacente, sem outro scanner. Para conferir só a abertura, aceite o aviso do Windows e feche a janela sem confirmar/iniciar; não é necessário coletar. Os botões de resultado ficam vinculados à pasta da própria execução.

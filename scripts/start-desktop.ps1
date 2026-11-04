@@ -100,7 +100,7 @@ function Start-DesktopRun {
         } else {
             $info.Arguments = '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}" -RunDirectory "{1}" -Game {2}' -f `
                 (Join-Path $Context.Root 'scripts\run-desktop-zzz.ps1'), $run, $selectedGame
-            if ($selectedGame -eq 'hsr') { $info.Arguments += ' -MaxPositions 3' }
+            if ($selectedGame -eq 'hsr') { $info.Arguments += ' -MaxPositions 2000' }
         }
         $info.WorkingDirectory = $Context.Root
         $info.UseShellExecute = $false
@@ -239,7 +239,7 @@ function New-DesktopForm {
     $game = [Windows.Forms.ComboBox]::new()
     $game.DropDownStyle = 'DropDownList'
     $game.SetBounds(16, 16, 300, 30)
-    $game.Items.AddRange(@('ZZZ - W-Engines S/A 20+', 'HSR - Piloto 3 Cones (validacao)'))
+    $game.Items.AddRange(@('ZZZ - W-Engines S/A 20+', 'HSR - Cones de Luz 20+ (validacao)'))
     $game.SelectedIndex = 0
     $notice = [Windows.Forms.Label]::new()
     $notice.Text = if ($Simulation) { 'Processo simulado. Nenhum jogo ou input real. F8 simulado avanca sozinho.' }
@@ -304,7 +304,7 @@ function New-DesktopForm {
         $context.Prepared.Checked = $false
         if ($context.Game.SelectedIndex -eq 1) {
             $context.Notice.Text = "HSR em ingles, cliente 1280x720, escala Windows 100%. Fundo escuro no painel.`r`nInventory > Light Cone: Lv decrescente, lista no topo e primeiro Cone selecionado.`r`nFiltro 4/5 estrelas opcional. Corte fixo 20+. Solte mouse e teclado.`r`nO scanner avanca por D. F8 interrompe; mantenha HSR na frente. Perfil em validacao."
-            $context.Status.Text = 'Primeiro teste HSR: ate 3 Cones, no maximo dois avancos por D. Confirme a preparacao.'
+            $context.Status.Text = 'HSR: percorre ate nivel abaixo de 20; limite de seguranca de 2000 posicoes. Confirme a preparacao.'
         } else {
             $context.Notice.Text = $context.ZzzNotice
             $context.Status.Text = 'Confirme a preparacao para iniciar ZZZ.'

@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 from hsr_reader import next_selection, parse_field, prepared_text, selected_card
-from hsr_inventory import run_inventory, settled_frame
+from hsr_inventory import run_inventory, save_session, settled_frame
 from scan_runtime import GuardedAdvance, InputGuard, ProbeStopped, check_external_stop
 
 
@@ -148,6 +148,52 @@ def test_cutoff_preserves_copies_and_includes_exact_twenty(tmp_path,monkeypatch)
     assert report['inventorySummary']['eligiblePositions']==3
     assert report['inventoryAccepted'] is False
     assert [item['position'] for item in report['observations']]==[0,1,2,3]
+
+
+def test_extended_traversal_confirms_row_wraps_viewport_and_literal_cutoff(tmp_path,monkeypatch):
+    import hsr_inventory as inventory
+    levels = [80]*39 + [20, 1]
+    state = {'position': 0, 'clock': 0.0}
+    report = {'maxPositions': 2000}
+    keyboard = Mock()
+    keyboard.press.side_effect = lambda key: state.__setitem__('position',state['position']+1)
+    guard = InputGuard(lambda:None,lambda:False,[],0,clock=lambda:state['clock'])
+    advance = GuardedAdvance(keyboard,guard,1999)
+    def grab():
+        column, row = state['position'] % 8, state['position'] // 8
+        # The game can keep the selected row visible while scrolling its viewport.
+        x, y = 92+93*column, 90+116*min(row,3)
+        frame=Image.new('RGB',(1280,720),(20,20,20))
+        ImageDraw.Draw(frame).rectangle((x,y,x+90,y+107),outline='white',width=3)
+        return frame
+    def settle(grab,guard,**kwargs):
+        return settled_frame(grab,guard,clock=lambda:state['clock'],
+                             sleep=lambda seconds:state.__setitem__('clock',state['clock']+seconds),**kwargs)
+    monkeypatch.setattr(inventory,'read_header',lambda *a:{'categoryConfirmed':True,'sortConfirmed':True,'quantity':{'value':252}})
+    def read(*args,**kwargs):
+        return {'layoutVerified':True,'fields':{
+            'name':{'state':'recognized','value':'Same literal name'},
+            'level':{'state':'recognized','value':{'current':levels[state['position']],'max':80}},
+            'superimposition':{'state':'recognized','value':1}}}
+    monkeypatch.setattr(inventory,'read_panel',read)
+    run_inventory(grab,advance,guard,object(),tmp_path,report,settle=settle)
+    assert report['scopeComplete'] and report['reason']=='level-cutoff-reached'
+    assert len(report['observations'])==41 and advance.requests==40
+    assert keyboard.release.call_count==40 and not advance.held
+    assert report['inventorySummary']['eligiblePositions']==40
+    assert report['levelBoundary']=={'position':40,'level':1,'source':'selected-panel-OCR'}
+    assert report['notReadByLevelOrder']==211 and not report['captureComplete']
+    report['phase']='finished'
+    save_session(tmp_path,report)
+    summary=(tmp_path/'summary.md').read_text(encoding='utf-8')
+    assert 'posicao 41, nivel 1 (fora do escopo)' in summary
+    assert '| 40 | Same literal name | 20/80 | 1 |' in summary
+    assert '| 41 | Same literal name |' not in summary
+
+
+@pytest.mark.parametrize('current',[[92,322,91,108],[185,206,91,108],[742,90,91,108]])
+def test_row_wrap_rejects_skipped_row_wrong_column_or_no_delivery(current):
+    assert not next_selection([742,90,91,108],current,(1280,720))
 
 
 @pytest.mark.parametrize('box',[[188,90,91,108],[91,209,91,108]])

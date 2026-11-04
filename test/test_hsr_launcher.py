@@ -4,12 +4,27 @@ import base64
 import os
 import shutil
 import subprocess
+import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
 
 from test_desktop_launcher import ROOT, MESSAGE_LOOP, run_driver
 from test_zzz_launcher import installation
+
+
+@pytest.mark.parametrize('with_image',[False,True])
+def test_packaged_self_check_dispatch_stays_offline(monkeypatch,with_image):
+    spec=importlib.util.spec_from_file_location('hsr_worker_check',ROOT/'packaging/zzz_worker.py')
+    worker=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(worker)
+    calls=[]
+    monkeypatch.setattr(worker,'self_check',lambda cache,image:calls.append((cache,image)) or 0)
+    arguments=['worker.exe','--self-check','cache path']+(['image path.png'] if with_image else [])
+    monkeypatch.setattr(sys,'argv',arguments)
+    assert worker.main()==0
+    assert calls==[(Path('cache path'),Path('image path.png') if with_image else None)]
 
 
 def test_hsr_game_routes_to_its_own_child_and_cannot_accept_a_zzz_manifest(tmp_path):
@@ -33,7 +48,7 @@ Set-Content -LiteralPath (Join-Path $RunDirectory 'exit-code.txt') -Value 0 -Enc
     result = run_driver(tmp_path,body,installation_root=root)
     invocation=json.loads((root/'hsr-call.json').read_text(encoding='utf-8-sig'))
     assert invocation['Prepared'] and invocation['RunDirectory']==result['Run']
-    assert invocation['MaxPositions']==3
+    assert invocation['MaxPositions']==2000
     assert Path(result['Run']).parent==root/'.cache/hsr/runs'
     assert result['Result']=='error', 'Wrong game manifest is not a usable result'
 

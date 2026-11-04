@@ -32,7 +32,12 @@ def save_session(output, report):
              'Coleta do escopo concluida; dados precisam de revisao.' if report.get('scopeComplete') else 'Coleta parcial/inconclusiva; confira o motivo e as pendencias.',
              f"Motivo: {report.get('reason') or 'desconhecido'}.", '',
              f"Observados: {len(report['observations'])}; elegiveis: {report['inventorySummary']['eligiblePositions']}; niveis pendentes: {report['inventorySummary']['pendingLevel']}.",
-             '', '| Posicao | Nome | Nivel | Sobreposicao |', '|---|---|---|---|']
+             '']
+    if report.get('levelBoundary'):
+        boundary = report['levelBoundary']
+        lines += [f"Primeiro nivel abaixo de 20: posicao {boundary['position']+1}, nivel {boundary['level']} (fora do escopo).",
+                  'Esse Cone foi selecionado para conferir o nivel e nao entra na tabela de elegiveis.', '']
+    lines += ['| Posicao | Nome | Nivel | Sobreposicao |', '|---|---|---|---|']
     rows = []
     for key in ('beforeFrame','unconfirmedFrame','unconfirmedAdvance'):
         if key in report:

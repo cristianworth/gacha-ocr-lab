@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-def self_check(cache):
+def self_check(cache, hsr_image=None):
     cache = cache.resolve(strict=True)
     os.environ['TESSDATA_PREFIX'] = str(cache / 'tesseract/tessdata')
     os.environ['PATH'] = str(cache / 'tesseract') + os.pathsep + os.environ.get('PATH', '')
@@ -34,6 +34,9 @@ def self_check(cache):
     from zzz_ocr import NativeTesseract
     with NativeTesseract(cache) as native:
         native.read_line(Image.new('RGB', (120, 40), 'black'), 'white_text_on_dark')
+        if hsr_image is not None:
+            with Image.open(hsr_image) as image:
+                hsr_reading = hsr_reader.read_panel(image.convert('RGB'), native)
     # Tesseract must come from this package even if another copy is installed.
     version = subprocess.run([str(cache / 'tesseract/tesseract.exe'), '--version'],
                              capture_output=True, text=True, check=True).stdout.splitlines()[0]
@@ -41,13 +44,15 @@ def self_check(cache):
               'sourceFilesChecked': checked, 'tesseract': version,
               'nativeOCRChecked': True, 'backgroundWriterAvailable': True,
               'capturePerformed': False, 'inputPerformed': False}
+    if hsr_image is not None:
+        result['hsrImageReading'] = hsr_reading
     print(json.dumps(result))
     return 0
 
 
 def main():
-    if len(sys.argv) == 3 and sys.argv[1] == '--self-check':
-        return self_check(Path(sys.argv[2]))
+    if len(sys.argv) in (3,4) and sys.argv[1] == '--self-check':
+        return self_check(Path(sys.argv[2]), Path(sys.argv[3]) if len(sys.argv) == 4 else None)
     if len(sys.argv) > 1 and sys.argv[1] == '--hsr':
         sys.argv.pop(1)
         from hsr_scan import main as hsr
