@@ -31,6 +31,9 @@ def crop_relative(image, box):
 def parse_field(field, raw, *, legacy=False):
     text = ' '.join(raw.split()).strip()
     if field == 'name':
+        # Typographic apostrophes preserve the literal name; missing punctuation
+        # or letter differences still require agreement and are never repaired.
+        text = text.translate({0x2018: "'", 0x2019: "'"})
         return text if (2 <= len(text) <= 120 and re.search('[A-Za-z]', text)
                         and re.fullmatch(r"[A-Za-z0-9 '\".,!?:\-]+", text)) else None
     if field == 'path':
@@ -70,7 +73,7 @@ def read_panel(frame, recognizer, *, legacy_panel=None, evidence=None):
         raw = []
         # The fixed white sentence verifies the panel without reading the gold
         # Path name. Higher thresholds suppress the translucent moving background.
-        thresholds = (170, 180) if field == 'path' and not legacy_panel else (130, 140)
+        thresholds = ((170, 180) if field == 'path' else (140, 150) if field == 'level' else (130, 140)) if not legacy_panel else (130, 140)
         for threshold in thresholds:
             prepared = prepared_text(image, threshold, neutral_only=field == 'path' and not legacy_panel)
             method = recognizer.read_text if field in ('name', 'path') else recognizer.read_line
@@ -83,7 +86,18 @@ def read_panel(frame, recognizer, *, legacy_panel=None, evidence=None):
         agreed = values[0] is not None and values[0] == values[1]
         reads[field] = {'state': 'recognized' if agreed else 'uncertain', 'value': values[0] if agreed else None,
                         'raw': raw, 'candidates': [value for value in values if value is not None],
-                        'method': 'agreement-of-two-fixed-thresholds', 'humanApproved': False}
+                        'thresholds': list(thresholds), 'method': 'agreement-of-two-fixed-thresholds', 'humanApproved': False}
+        if field == 'name' and not legacy_panel and not agreed and any(text.rstrip().endswith('|') for text in raw):
+            # The title underline occupies the bottom six pixels of this profile.
+            # Two fresh reads must agree with a literal primary read; keep all raw.
+            title = image.crop((0,0,image.width,image.height-6))
+            supplemental = [recognizer.read_text(prepared_text(title,threshold),'raw') for threshold in thresholds]
+            extra_values = [parse_field('name',text) for text in supplemental]
+            reads[field]['supplementalReads'] = {'raw': supplemental, 'method': 'title-underline-cropped',
+                                                  'bottomPixelsRemoved': 6}
+            if extra_values[0] is not None and extra_values[0] == extra_values[1] and extra_values[0] in values:
+                reads[field].update(state='recognized',value=extra_values[0],
+                                    method='two-title-crop-reads-agree-with-literal-primary-read')
     verified = reads['path']['state'] == 'recognized'
     if not verified:
         for field in ('name', 'level', 'superimposition'):

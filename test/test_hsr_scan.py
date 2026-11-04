@@ -9,7 +9,7 @@ import pytest
 from PIL import Image, ImageDraw
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
-from hsr_reader import downward_viewport_shift, next_selection, parse_field, prepared_text, selected_card
+from hsr_reader import downward_viewport_shift, next_selection, parse_field, prepared_text, read_panel, selected_card
 from hsr_inventory import run_inventory, save_session, settled_frame
 from scan_runtime import GuardedAdvance, InputGuard, ProbeStopped, check_external_stop
 
@@ -23,6 +23,33 @@ def test_literal_levels_never_supply_a_default(raw,expected):
 @pytest.mark.parametrize('raw,expected', [('1',1),('5',5),('S',None),('I',None),('',None),('6',None)])
 def test_superimposition_has_no_guessed_one(raw,expected):
     assert parse_field('superimposition',raw)==expected
+
+
+def test_name_normalization_preserves_missing_or_extra_punctuation_as_a_difference():
+    assert parse_field('name',"Landau\u2019s Choice")=="Landau's Choice"
+    assert parse_field('name',"Landau s Choice")!="Landau's Choice"
+    assert parse_field('name',"Landau''s Choice")!="Landau's Choice"
+
+
+@pytest.mark.parametrize('supplemental,recognized',[
+    (['Meshing Cogs','Meshing Cogs'],True),
+    (['Meshing Cogs','Meshing Cogs |'],False),
+    (['Another literal name','Another literal name'],False),
+])
+def test_title_underline_retry_preserves_raw_and_requires_literal_agreement(supplemental,recognized):
+    anchor='The following effects only work on characters of the Path of'
+    reader=Mock()
+    reader.read_text.side_effect=['Meshing Cogs','Meshing Cogs |',*supplemental,anchor,anchor]
+    reader.read_line.side_effect=['80/80','80/80']
+    reader.read_word.side_effect=['5','5']
+    reading=read_panel(Image.new('RGB',(1280,720),'black'),reader)
+    field=reading['fields']['name']
+    assert reading['layoutVerified']
+    assert field['raw']==['Meshing Cogs','Meshing Cogs |']
+    assert field['supplementalReads']['raw']==supplemental
+    assert field['state']==('recognized' if recognized else 'uncertain')
+    assert field['value']==('Meshing Cogs' if recognized else None)
+    assert not field['humanApproved']
 
 
 def test_panel_anchor_requires_the_complete_fixed_sentence():
