@@ -1,6 +1,7 @@
 # Dependências e origem do pacote local
 
 - Youkai: AJTDaedalus/youkai, revisão `86a8b34511c86ec864d8f40c558789f7ccad4cc9`, MIT. Fonte e arquivo original em `.cache/youkai-p1/`. https://github.com/AJTDaedalus/youkai
+- HSR-Scanner: kel-z/HSR-Scanner, revisão `cad008e2509b6b086fd892b140c8b277424fcb03`, GPL-3.0. Referência de regiões 16:9, ordenação por Lv e avanço por D; sem importar seu aplicativo, parsers/defaults ou catálogo. Licença em `HSR-Scanner-LICENSE`; procedência em `hsr_reader.py`/`docs/hsr-scan.md`. https://github.com/kel-z/HSR-Scanner
 - Python: runtime 3.12 do ambiente qualificado, licença e avisos em `Python-LICENSE.txt`. https://www.python.org/
 - Tesseract: distribuição UB Mannheim 5.4.0.20240606, OCR inglês. Executável/DLLs e documentação original preservados em `.cache/youkai-p1/tesseract/`. Origem: https://github.com/UB-Mannheim/tesseract/releases/tag/v5.4.0.20240606 ; projeto: https://github.com/tesseract-ocr/tesseract
 - Pacotes Python: versões e ferramentas de build registradas em `portable-build.json`; arquivos de licença disponíveis nas distribuições são copiados para subpastas deste diretório, incluindo avisos de NumPy, OpenCV, Pillow e demais dependências.

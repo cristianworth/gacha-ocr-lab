@@ -1,6 +1,6 @@
 # ROADMAP — coleta útil para o Advisor
 
-Atualizado em **02/11/2026**. Este é o plano único do projeto. [README](../README.md) orienta a entrada, [guia ZZZ](zzz-scan.md) descreve o uso e [AGENTS.md](../AGENTS.md) reúne regras duráveis. A cronologia e os hashes ficam em [evidências ZZZ](zzz-evidence.md).
+Atualizado em **04/11/2026**. Este é o plano único do projeto. [README](../README.md) orienta a entrada, [guia ZZZ](zzz-scan.md) descreve o uso e [AGENTS.md](../AGENTS.md) reúne regras duráveis. A cronologia e os hashes ficam em [evidências ZZZ](zzz-evidence.md).
 
 ## Objetivo e escopo
 
@@ -25,7 +25,7 @@ A direção multijogo permanece **ZZZ → HSR → Genshin → WuWa → NTE**. O 
 | Distribuição portátil (P3.4) | Pasta/ZIP, 25 testes, relocação e coleta real em `D:\Repo\gacha-ocr-zzz`: 34 elegíveis; 614 hashes íntegros | Concluída para uso local; outro computador e publicação pública fora da validação atual |
 | Desempenho ZZZ (P3.5) | Combinação conferida no jogo: 34 itens preservados, 405 imagens/618 arquivos íntegros; tempo ativo 43,78 → 34,04 s (22,2% menor) | Encerrado no ambiente local; entrega de desempenho versionada. Próxima implementação: interface |
 | Interface simples (P3.6) | Protótipo aprovado pelo main; 116 testes focados; 34 elegíveis preservados em coleta pela janela; UAC/término/resultado confirmados por Cristian | Concluída no fluxo local; ZZZ habilitado, HSR “em breve”. Parada/X simulados, não acionados nessa coleta |
-| HSR (P4) | Nível 20+ definido por Cristian; filtro 4/5 estrelas opcional | Consultar configurações/código relevante antes de adaptar o piloto |
+| HSR (P4) | Executor por D, leitor literal e rota no app implementados; piloto 04/11 confirmou três seleções/dois D em 1280×720; ajustes de OCR conferidos por replay dessas imagens | Em validação. Faltam percurso ampliado/corte 20+ no jogo e portátil; fundo físico/raridade/trava ainda fora do primeiro perfil. [Guia](hsr-scan.md), [evidências](hsr-evidence.md) |
 | Outros jogos (P5–P7) | Referências pesquisadas; núcleo multijogo não extraído | Genshin, WuWa e NTE depois dos dois primeiros fluxos e da interface mínima |
 
 Os números acima são do ambiente conferido, não uma estimativa geral de precisão. O usuário prepara Level decrescente; o seletor não é verificado automaticamente. O JSON bruto mantém três nomes `uncertain`; a revisão humana os resolve somente para aquela sessão. `inventoryAccepted` não foi promovido globalmente.
@@ -74,4 +74,4 @@ Uma entrega avança quando reduz trabalho manual, produz saída utilizável com 
 
 Usar arquivos/replays primeiro e uma intervenção real somente para uma dúvida concreta. Falha deve ser analisada pelos artefatos antes de pedir repetição. Não exigir duas novas coletas até o fundo, revisão manual integral ou uma suíte inteira por rotina. A revisão técnica com o main, quando combinada, segue por Cristian; identificar o chat não autoriza mensagens diretas.
 
-**Próximo passo recomendado:** revisar a entrega P3.6 concluída no fluxo local. Não há nova coleta de desempenho/interface pendente por rotina. Depois, mediante novo recorte: HSR 20+ e extração das responsabilidades comprovadamente compartilhadas. Não repetir pilotos, guardas ou percurso completo encerrados. Não criar handoff sem pedido.
+**Etapa atual — P4 HSR:** Cristian autorizou iniciar em 03/11. Primeiro percurso já implementado em desenvolvimento: Cones de Luz 20+, preparo manual, Lv decrescente e avanço por D, com nome/nível/sobreposição e parcial revisável. Validar o perfil real pela entrada atual da raiz e analisar arquivos antes de repetir. ZZZ/P3.6 permanecem concluídos no fluxo local; nome Demara incerto não foi convertido em regra automática de OCR. Não há coleta ZZZ/desempenho pendente por rotina. Não criar handoff sem pedido.

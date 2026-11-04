@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SHA = '86a8b34511c86ec864d8f40c558789f7ccad4cc9'
 ARCHIVE_SHA256 = '399fd104152b1b7867af103c09580f62d4314d4c77f45cfa995461f26992b50f'
 READER_FILES = ('youkai_selection.py', 'youkai_capture.py', 'youkai-offline.py',
-                'zzz_pilot.py', 'zzz_transition.py', 'zzz_scan.py', 'zzz_inventory.py', 'zzz_ocr.py', 'zzz_evidence.py')
+                'zzz_pilot.py', 'zzz_transition.py', 'zzz_scan.py', 'zzz_inventory.py', 'zzz_ocr.py', 'zzz_evidence.py',
+                'scan_runtime.py', 'hsr_scan.py', 'hsr_inventory.py', 'hsr_reader.py')
 
 
 def digest(path):
@@ -84,7 +85,7 @@ def main():
         subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
     (output / 'scripts').mkdir()
     for name in (*READER_FILES, 'start-zzz.ps1', 'scan-zzz.ps1', 'probe-youkai.ps1',
-                 'start-desktop.ps1', 'run-desktop-zzz.ps1'):
+                 'start-desktop.ps1', 'run-desktop-zzz.ps1', 'scan-hsr.ps1'):
         shutil.copy2(ROOT / 'scripts' / name, output / 'scripts' / name)
     shutil.copy2(ROOT / 'scan-zzz.cmd', output / 'scan-zzz.cmd')
     shutil.copy2(ROOT / 'scan-desktop.cmd', output / 'scan-desktop.cmd')
@@ -109,6 +110,10 @@ def main():
     versions = copy_licenses(output / 'THIRD-PARTY')
     shutil.copy2(source / 'LICENSE', output / 'THIRD-PARTY/Youkai-LICENSE')
     shutil.copy2(ROOT / 'packaging/THIRD-PARTY.md', output / 'THIRD-PARTY/README.md')
+    hsr_license = ROOT / '.cache/hsr-reference/cad008e2509b6b086fd892b140c8b277424fcb03/LICENSE'
+    if digest(hsr_license) != '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986':
+        raise ValueError('HSR reference license differs; preserve the cache for inspection.')
+    shutil.copy2(hsr_license, output / 'THIRD-PARTY/HSR-Scanner-LICENSE')
     metadata = {
         'schemaVersion': 1, 'version': json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))['version'],
         'builtAt': datetime.now(timezone.utc).isoformat(), 'sourceSha': SHA,

@@ -78,7 +78,8 @@ function Read-ZzzPreparation {
 }
 
 function Get-ZzzResult {
-    param([Parameter(Mandatory)][string]$RunDirectory, [switch]$Failed)
+    param([Parameter(Mandatory)][string]$RunDirectory, [switch]$Failed,
+          [ValidateSet('zzz-inventory','hsr-inventory')][string]$ExpectedMode = 'zzz-inventory')
     $report = $null
     $manifest = Join-Path $RunDirectory 'session.json'
     if (Test-Path -LiteralPath $manifest -PathType Leaf) {
@@ -89,7 +90,7 @@ function Get-ZzzResult {
             Write-Host 'Nao foi possivel ler o manifesto; os arquivos da tentativa foram preservados.'
         }
     }
-    $complete = !$Failed -and $null -ne $report -and $report.mode -eq 'zzz-inventory' -and
+    $complete = !$Failed -and $null -ne $report -and $report.mode -eq $ExpectedMode -and
         $report.scopeComplete -eq $true -and $report.coverageConfirmed -eq $true -and
         $report.status -in @('scope-captured', 'inventory-captured')
     $message = if ($complete) { 'Coleta dos elegiveis concluida. Os dados ainda precisam de revisao.' }

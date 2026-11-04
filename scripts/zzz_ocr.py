@@ -71,6 +71,9 @@ class NativeTesseract:
     def read_line(self, image, profile):
         return self._read(image, profile, 7)
 
+    def read_word(self, image, profile):
+        return self._read(image, profile, 8)
+
     def close(self):
         if self._handle:
             handle, self._handle = self._handle, None

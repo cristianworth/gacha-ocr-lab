@@ -21,6 +21,9 @@ def self_check(cache):
     import youkai_selection
     import zzz_inventory
     import zzz_evidence
+    import hsr_scan
+    import hsr_inventory
+    import hsr_reader
 
     offline_path = Path(youkai_selection.__file__).with_name('youkai-offline.py')
     spec = importlib.util.spec_from_file_location('youkai_offline', offline_path)
@@ -45,6 +48,10 @@ def self_check(cache):
 def main():
     if len(sys.argv) == 3 and sys.argv[1] == '--self-check':
         return self_check(Path(sys.argv[2]))
+    if len(sys.argv) > 1 and sys.argv[1] == '--hsr':
+        sys.argv.pop(1)
+        from hsr_scan import main as hsr
+        return hsr()
     from youkai_selection import main as scan
     return scan()
 

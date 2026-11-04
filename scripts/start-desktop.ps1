@@ -64,9 +64,9 @@ function Reset-DesktopControls {
     param($Context)
     $idle = $null -eq $Context.Active -and !$Context.Closing
     $Context.StartButton.Enabled = $idle -and ($Context.Simulation -or
-        ($Context.Game.SelectedIndex -eq 0 -and $Context.Prepared.Checked))
+        ($Context.Game.SelectedIndex -in @(0,1) -and $Context.Prepared.Checked))
     $Context.Game.Enabled = $idle
-    $Context.Prepared.Enabled = $idle -and $Context.Game.SelectedIndex -eq 0
+    $Context.Prepared.Enabled = $idle
     $hasResult = $idle -and $null -ne $Context.LastResult -and $null -ne $Context.LastRun -and
         (Test-Path -LiteralPath $Context.LastRun -PathType Container)
     $Context.ResultButton.Enabled = $hasResult
@@ -76,14 +76,21 @@ function Reset-DesktopControls {
 function Start-DesktopRun {
     param([Parameter(Mandatory)]$Context)
     if ($null -ne $Context.Active -or $Context.Closing) { return }
-    if (!$Context.Simulation -and (!$Context.Prepared.Checked -or $Context.Game.SelectedIndex -ne 0)) { return }
-    $run = Join-Path $Context.RunsRoot ((Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8) + '-selection')
+    if (!$Context.Simulation -and (!$Context.Prepared.Checked -or $Context.Game.SelectedIndex -notin @(0,1))) { return }
+    $selectedGame = if (!$Context.Simulation -and $Context.Game.SelectedIndex -eq 1) { 'hsr' } else { 'zzz' }
+    $runs = if ($selectedGame -eq 'hsr') { Join-Path $Context.Root '.cache\hsr\runs' } else { $Context.RunsRoot }
+    $run = Join-Path $runs ((Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8) + '-selection')
     $Context.LastRun = $run
     $Context.LastResult = $null
     $Context.Log.Clear()
     $Context.PathLabel.Text = "Arquivos desta execucao: $run"
     $process = $null
     try {
+        if ($selectedGame -eq 'hsr') {
+            foreach ($file in @('scan-hsr.ps1','hsr_scan.py','hsr_inventory.py','hsr_reader.py','scan_runtime.py')) {
+                if (!(Test-Path -LiteralPath (Join-Path $Context.Root "scripts\$file") -PathType Leaf)) { throw "Ambiente HSR incompleto: $file" }
+            }
+        }
         if ($Context.Simulation) { New-Item -ItemType Directory -Path $run -ErrorAction Stop | Out-Null }
         $info = [Diagnostics.ProcessStartInfo]::new()
         $info.FileName = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -91,8 +98,9 @@ function Start-DesktopRun {
             $info.Arguments = '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}" -RunDirectory "{1}" -Outcome {2} -StepMilliseconds {3}' -f `
                 $script:DesktopSimulationWorker, $run, $Context.Outcome, $Context.StepMilliseconds
         } else {
-            $info.Arguments = '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}" -RunDirectory "{1}"' -f `
-                (Join-Path $Context.Root 'scripts\run-desktop-zzz.ps1'), $run
+            $info.Arguments = '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}" -RunDirectory "{1}" -Game {2}' -f `
+                (Join-Path $Context.Root 'scripts\run-desktop-zzz.ps1'), $run, $selectedGame
+            if ($selectedGame -eq 'hsr') { $info.Arguments += ' -MaxPositions 3' }
         }
         $info.WorkingDirectory = $Context.Root
         $info.UseShellExecute = $false
@@ -104,13 +112,13 @@ function Start-DesktopRun {
         if (!$process.Start()) { throw 'O processo nao iniciou.' }
         $Context.Active = [pscustomobject]@{
             Process = $process; Directory = $run; Reader = New-DesktopLogReader (Join-Path $run 'console.log')
-            StopRequested = $false; StopDelivered = $false; Result = $null; MonitorError = $null
+            StopRequested = $false; StopDelivered = $false; Result = $null; MonitorError = $null; Game = $selectedGame
         }
         $Context.StartCount++
         Reset-DesktopControls $Context
         $Context.StopButton.Enabled = $true
         $Context.Status.Text = if ($Context.Simulation) { 'Iniciando filho simulado...' }
-                               else { 'Iniciando ZZZ. Volte ao jogo e use F8 quando solicitado abaixo.' }
+                               else { "Iniciando $($selectedGame.ToUpper()). Volte ao jogo e use F8 quando solicitado abaixo." }
     } catch {
         if ($null -ne $process) { $process.Dispose() }
         $Context.Status.Text = "Falha ao iniciar: $($_.Exception.Message)"
@@ -188,8 +196,12 @@ function Update-DesktopRun {
         } else {
             # This is the first manifest read, after the entire child process has exited.
             $failed = $code -ne 0 -or $receiptCode -ne '0' -or $null -ne $active.MonitorError
-            $saved = Get-ZzzResult -RunDirectory $active.Directory -Failed:$failed
-            $result = if ($null -eq $saved.Report) { 'error' } elseif ($saved.Complete) { 'complete' } else { 'partial' }
+            if ($active.Game -eq 'hsr') {
+                $saved = Get-ZzzResult -RunDirectory $active.Directory -Failed:$failed -ExpectedMode 'hsr-inventory'
+            } else { $saved = Get-ZzzResult -RunDirectory $active.Directory -Failed:$failed }
+            $expectedMode = $active.Game + '-inventory'
+            $result = if ($null -eq $saved.Report -or $saved.Report.mode -ne $expectedMode) { 'error' }
+                      elseif ($saved.Complete) { 'complete' } else { 'partial' }
             $Context.Status.Text = if ($result -eq 'error') { 'Falha sem resultado legivel. Confira o log e a pasta da tentativa.' }
                                    else { $saved.Message }
             if ($null -ne $saved.Report) {
@@ -219,7 +231,7 @@ function New-DesktopForm {
     $rootPath = (Resolve-Path -LiteralPath $Root -ErrorAction Stop).Path
     if (!$Simulation -and $null -eq $Installation) { $Installation = Get-ZzzInstallation -Root $rootPath -Desktop }
     $form = [Windows.Forms.Form]::new()
-    $form.Text = if ($Simulation) { 'Gacha OCR Lab - Simulacao P3.6' } else { 'Gacha OCR Lab - ZZZ' }
+    $form.Text = if ($Simulation) { 'Gacha OCR Lab - Simulacao P3.6' } else { 'Gacha OCR Lab' }
     $form.ClientSize = [Drawing.Size]::new(780, 620)
     $form.MinimumSize = $form.Size
     $form.StartPosition = 'CenterScreen'
@@ -227,7 +239,7 @@ function New-DesktopForm {
     $game = [Windows.Forms.ComboBox]::new()
     $game.DropDownStyle = 'DropDownList'
     $game.SetBounds(16, 16, 300, 30)
-    $game.Items.AddRange(@('ZZZ - W-Engines S/A 20+', 'HSR - em breve'))
+    $game.Items.AddRange(@('ZZZ - W-Engines S/A 20+', 'HSR - Piloto 3 Cones (validacao)'))
     $game.SelectedIndex = 0
     $notice = [Windows.Forms.Label]::new()
     $notice.Text = if ($Simulation) { 'Processo simulado. Nenhum jogo ou input real. F8 simulado avanca sozinho.' }
@@ -276,7 +288,8 @@ function New-DesktopForm {
     $context = [pscustomobject]@{
         Form = $form; Status = $status; StartButton = $start; StopButton = $stop
         ResponseButton = $response; PathLabel = $pathLabel; Log = $log; Timer = $timer
-        Game = $game; Prepared = $prepared; ResultButton = $resultButton; FolderButton = $folderButton
+        Game = $game; Prepared = $prepared; Notice = $notice; ZzzNotice = $notice.Text
+        ResultButton = $resultButton; FolderButton = $folderButton
         Root = $rootPath; Simulation = [bool]$Simulation; Installation = $Installation
         RunsRoot = if ($Simulation) { Join-Path $rootPath '.cache\desktop-simulation\runs' } else { $Installation.RunsRoot }
         Outcome = $Outcome; StepMilliseconds = $StepMilliseconds; Active = $null; Closing = $false
@@ -288,10 +301,14 @@ function New-DesktopForm {
     $stop.Add_Click({ Request-DesktopStop $context }.GetNewClosure())
     $prepared.Add_CheckedChanged({ Reset-DesktopControls $context }.GetNewClosure())
     $game.Add_SelectedIndexChanged({
-        if ($context.Game.SelectedIndex -ne 0) {
-            $context.Prepared.Checked = $false
-            $context.Status.Text = 'HSR: em breve. Coleta ainda indisponivel.'
-        } else { $context.Status.Text = 'Confirme a preparacao para iniciar ZZZ.' }
+        $context.Prepared.Checked = $false
+        if ($context.Game.SelectedIndex -eq 1) {
+            $context.Notice.Text = "HSR em ingles, cliente 1280x720, escala Windows 100%. Fundo escuro no painel.`r`nInventory > Light Cone: Lv decrescente, lista no topo e primeiro Cone selecionado.`r`nFiltro 4/5 estrelas opcional. Corte fixo 20+. Solte mouse e teclado.`r`nO scanner avanca por D. F8 interrompe; mantenha HSR na frente. Perfil em validacao."
+            $context.Status.Text = 'Primeiro teste HSR: ate 3 Cones, no maximo dois avancos por D. Confirme a preparacao.'
+        } else {
+            $context.Notice.Text = $context.ZzzNotice
+            $context.Status.Text = 'Confirme a preparacao para iniciar ZZZ.'
+        }
         Reset-DesktopControls $context
     }.GetNewClosure())
     $resultButton.Add_Click({

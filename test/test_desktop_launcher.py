@@ -264,7 +264,7 @@ function Get-ZzzResult {
     assert not result['Stop']
 
 
-def test_preparation_and_hsr_cannot_start_and_results_open_only_the_exact_run(tmp_path):
+def test_game_change_requires_new_preparation_and_result_opens_only_exact_run(tmp_path):
     from test_zzz_launcher import installation
     root = installation(tmp_path)
     result = run_driver(tmp_path, r'''
