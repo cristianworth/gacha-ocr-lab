@@ -1,12 +1,12 @@
 # ZZZ — pacote portátil local
 
-O pacote em pasta inclui a janela por `gacha-ocr-zzz.exe`/`scan-desktop.cmd`, conserva `scan-zzz.cmd` como fallback e usa o mesmo `runtime/zzz-worker/zzz-worker.exe` com runtime Python incluído. A integração gráfica foi conferida na coleta local de 02/11. Não precisa instalar Python, Node ou Tesseract para executar. Requer Windows x64 e os componentes do Windows usados pelo lançador: PowerShell 5.1, aviso de Administrador e Bloco de Notas.
+Novas montagens usam `gacha-ocr.exe`/`scan-desktop.cmd`; pacotes anteriores preservam `gacha-ocr-zzz.exe`. O pacote conserva `scan-zzz.cmd` como fallback e usa `runtime/zzz-worker/zzz-worker.exe` com Python incluído. Para ZZZ/HSR não precisa instalar Python, Node ou Tesseract. Genshin requer o repositório e o ambiente Node; não está incluído no portátil atual. Requer Windows x64, PowerShell 5.1, aviso de Administrador e Bloco de Notas.
 
 Montagem de 04/11 inclui também **HSR em validação**, com guia e candidato atual em [HSR](hsr-scan.md). O novo pacote passou por relocação, hashes e leitura de três imagens no worker congelado; coleta HSR pelo portátil ainda pendente. Pacotes ZZZ anteriores permanecem preservados. Ao testar uma atualização, feche a janela anterior e abra o `.exe` da pasta exata indicada; alterar os fontes do repositório não atualiza um pacote extraído.
 
 ## Usar
 
-Extraia o ZIP inteiro em uma pasta com permissão de escrita. Abra `gacha-ocr-zzz.exe` nessa pasta e siga o [guia de coleta](zzz-scan.md). O `.exe` é uma chamada pequena do CMD adjacente, sem outro scanner. Para conferir só a abertura, aceite o aviso do Windows e feche a janela sem confirmar/iniciar; não é necessário coletar. Os botões de resultado ficam vinculados à pasta da própria execução.
+Extraia o ZIP inteiro em uma pasta com permissão de escrita. Abra o executável contido nessa pasta (`gacha-ocr.exe` nas novas montagens ou `gacha-ocr-zzz.exe` nas anteriores) e siga o [guia de coleta](zzz-scan.md). O `.exe` é uma chamada pequena do CMD adjacente, sem outro scanner. Para conferir só a abertura, aceite o aviso do Windows e feche a janela sem confirmar/iniciar; não é necessário coletar. Os botões de resultado ficam vinculados à pasta da própria execução.
 
 Cada pacote possui seu próprio `.cache/youkai-p1/runs/`. Antes de substituir um pacote, preserve seus resultados. Não mova apenas o executável e não misture partes de versões diferentes. Se `portable-build.json` estiver presente e o executável faltar, o lançador recusa a execução; não tenta usar o Python do computador como alternativa.
 

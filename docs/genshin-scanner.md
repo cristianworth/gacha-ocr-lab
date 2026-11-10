@@ -1,12 +1,12 @@
 # Scanner Genshin — M3 experimental legado
 
-Este guia preserva o scanner JavaScript anterior e suas evidências; ele não é a entrada de coleta atual. Para ZZZ, use o [guia Python](zzz-scan.md). Expansão e próximos passos ficam somente no [ROADMAP](ROADMAP.md). O aceite experimental Genshin abaixo permanece separado dos resultados ZZZ.
+Este guia preserva o scanner JavaScript anterior e suas evidências; ele não é a entrada de coleta atual. Para o piloto Genshin em 1280×720, use o [guia atual](genshin-pilot.md). Para ZZZ, use o [guia Python](zzz-scan.md). Expansão e próximos passos ficam somente no [ROADMAP](ROADMAP.md). O aceite experimental Genshin abaixo permanece separado dos resultados ZZZ.
 
 A implementação está disponível para teste; **o aceite M3.9 está pendente**. A captura cliente real feita por Cristian em 18/10 foi conferida, incluindo grade, painel e OCR da Aqua salva. Piloto com seleção, rolagem, paradas e varreduras completas ainda aguardam validação no jogo; simulações e OCR de imagens salvas não substituem esse aceite.
 
 ## Preparação
 
-- Windows com Node.js 22+, PowerShell do Windows e dependências do projeto instaladas. O helper C# compila em memória; o lançador opcional gacha-ocr-lab.exe apenas abre um menu para os scripts. Não há serviço, API ou dependência npm nova.
+- Windows com Node.js 22+, PowerShell do Windows e dependências do projeto instaladas. O helper C# compila em memória. O antigo lançador de console foi retirado; os comandos abaixo registram o fluxo legado. Não há serviço, API ou dependência npm nova.
 - Genshin em inglês, controle por mouse/teclado, **área cliente exatamente 1440×900**, preferencialmente em janela para o primeiro teste. Bordas não contam nessa medida. Não redimensionar um PNG para contornar erro de dimensão.
 - Inventário aberto na aba **Weapons**, ordenação **Quality decrescente**, início da lista e sem filtros que escondam armas 4★/5★. Não alterar o inventário durante a sessão.
 - Para scans com cliques/rolagem, o terminal deve ter integridade compatível com o jogo. Se o Genshin estiver elevado, abra Git Bash ou PowerShell como Administrador, ou execute ambos no mesmo nível. O preflight consulta esses níveis antes da ativação e salva config.inputAccess; captura isolada não exige esse acesso de input. A CLI não se eleva automaticamente; o lançador opcional exige Administrador ao abrir, por manifesto do Windows.
@@ -15,7 +15,7 @@ A implementação está disponível para teste; **o aceite M3.9 está pendente**
 
 ## Testar em ordem
 
-Alternativa aos comandos: abra gacha-ocr-lab.exe na raiz do projeto e aceite o UAC. Escolha 1 para captura, depois 2 para piloto e, somente após conferir, 3 para coleta completa. O menu preserva as mensagens e retorna após cada execução. Feche com 0; durante a coleta, use F8 ou Ctrl+C para permitir o salvamento parcial. Não feche a janela à força.
+O antigo menu de console foi removido; as instruções desta seção descrevem os comandos do experimento legado, não o piloto atual. Durante a coleta, use F8 ou Ctrl+C para permitir o salvamento parcial. Não feche a janela à força.
 
 Execute a partir de `D:\Repo\gacha-ocr-lab`. O atraso de cinco segundos permite preparar a janela; depois o programa tenta ativar apenas o processo Genshin anexado.
 

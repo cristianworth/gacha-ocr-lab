@@ -81,7 +81,7 @@ function Reset-DesktopControls {
     param($Context)
     $idle = $null -eq $Context.Active -and !$Context.Closing
     $Context.StartButton.Enabled = $idle -and ($Context.Simulation -or
-        ($Context.Game.SelectedIndex -in @(0,1) -and $Context.Prepared.Checked))
+        ($Context.Game.SelectedIndex -in @(0,1,2) -and $Context.Prepared.Checked))
     $Context.Game.Enabled = $idle
     $Context.Prepared.Enabled = $idle
     $hasResult = $idle -and $null -ne $Context.LastResult -and $null -ne $Context.LastRun -and
@@ -93,9 +93,9 @@ function Reset-DesktopControls {
 function Start-DesktopRun {
     param([Parameter(Mandatory)]$Context)
     if ($null -ne $Context.Active -or $Context.Closing) { return }
-    if (!$Context.Simulation -and (!$Context.Prepared.Checked -or $Context.Game.SelectedIndex -notin @(0,1))) { return }
-    $selectedGame = if (!$Context.Simulation -and $Context.Game.SelectedIndex -eq 1) { 'hsr' } else { 'zzz' }
-    $runs = if ($selectedGame -eq 'hsr') { Join-Path $Context.Root '.cache\hsr\runs' } else { $Context.RunsRoot }
+    if (!$Context.Simulation -and (!$Context.Prepared.Checked -or $Context.Game.SelectedIndex -notin @(0,1,2))) { return }
+    $selectedGame = if ($Context.Simulation) { 'zzz' } elseif ($Context.Game.SelectedIndex -eq 1) { 'hsr' } elseif ($Context.Game.SelectedIndex -eq 2) { 'genshin' } else { 'zzz' }
+    $runs = if ($selectedGame -eq 'hsr') { Join-Path $Context.Root '.cache\hsr\runs' } elseif ($selectedGame -eq 'genshin') { Join-Path $Context.Root '.cache\genshin\runs' } else { $Context.RunsRoot }
     $run = Join-Path $runs ((Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8) + '-selection')
     $Context.LastRun = $run
     $Context.LastResult = $null
@@ -108,12 +108,21 @@ function Start-DesktopRun {
                 if (!(Test-Path -LiteralPath (Join-Path $Context.Root "scripts\$file") -PathType Leaf)) { throw "Ambiente HSR incompleto: $file" }
             }
         }
+        if ($selectedGame -eq 'genshin') {
+            foreach ($file in @('scripts\run-desktop-genshin.ps1','scripts\genshin-pilot.js','src\genshin-pilot-1280.js','src\genshin-1280.js', 'node_modules\sharp\package.json', 'node_modules\tesseract.js\package.json', '.cache\models\eng.traineddata')) {
+                if (!(Test-Path -LiteralPath (Join-Path $Context.Root $file) -PathType Leaf)) { throw "Ambiente Genshin incompleto: $file. Use o repositorio preparado; pacotes anteriores nao incluem este piloto." }
+            }
+            if (!(Get-Command node.exe -ErrorAction SilentlyContinue)) { throw 'Node.js nao encontrado. O piloto Genshin requer o ambiente Node preparado no repositorio.' }
+        }
         if ($Context.Simulation) { New-Item -ItemType Directory -Path $run -ErrorAction Stop | Out-Null }
         $info = [Diagnostics.ProcessStartInfo]::new()
         $info.FileName = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
         if ($Context.Simulation) {
             $info.Arguments = '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}" -RunDirectory "{1}" -Outcome {2} -StepMilliseconds {3}' -f `
                 $script:DesktopSimulationWorker, $run, $Context.Outcome, $Context.StepMilliseconds
+        } elseif ($selectedGame -eq 'genshin') {
+            $info.Arguments = '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}" -RunDirectory "{1}"' -f `
+                (Join-Path $Context.Root 'scripts\run-desktop-genshin.ps1'), $run
         } else {
             $info.Arguments = '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}" -RunDirectory "{1}" -Game {2}' -f `
                 (Join-Path $Context.Root 'scripts\run-desktop-zzz.ps1'), $run, $selectedGame
@@ -135,6 +144,7 @@ function Start-DesktopRun {
         Reset-DesktopControls $Context
         $Context.StopButton.Enabled = $true
         $Context.Status.Text = if ($Context.Simulation) { 'Iniciando filho simulado...' }
+                               elseif ($selectedGame -eq 'genshin') { 'Iniciando piloto Genshin. Acompanhe as instrucoes no log; F8 interrompe.' }
                                else { "Iniciando $($selectedGame.ToUpper()). Volte ao jogo e use F8 quando solicitado abaixo." }
     } catch {
         if ($null -ne $process) { $process.Dispose() }
@@ -213,16 +223,27 @@ function Update-DesktopRun {
         } else {
             # This is the first manifest read, after the entire child process has exited.
             $failed = $code -ne 0 -or $receiptCode -ne '0' -or $null -ne $active.MonitorError
-            if ($active.Game -eq 'hsr') {
+            if ($active.Game -eq 'genshin') {
+                $report = $null
+                $manifest = Join-Path $active.Directory 'session.json'
+                if (Test-Path -LiteralPath $manifest -PathType Leaf) {
+                    try { $report = Get-Content -LiteralPath $manifest -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop } catch { }
+                }
+                $result = if ($null -ne $report -and $report.game -eq 'genshin' -and $report.mode -eq 'pilot-1280x720' -and
+                    (Test-Path -LiteralPath (Join-Path $active.Directory 'summary.md') -PathType Leaf)) { 'partial' } else { 'error' }
+                $Context.Status.Text = if ($result -eq 'partial') { 'Piloto parcial encerrado. Abra o resultado para conferir as leituras.' }
+                                       else { 'Falha sem resumo legivel. Confira o log e a pasta da tentativa.' }
+                if ($null -ne $report) { $Context.Log.AppendText("Resultado: $($report.status); motivo: $($report.reason)`r`n") }
+            } elseif ($active.Game -eq 'hsr') {
                 $saved = Get-ZzzResult -RunDirectory $active.Directory -Failed:$failed -ExpectedMode 'hsr-inventory'
             } else { $saved = Get-ZzzResult -RunDirectory $active.Directory -Failed:$failed }
-            $expectedMode = $active.Game + '-inventory'
-            $result = if ($null -eq $saved.Report -or $saved.Report.mode -ne $expectedMode) { 'error' }
-                      elseif ($saved.Complete) { 'complete' } else { 'partial' }
-            $Context.Status.Text = if ($result -eq 'error') { 'Falha sem resultado legivel. Confira o log e a pasta da tentativa.' }
-                                   else { $saved.Message }
-            if ($null -ne $saved.Report) {
-                $Context.Log.AppendText("Resultado: $($saved.Report.status); motivo: $($saved.Report.reason)`r`n")
+            if ($active.Game -ne 'genshin') {
+                $expectedMode = $active.Game + '-inventory'
+                $result = if ($null -eq $saved.Report -or $saved.Report.mode -ne $expectedMode) { 'error' }
+                          elseif ($saved.Complete) { 'complete' } else { 'partial' }
+                $Context.Status.Text = if ($result -eq 'error') { 'Falha sem resultado legivel. Confira o log e a pasta da tentativa.' }
+                                       else { $saved.Message }
+                if ($null -ne $saved.Report) { $Context.Log.AppendText("Resultado: $($saved.Report.status); motivo: $($saved.Report.reason)`r`n") }
             }
         }
         $Context.LastResult = $result
@@ -256,7 +277,7 @@ function New-DesktopForm {
     $game = [Windows.Forms.ComboBox]::new()
     $game.DropDownStyle = 'DropDownList'
     $game.SetBounds(16, 16, 300, 30)
-    $game.Items.AddRange(@('ZZZ - W-Engines S/A 20+', 'HSR - Cones de Luz 20+ (validacao)'))
+    $game.Items.AddRange(@('ZZZ - W-Engines S/A 20+', 'HSR - Cones de Luz 20+ (validacao)', 'Genshin - Armas 20+ (piloto)'))
     $game.SelectedIndex = 0
     $notice = [Windows.Forms.Label]::new()
     $notice.Text = if ($Simulation) { 'Processo simulado. Nenhum jogo ou input real. F8 simulado avanca sozinho.' }
@@ -322,6 +343,9 @@ function New-DesktopForm {
         if ($context.Game.SelectedIndex -eq 1) {
             $context.Notice.Text = "HSR em ingles, cliente 1280x720, escala Windows 100%. Fundo escuro no painel.`r`nInventory > Light Cone: Lv decrescente, lista no topo e primeiro Cone selecionado.`r`nSem filtro de estrelas: inclui Cones 3/4/5* nivel 20+. Solte mouse e teclado.`r`nD/A alternam o sentido por linha; S desce. F8 interrompe; mantenha HSR na frente."
             $context.Status.Text = 'HSR: percorre ate nivel abaixo de 20; limite de seguranca de 2000 posicoes. Confirme a preparacao.'
+        } elseif ($context.Game.SelectedIndex -eq 2) {
+            $context.Notice.Text = "Genshin em ingles, cliente 1280x720, escala Windows 100%.`r`nInventory > Weapons: Level decrescente, lista no topo e primeira arma selecionada.`r`nSem filtro que esconda 3/4/5 estrelas. Piloto de ate 10 posicoes, sem rolagem.`r`nO jogo sera ativado apos cinco segundos. F8 interrompe; mantenha os controles livres."
+            $context.Status.Text = 'Piloto Genshin: confira e confirme a preparacao.'
         } else {
             $context.Notice.Text = $context.ZzzNotice
             $context.Status.Text = 'Confirme a preparacao para iniciar ZZZ.'

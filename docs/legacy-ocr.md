@@ -25,19 +25,7 @@ Aceita uma imagem PNG/JPEG até 30 MiB. Use aspas em caminhos com espaços. Rota
 
 ## Lançador Windows legado Genshin
 
-Depois de instalar as dependências, dê dois cliques em **gacha-ocr-lab.exe**, na raiz do projeto, e aceite a solicitação de Administrador do Windows. O menu chama os scripts existentes: **1 captura**, **2 piloto de 10 armas**, **3 coleta completa**, **0 sair**. Não inicia coleta só por abrir. Prepare o jogo conforme o [guia do scanner](genshin-scanner.md); comece pela captura e pelo piloto.
-
-A janela mantém mensagens e caminhos de cada sessão em data/sessions/. O manifesto exige Administrador, e o Node/helper herdam esse nível; cancelar o UAC impede a abertura. A exibição do aviso depende da política UAC do Windows. Isso resolve a diferença de nível esperada, mas não garante aceitação dos cliques nem substitui as proteções de foco/oclusão ou o aceite real do M3.
-
-**Decisão:** lançador de console em C#/.NET Framework, sem dependências novas, chamando diretamente o mesmo src/scan-cli.js dos comandos npm. Continua exigindo Node.js 22+, node_modules e modelos locais para OCR. Não é um pacote independente nem instalador. A CLI permanece disponível sem elevação automática. O executável deve ficar junto ao projeto; para abrir de outro lugar, crie um atalho do Windows.
-
-Os fontes ficam em scripts/launcher/ e a compilação em scripts/build-launcher.ps1. O binário gerado fica fora do Git. Para gerar novamente no Windows:
-
-~~~powershell
-npm.cmd run build:launcher
-~~~
-
-Compilação, manifesto embutido e verificação de instalação sem inputs foram conferidos. O aviso UAC interativo, cancelamento durante a coleta e o piloto com inputs no jogo ainda dependem do teste local de Cristian.
+O menu de console `gacha-ocr-lab.exe` e seu código de build foram retirados: pertenciam ao scanner experimental anterior. A CLI e suas evidências permanecem disponíveis no [guia legado](genshin-scanner.md). Para o perfil atual use a janela `gacha-ocr.exe` da raiz e o [guia do piloto](genshin-pilot.md).
 
 ## Jogos e limites do perfil
 

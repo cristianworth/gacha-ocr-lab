@@ -4,7 +4,7 @@ Extraia a pasta inteira em um local com permissão de escrita. Não mova somente
 
 1. No jogo em inglês, use área cliente 1280×720 e escala Windows 100%.
 2. Abra W-Engine Storage. Marque S+A, desmarque B/especialidades e ordene por Level do maior para o menor. Feche o filtro, volte ao topo, solte os controles e espere a lista parar. Não precisa clicar em item.
-3. Abra `gacha-ocr-zzz.exe` (ou `scan-desktop.cmd`), aceite o aviso de Administrador, selecione ZZZ e confirme a preparação na janela. Clique em Iniciar coleta.
+3. Abra `gacha-ocr.exe` (ou `scan-desktop.cmd`), aceite o aviso de Administrador, selecione ZZZ e confirme a preparação na janela. Clique em Iniciar coleta.
 4. Quando o andamento pedir F8, volte ao jogo e pressione/solte F8 uma vez. Mantenha o jogo na frente e não mexa nos controles. F8 interrompe os inputs; F9 não é usado. Clicar na janela durante captura pode parar por perda de foco.
 5. Quando aparecer “Captura encerrada. Processando imagens salvas”, não haverá novos cliques ou rolagens. Já pode usar o computador enquanto aguarda a leitura das imagens. Se o nível na grade estiver ilegível durante a captura, o programa ainda lê esse painel imediatamente para decidir o corte.
 6. Espere terminar o processamento. Clique em Abrir resultado para abrir o resumo da própria execução no Bloco de Notas, inclusive parcial; Abrir pasta mostra os arquivos. Interromper ou fechar a janela solicita parada e aguarda a gravação/leitura das imagens já capturadas.

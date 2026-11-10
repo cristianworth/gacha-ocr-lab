@@ -5,13 +5,15 @@ Scanner local de equipamentos para poupar a digitação de dados úteis ao Advis
 ## Coletar no ZZZ
 
 1. Prepare W-Engine Storage com **S e A**, B/especialidades desmarcados, **Level do maior para o menor**, filtro fechado e lista no topo. Solte os controles e espere parar; não precisa selecionar um item.
-2. Abrir **`gacha-ocr-zzz.exe`** (ou **`scan-desktop.cmd`**) na raiz do projeto/pacote e aceitar o aviso de Administrador. Na janela, selecionar ZZZ, confirmar a preparação e clicar **Iniciar coleta**.
+2. Abrir **`gacha-ocr.exe`** (ou **`scan-desktop.cmd`**) na raiz do projeto e aceitar o aviso de Administrador. Pacotes antigos usam `gacha-ocr-zzz.exe` na própria pasta. Na janela, selecionar ZZZ, confirmar a preparação e clicar **Iniciar coleta**.
 3. Quando aparecer a solicitação de F8 no andamento, voltar ao jogo e pressionar/soltar **F8 uma vez**. Manter o jogo na frente e os controles livres. F8 interrompe; F9 não é usado. Clicar na janela durante aquisição pode parar por perda de foco.
 4. Aguardar o término do processamento. Clicar **Abrir resultado** para abrir o resumo da própria sessão no **Bloco de Notas**, inclusive parcial; **Abrir pasta** mostra seus arquivos. Interromper/fechar solicita parada e aguarda as imagens já capturadas.
 
 **Interface conferida localmente em 02/11:** Cristian confirmou UAC, término e abertura do resumo; a coleta preservou os cinco campos dos 34 elegíveis. Parada/X têm testes simulados e não foram acionados nessa coleta. `scan-zzz.cmd` continua como fallback técnico, com confirmação por Enter e resumo automático. [Evidências](docs/zzz-evidence.md#primeiro-uso-da-interface-zzz--02112026).
 
 **HSR — primeiro percurso útil concluído localmente:** Cones de Luz 3/4/5 estrelas nível 20+, com nome/nível/sobreposição. D/A alternam o sentido das linhas e S desce. A coleta de 04/11 chegou ao corte; o replay das imagens confirmou **66 elegíveis**, sem níveis pendentes. Cristian revisou separadamente os cinco campos então incertos; a grafia da posição 41 foi corrigida em nova revisão. Guia, resultado revisado e pacote atual em [HSR](docs/hsr-scan.md). Não é aprovação integral de precisão; pacotes anteriores e resultados originais permanecem preservados.
+
+**Genshin — piloto em validação:** na janela do executável da raiz do repositório, selecione Genshin para testar até dez armas sem rolagem. O piloto requer Node.js, dependências e modelo inglês preparados no próprio repositório; pacotes extraídos anteriormente não recebem essa atualização. Ele é parcial e ainda não foi validado no jogo. [Preparação e saída](docs/genshin-pilot.md).
 
 Na raiz do repositório, o ambiente Python/OCR precisa estar preparado no cache do laboratório. A distribuição em pasta inclui essas dependências: extraia o ZIP completo e use a entrada de dentro dele. O `.exe` apenas chama o CMD; mantenha ambos junto dos scripts e runtime. Montagem, verificação e limites do protótipo local estão no [guia portátil](docs/zzz-portable.md); preparação e diagnósticos da coleta estão no [guia ZZZ](docs/zzz-scan.md). Não é necessário instalar Node.js para esse caminho.
 
@@ -29,6 +31,7 @@ Nada é aplicado automaticamente ao Advisor. Uma coleta filtrada não remove dad
 |---|---|
 | [AGENTS.md](AGENTS.md) | Regras estáveis para trabalhar no laboratório |
 | [Guia ZZZ](docs/zzz-scan.md) | Preparação, execução, saídas, falhas e contratos atuais |
+| [Piloto Genshin](docs/genshin-pilot.md) | Preparação e limites do piloto atual em 1280×720 |
 | [Pacote portátil](docs/zzz-portable.md) | Build local, runtime incluído, uso e limites de distribuição |
 | [Plano de velocidade](docs/zzz-performance-plan.md) | Próxima melhoria: medir etapas e reduzir custo comprovado preservando evidências/guardas |
 | [Plano da interface](docs/desktop-ui-plan.md) | Janela simples para ZZZ antes do HSR, execução e cancelamento sem operar o prompt |
@@ -39,6 +42,6 @@ Nada é aplicado automaticamente ao Advisor. Uma coleta filtrada não remove dad
 
 ## Experimentos preservados
 
-Os leitores JavaScript de uma imagem Genshin/HSR e o scanner Genshin experimental continuam disponíveis, mas não são a entrada ZZZ. Comandos, dependências Node.js, formatos e limites daquele ciclo estão em [leitores e scanner legado](docs/legacy-ocr.md). O executável `gacha-ocr-lab.exe` existente pertence ao lançador Genshin legado; não confundir com distribuição ZZZ independente.
+Os leitores JavaScript de uma imagem Genshin/HSR e o scanner Genshin anterior continuam disponíveis para pesquisa. Comandos, dependências e limites daquele ciclo estão em [leitores e scanner legado](docs/legacy-ocr.md). O antigo lançador de console foi retirado; a entrada atual do repositório é `gacha-ocr.exe`.
 
 A ordem atual é consolidar ZZZ → melhorar velocidade → interface simples → HSR 20+ → Genshin/WuWa/NTE, um recorte útil por vez. A melhoria de velocidade foi conferida no jogo em 02/11: aquisição e processamento dos mesmos 34 itens passaram de 83,63 para 43,78 s, com valores/estados dos cinco campos preservados. São duas execuções locais, sem garantia de tempo geral. A extensão com gravação em segundo plano e verificações agendadas também foi conferida no jogo: mais 22,2% de redução no trecho ativo (43,78 → 34,04 s), campos preservados e mais imagens intermediárias. A [interface integrada](docs/desktop-ui-plan.md#integração-zzz--conferida-no-fluxo-local) foi conferida por uma coleta pela janela. Não há motor multijogo extraído nem sincronização automática com Advisor. Repositório: [cristianworth/gacha-ocr-lab](https://github.com/cristianworth/gacha-ocr-lab).

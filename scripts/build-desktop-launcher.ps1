@@ -2,7 +2,7 @@
 param([string]$OutputPath)
 
 $ErrorActionPreference = 'Stop'
-if (!$OutputPath) { $OutputPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'gacha-ocr-zzz.exe' }
+if (!$OutputPath) { $OutputPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'gacha-ocr.exe' }
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (!(Test-Path -LiteralPath $compiler)) {
     $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe'

@@ -14,7 +14,7 @@ pytestmark = pytest.mark.skipif(sys.platform != 'win32', reason='Windows launche
 @pytest.fixture(scope='module')
 def launcher(tmp_path_factory):
     root = tmp_path_factory.mktemp('desktop-exe')
-    target = root / 'gacha-ocr-zzz.exe'
+    target = root / 'gacha-ocr.exe'
     subprocess.run(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
                     str(ROOT / 'scripts/build-desktop-launcher.ps1'), '-OutputPath', str(target)],
                    capture_output=True, check=True, timeout=30)

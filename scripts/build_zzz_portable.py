@@ -92,7 +92,7 @@ def main():
     subprocess.run([str(Path(os.environ['WINDIR']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'),
                     '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
                     str(ROOT / 'scripts/build-desktop-launcher.ps1'), '-OutputPath',
-                    str(output / 'gacha-ocr-zzz.exe')], check=True)
+                    str(output / 'gacha-ocr.exe')], check=True)
     shutil.copy2(ROOT / 'packaging/README-portable.md', output / 'README.md')
     package_cache = output / '.cache/youkai-p1'
     package_cache.mkdir(parents=True)

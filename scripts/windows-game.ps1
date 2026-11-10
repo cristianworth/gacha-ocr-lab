@@ -29,7 +29,7 @@ namespace GachaOcrWindows {
   }
   public sealed class WindowInfo {
     public int pid; public string title; public string handle;
-    public int width; public int height; public int left; public int top;
+    public int width; public int height; public int left; public int top; public uint dpi;
     public bool foreground; public bool minimized; public bool visible;
   }
   public sealed class ControlStatus {
@@ -73,6 +73,7 @@ namespace GachaOcrWindows {
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr handle);
     [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int key);
     [DllImport("user32.dll")] private static extern bool SetProcessDPIAware();
+    [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr handle);
     [DllImport("user32.dll")] private static extern bool SetProcessDpiAwarenessContext(IntPtr context);
     [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
     [DllImport("user32.dll", SetLastError=true)] private static extern uint SendInput(uint count, INPUT[] input, int size);
@@ -117,7 +118,7 @@ namespace GachaOcrWindows {
       RECT area; POINT origin = new POINT();
       if (!IsWindow(handle) || !GetClientRect(handle, out area) || !ClientToScreen(handle, ref origin)) throw new ControlError("window-exited", "A janela nao esta mais disponivel.");
       return new WindowInfo { pid = (int)pid, title = Title(handle), handle = handle.ToInt64().ToString(),
-        width = area.Right - area.Left, height = area.Bottom - area.Top, left = origin.X, top = origin.Y,
+        width = area.Right - area.Left, height = area.Bottom - area.Top, left = origin.X, top = origin.Y, dpi = GetDpiForWindow(handle),
         foreground = Root(GetForegroundWindow()) == handle, minimized = IsIconic(handle), visible = IsWindowVisible(handle) };
     }
     private long VerifiedProcessStarted(int pid) {
@@ -157,6 +158,7 @@ namespace GachaOcrWindows {
       else if (!window.visible) Stop("hidden");
       else if (!window.foreground) Stop("focus-lost");
       else if (window.width != baseline.width || window.height != baseline.height) Stop("resized");
+      else if (window.dpi != baseline.dpi) Stop("dpi-changed");
       else if (window.left != baseline.left || window.top != baseline.top) Stop("moved");
       if (stopped) throw new ControlError("stopped", "Sessao interrompida: " + stopReason + ".");
       return window;

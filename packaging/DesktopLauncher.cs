@@ -15,7 +15,7 @@ internal static class DesktopLauncher
         {
             if (args.Length != 0 && !check) return 2;
             if (!File.Exists(entry) || !File.Exists(Path.Combine(root, "scripts", "start-desktop.ps1")))
-                throw new FileNotFoundException("Mantenha gacha-ocr-zzz.exe junto de scan-desktop.cmd e da pasta scripts.");
+                throw new FileNotFoundException("Mantenha o executavel junto de scan-desktop.cmd e da pasta scripts.");
             if (check) return 0;
             using (Process child = Process.Start(new ProcessStartInfo {
                 FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"),

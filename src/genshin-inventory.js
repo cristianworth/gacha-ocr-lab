@@ -15,12 +15,12 @@ function geometryError(message, code = 'GENSHIN_INVENTORY_GEOMETRY') {
   error.code = code;
   throw error;
 }
-async function pixels(buffer, requireClient = true) {
+async function pixels(buffer, requireClient = true, expectedSize = { width: 1440, height: 900 }) {
   let result;
   try { result = await sharp(buffer).flatten({ background: 'black' }).removeAlpha().raw().toBuffer({ resolveWithObject: true }); }
   catch (cause) { throw new Error('Nao foi possivel decodificar a imagem do inventario.', { cause }); }
-  if (requireClient && (result.info.width !== 1440 || result.info.height !== 900)) {
-    geometryError('O perfil exige a area cliente 1440x900, sem bordas; nao recorta nem redimensiona automaticamente.', 'GENSHIN_UNSUPPORTED_SIZE');
+  if (requireClient && (result.info.width !== expectedSize.width || result.info.height !== expectedSize.height)) {
+    geometryError(`O perfil exige a area cliente ${expectedSize.width}x${expectedSize.height}, sem bordas; nao recorta nem redimensiona automaticamente.`, 'GENSHIN_UNSUPPORTED_SIZE');
   }
   return result;
 }
@@ -233,8 +233,8 @@ export async function inspectInventory(buffer) {
     evidence: { anchorValidationRequired: ['Weapons', 'Quality'], signaturesAreItemIdentity: false, partialRowsAreClickable: false } };
 }
 
-export async function inspectSelection(buffer, slot) {
-  const { data, info } = await pixels(buffer);
+export async function inspectSelection(buffer, slot, { expectedSize } = {}) {
+  const { data, info } = await pixels(buffer, true, expectedSize);
   const rectangle = validateRectangle(slot?.rectangle, { width: info.width, height: info.height });
   if (rectangle.width < 70 || rectangle.height < 90 || rectangle.left < 8 || rectangle.top < 8
       || rectangle.left + rectangle.width + 9 >= info.width || rectangle.top + rectangle.height + 9 >= info.height) {

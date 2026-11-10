@@ -13,7 +13,7 @@ Filtro e ordenação são diferentes: uma referência antiga mostra **Rarity**, 
 
 ## Abrir a janela
 
-Abra `gacha-ocr-zzz.exe` ou `scan-desktop.cmd` junto da instalação completa e aceite o aviso de Administrador. O `.exe` é só a chamada do CMD. Confirme a preparação na janela e clique **Iniciar coleta**. HSR fica “em breve”, sem coleta. Quando o andamento solicitar F8, volte ao jogo e pressione/solte uma vez; os cinco segundos para foco continuam.
+Abra `gacha-ocr.exe` ou `scan-desktop.cmd` junto da instalação completa e aceite o aviso de Administrador. Pacotes antigos mantêm o nome `gacha-ocr-zzz.exe`. O `.exe` é só a chamada do CMD. Selecione ZZZ, confirme a preparação e clique **Iniciar coleta**. Quando o andamento solicitar F8, volte ao jogo e pressione/solte uma vez; os cinco segundos para foco continuam.
 
 Durante aquisição, mantenha o jogo na frente. F8 interrompe sem tirar o foco; clicar na janela pode disparar a proteção de foco e preservar parcial. **Interromper** ou **X** envia uma solicitação cooperativa e aguarda o processo; painéis já salvos ainda são processados. Depois do término, **Abrir resultado** abre o resumo da própria tentativa (ou relatório/pasta como fallback) e **Abrir pasta** mostra seus arquivos. A janela só consulta o manifesto depois de o processo sair.
 
@@ -30,7 +30,7 @@ A integração gráfica tem testes com processos reais de stub e testes do sinal
 5. No caminho normal, o programa salva os painéis confirmados e faz a leitura detalhada depois. Quando aparecer **“Captura encerrada. Processando imagens salvas”**, não haverá novos cliques ou rolagens; já pode usar o computador enquanto aguarda. Nível ilegível na grade ainda recebe leitura imediata para decidir o corte com segurança.
 6. Aguardar o encerramento do processamento. O resumo da própria sessão abre no **Bloco de Notas**, inclusive quando o resultado for parcial. Se não houver resumo, o lançador tenta o relatório visual ou mostra a pasta/diagnóstico disponível.
 
-No repositório, o lançador reutiliza a instalação local de Python/Tesseract/cache. No [pacote portátil](zzz-portable.md), usa o executável e o OCR incluídos na pasta, sem instalar dependências. O `gacha-ocr-lab.exe` antigo pertence ao experimento Genshin e não inicia esta coleta ZZZ.
+No repositório, o lançador reutiliza a instalação local de Python/Tesseract/cache. No [pacote portátil](zzz-portable.md), usa o executável e o OCR incluídos na pasta, sem instalar dependências.
 
 ## Entender o resultado
 
