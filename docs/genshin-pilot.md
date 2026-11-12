@@ -21,4 +21,6 @@ Cada tentativa usa uma pasta em `.cache/genshin/runs/`, com `console.log`, `exit
 
 O piloto confirma um contorno na posição alvo e estabilidade do painel em dois quadros; ele interrompe se não puder fazê-lo. Igualdade de arte ou nome não identifica cópia. Foco, geometria, DPI, oclusão, integridade e parada são verificados pelo helper; um bloqueio ou falha conserva a saída parcial. Nada é enviado ao Advisor.
 
-Em 10/11, o piloto no jogo alcançou dez posições. Em 11/11, outra sessão leu 32 posições e parou após uma rolagem por detecção inconclusiva da grade. A correção foi conferida nos frames salvos; a confirmação em dois quadros repetiu o mesmo frame no replay e ainda requer validação no jogo. Não há aprovação humana integral, comprovação de cobertura ou percurso completo; detalhes no [roadmap](ROADMAP.md).
+Em 10/11, o piloto no jogo alcançou dez posições. Em 11/11, as tentativas pararam após 32 posições por dificuldades de detecção da grade e da borda; as correções e suas evidências estão no [roadmap](ROADMAP.md). Não há aprovação humana integral, comprovação de cobertura ou percurso completo.
+
+Em 12/11, uma execução no jogo confirmou as quatro rolagens e registrou 40 posições, encerrando no limite previsto do piloto. Esse resultado não representa o percurso completo: a próxima linha requer mais deslocamento do que o limite total atual permite. O plano para ampliar o percurso com segurança e conferir o término está no [roadmap](ROADMAP.md).

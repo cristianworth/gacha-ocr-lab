@@ -4,6 +4,7 @@
 
 - As instruções atuais de Cristian definem a entrega. Consulte README.md para uso e docs/ROADMAP.md para o próximo recorte; não trate uma proposta histórica como requisito atual.
 - Antes de desenvolver um percurso, estabeleça dado útil, filtro, ordenação, condição de parada e saída consumida. Use as fontes, o código executado e os arquivos salvos antes de criar comportamento ou pedir capturas.
+- Em falhas recorrentes ou sucessivas no mesmo fluxo, reconstrua o percurso e seus limites de ponta a ponta, registre hipóteses e evidências que as confirmem ou descartem e avalie as próximas transições, não apenas o último erro. Planeje replays e simulações com os dados existentes antes de pedir outra execução; consulte fontes primárias externas quando esclarecerem uma dúvida concreta, preservando origem e licença.
 - Faça a menor mudança coerente. Reaproveite contratos públicos; não crie framework, UI ampla, infraestrutura de testes ou identidade persistente de itens sem necessidade demonstrada.
 - Continue na branch acordada. Preserve alterações existentes, handoffs e .ai-memory.toml; não faça limpeza, reset, push ou nova passagem de contexto fora da autorização da tarefa.
 
@@ -28,5 +29,7 @@
 - README.md é a entrada curta; docs/zzz-scan.md é o guia de uso/contrato ZZZ; docs/ROADMAP.md é o plano único. Evidências ficam em docs/zzz-evidence.md e documentos históricos, sem pedidos de teste obsoletos nas instruções atuais.
 - Regras duráveis ficam aqui; escopo, estado e próximos passos ficam no guia/roadmap. Documente limitações materiais sem duplicar cronologia em cada arquivo.
 - Não criar handoff por cerimônia. Antes de commit ou merge, siga as regras de versão/changelog aplicáveis; não incremente versão a cada commit do mesmo recorte.
+- Ao concluir uma parte coesa que represente progresso e esteja verificada de modo proporcional, faça um commit local com as alterações correspondentes, respeitando o escopo autorizado e preservando arquivos locais e mudanças alheias. Push continua sujeito à autorização aplicável.
+- Ao informar a validação, diga explicitamente se Cristian precisa executar um teste agora, se ele é opcional ou se ainda não há teste para ele fazer. Quando necessário, apresente passos, resultado esperado e o que enviar; quando a próxima ação for do agente, diga isso claramente.
 - Entregue mudança, verificações, limites e um roteiro prático proporcional. Em português, feche com Para testar (quando aplicável), Workflow e TL;DR.
 - Ao orientar um teste pelo aplicativo, informe a pasta exata do `.exe` e se é necessário fechar/reabrir a janela para carregar a atualização. Diferencie o repositório atual de pacotes já extraídos.
