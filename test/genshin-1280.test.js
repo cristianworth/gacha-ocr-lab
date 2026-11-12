@@ -22,6 +22,19 @@ test('selection inspection rejects a partial row and does not infer movement', a
   await assert.rejects(inspectGenshin1280Grid(image), /Grade 1280x720 inconclusiva/);
 });
 
+test('grid keeps a faint label when all eight columns support three separated lines', async () => {
+  const bands = [[153,154,165,166,169], [270,271,282,283,286], [387,388,399,400,402],
+    [505,506,519], [620,621,632,633,635]];
+  const shapes = bands.flatMap(lines => lines.flatMap(y => Array.from({ length: 8 }, (_, column) =>
+    `<rect x="${Math.round(79 + column * 97.6)}" y="${y}" width="82" height="1" fill="white"/>`))).join('');
+  const buffer = await sharp(Buffer.from(`<svg width="1280" height="720">${shapes}</svg>`)).png().toBuffer();
+  const result = await inspectGenshin1280Grid({ buffer, source: {} });
+  assert.equal(result.bands.length, 5);
+  assert.equal(result.bands[3].lines, 3);
+  assert.equal(result.slots.length, 32);
+  assert.equal(result.slots[0].row, 1, 'the clipped first row is not proposed');
+});
+
 test('offline profile translates panel regions and keeps uncertain values', async () => {
   const buffer = await sharp({ create: { width: 1282, height: 751, channels: 3, background: 'black' } }).png().toBuffer();
   const responses = ['Test Weapon', 'Test Weapon', 'Lv. 90/90', 'Lv. 90/80', 'Refinement Rank 1', 'Refinement Rank 1', 'Bow'];

@@ -9,7 +9,7 @@ from test_zzz_launcher import installation
 
 def test_genshin_pilot_uses_own_folder_and_stop_request(tmp_path):
     root = installation(tmp_path)
-    for relative in ('scripts/genshin-pilot.js', 'src/genshin-pilot-1280.js', 'src/genshin-1280.js',
+    for relative in ('scripts/genshin-pilot.js', 'src/genshin-pilot-1280.js', 'src/genshin-1280.js', 'src/genshin-scroll-1280.js',
                      'node_modules/sharp/package.json', 'node_modules/tesseract.js/package.json',
                      '.cache/models/eng.traineddata'):
         path = root / relative
@@ -19,11 +19,12 @@ def test_genshin_pilot_uses_own_folder_and_stop_request(tmp_path):
     (root / 'scripts/genshin-pilot.js').write_text(r'''
 const fs=require('fs'),path=require('path');
 const run=process.argv[process.argv.indexOf('--run-directory')+1];
+if (!process.argv.includes('--scroll-probe')) throw new Error('scroll-probe not requested');
 console.log('PROGRESS|piloto');
 const timer=setInterval(()=>{
   if(!fs.existsSync(path.join(run,'stop.request'))) return;
   clearInterval(timer);
-  fs.writeFileSync(path.join(run,'session.json'),JSON.stringify({game:'genshin',mode:'pilot-1280x720',status:'partial',reason:'cancelled'}));
+  fs.writeFileSync(path.join(run,'session.json'),JSON.stringify({game:'genshin',mode:'scroll-probe-1280x720',status:'partial',reason:'cancelled'}));
   fs.writeFileSync(path.join(run,'summary.md'),'Piloto parcial');
   console.log('parada recebida'); process.exitCode=1;
 },50);

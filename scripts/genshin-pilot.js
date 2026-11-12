@@ -17,7 +17,7 @@ let backend;
 let ocr;
 let stopTimer;
 try {
-  const { values } = parseArgs({ options: { prepared: { type: 'boolean' }, 'run-directory': { type: 'string' } }, strict: true });
+  const { values } = parseArgs({ options: { prepared: { type: 'boolean' }, 'run-directory': { type: 'string' }, 'scroll-probe': { type: 'boolean' } }, strict: true });
   if (!values.prepared) {
     throw new Error('Prepare Weapons no topo, Level decrescente, sem filtro de raridade, primeira arma selecionada; use --prepared para declarar a preparacao.');
   }
@@ -48,10 +48,11 @@ try {
   if (controller.signal.aborted) throw new Error('parada solicitada antes de iniciar');
   await backend.activate();
   await backend.arm();
-  const report = await runGenshinPilot1280({ backend, ocrSession: ocr, output, signal: controller.signal,
+  const scrollProbe = values['scroll-probe'] === true;
+  const report = await runGenshinPilot1280({ backend, ocrSession: ocr, output, signal: controller.signal, scrollProbe, limit: scrollProbe ? 40 : 10,
     onProgress: (item, count) => console.log(`${count}: ${item.reading.fields.name.value ?? '(nome pendente)'}`) });
   console.log(`Piloto encerrado: ${report.reason}. Resumo: ${join(output, 'summary.md')}`);
-  if (report.reason !== 'pilot-limit') process.exitCode = 1;
+  if (!['pilot-limit', 'scroll-probe-limit', 'position-limit', 'level-cutoff-reached'].includes(report.reason)) process.exitCode = 1;
 } catch (error) {
   console.error(`Piloto nao iniciado ou interrompido: ${error.message}`);
   process.exitCode = 1;

@@ -109,7 +109,7 @@ function Start-DesktopRun {
             }
         }
         if ($selectedGame -eq 'genshin') {
-            foreach ($file in @('scripts\run-desktop-genshin.ps1','scripts\genshin-pilot.js','src\genshin-pilot-1280.js','src\genshin-1280.js', 'node_modules\sharp\package.json', 'node_modules\tesseract.js\package.json', '.cache\models\eng.traineddata')) {
+            foreach ($file in @('scripts\run-desktop-genshin.ps1','scripts\genshin-pilot.js','src\genshin-pilot-1280.js','src\genshin-1280.js','src\genshin-scroll-1280.js', 'node_modules\sharp\package.json', 'node_modules\tesseract.js\package.json', '.cache\models\eng.traineddata')) {
                 if (!(Test-Path -LiteralPath (Join-Path $Context.Root $file) -PathType Leaf)) { throw "Ambiente Genshin incompleto: $file. Use o repositorio preparado; pacotes anteriores nao incluem este piloto." }
             }
             if (!(Get-Command node.exe -ErrorAction SilentlyContinue)) { throw 'Node.js nao encontrado. O piloto Genshin requer o ambiente Node preparado no repositorio.' }
@@ -229,7 +229,7 @@ function Update-DesktopRun {
                 if (Test-Path -LiteralPath $manifest -PathType Leaf) {
                     try { $report = Get-Content -LiteralPath $manifest -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop } catch { }
                 }
-                $result = if ($null -ne $report -and $report.game -eq 'genshin' -and $report.mode -eq 'pilot-1280x720' -and
+                $result = if ($null -ne $report -and $report.game -eq 'genshin' -and $report.mode -in @('pilot-1280x720','scroll-probe-1280x720') -and
                     (Test-Path -LiteralPath (Join-Path $active.Directory 'summary.md') -PathType Leaf)) { 'partial' } else { 'error' }
                 $Context.Status.Text = if ($result -eq 'partial') { 'Piloto parcial encerrado. Abra o resultado para conferir as leituras.' }
                                        else { 'Falha sem resumo legivel. Confira o log e a pasta da tentativa.' }
@@ -277,7 +277,7 @@ function New-DesktopForm {
     $game = [Windows.Forms.ComboBox]::new()
     $game.DropDownStyle = 'DropDownList'
     $game.SetBounds(16, 16, 300, 30)
-    $game.Items.AddRange(@('ZZZ - W-Engines S/A 20+', 'HSR - Cones de Luz 20+ (validacao)', 'Genshin - Armas 20+ (piloto)'))
+    $game.Items.AddRange(@('ZZZ - W-Engines S/A 20+', 'HSR - Cones de Luz 20+ (validacao)', 'Genshin - Armas 20+ (rolagem limitada)'))
     $game.SelectedIndex = 0
     $notice = [Windows.Forms.Label]::new()
     $notice.Text = if ($Simulation) { 'Processo simulado. Nenhum jogo ou input real. F8 simulado avanca sozinho.' }
@@ -344,8 +344,8 @@ function New-DesktopForm {
             $context.Notice.Text = "HSR em ingles, cliente 1280x720, escala Windows 100%. Fundo escuro no painel.`r`nInventory > Light Cone: Lv decrescente, lista no topo e primeiro Cone selecionado.`r`nSem filtro de estrelas: inclui Cones 3/4/5* nivel 20+. Solte mouse e teclado.`r`nD/A alternam o sentido por linha; S desce. F8 interrompe; mantenha HSR na frente."
             $context.Status.Text = 'HSR: percorre ate nivel abaixo de 20; limite de seguranca de 2000 posicoes. Confirme a preparacao.'
         } elseif ($context.Game.SelectedIndex -eq 2) {
-            $context.Notice.Text = "Genshin em ingles, cliente 1280x720, escala Windows 100%.`r`nInventory > Weapons: Level decrescente, lista no topo e primeira arma selecionada.`r`nSem filtro que esconda 3/4/5 estrelas. Piloto de ate 10 posicoes, sem rolagem.`r`nO jogo sera ativado apos cinco segundos. F8 interrompe; mantenha os controles livres."
-            $context.Status.Text = 'Piloto Genshin: confira e confirme a preparacao.'
+            $context.Notice.Text = "Genshin em ingles, cliente 1280x720, escala Windows 100%.`r`nInventory > Weapons: Level decrescente, lista no topo e primeira arma selecionada.`r`nSem filtro que esconda 3/4/5 estrelas. Ate 40 posicoes e quatro passos de roda.`r`nO jogo sera ativado apos cinco segundos. F8 interrompe; mantenha os controles livres."
+            $context.Status.Text = 'Genshin: percurso limitado para validar rolagem. Confirme a preparacao.'
         } else {
             $context.Notice.Text = $context.ZzzNotice
             $context.Status.Text = 'Confirme a preparacao para iniciar ZZZ.'

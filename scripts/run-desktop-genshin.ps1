@@ -20,7 +20,7 @@ try {
     $node = (Get-Command node.exe -ErrorAction Stop).Source
     [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
     $ErrorActionPreference = 'Continue'
-    & $node (Join-Path $PSScriptRoot 'genshin-pilot.js') --prepared --run-directory $run 2>&1 | ForEach-Object {
+    & $node (Join-Path $PSScriptRoot 'genshin-pilot.js') --prepared --scroll-probe --run-directory $run 2>&1 | ForEach-Object {
         $writer.WriteLine([string]$_)
     }
     $code = $LASTEXITCODE

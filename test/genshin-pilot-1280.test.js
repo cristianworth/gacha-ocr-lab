@@ -121,3 +121,132 @@ test('pilot observes a cooperative stop before sending a click', async t => {
   assert.equal(f.clicks(), 0);
   assert.equal(result.captureComplete, false);
 });
+
+async function scrollFixture(t, { match = { status: 'matched', offset: 1, overlap: 1, displacement: 12 }, levels = [90, 90, 90] } = {}) {
+  const f = await fixture(t);
+  const slots = [0, 1].map(row => ({ row, column: 0, rectangle: { left: 79, top: 80 + row * 117, width: 82, height: 103 } }));
+  const grid = { slots, bands: [{ end: 181 }, { end: 298 }] };
+  let current = null;
+  let scrolls = 0;
+  let reads = 0;
+  const clicks = [];
+  f.backend.click = async point => { current = point.y < 200 ? 0 : 1; clicks.push(point); };
+  f.backend.scroll = async () => { scrolls += 1; current = null; };
+  f.dependencies.inspectSelected = async () => ({ status: 'recognized', selected: scrolls ? null : slots[0], candidateCount: scrolls ? 0 : 1, grid });
+  f.dependencies.inspectGrid = async () => grid;
+  f.dependencies.inspectSlot = async (_frame, { rectangle }) => ({ selected: current === (rectangle.top < 150 ? 0 : 1) });
+  f.dependencies.matchScroll = async () => match;
+  f.dependencies.read = async () => {
+    const level = levels[reads++];
+    return { processing: { layoutVerified: true }, fields: { name: { value: 'Same Name' },
+      level: { status: level === null ? 'uncertain' : 'recognized', value: level === null ? null : { current: level, max: 90 } },
+      refinement: { value: 1 } } };
+  };
+  return { ...f, scrolls: () => scrolls, clickList: clicks };
+}
+
+test('bounded scroll skips overlap and retains equal names as separate observations', async t => {
+  const f = await scrollFixture(t);
+  const result = await runGenshinPilot1280({ ...f, ocrSession: {}, scrollProbe: true, limit: 3 });
+  assert.equal(result.reason, 'scroll-probe-limit');
+  assert.equal(f.scrolls(), 1);
+  assert.equal(f.clickList.length, 3);
+  assert.deepEqual(result.observations.map(item => item.position.row), [0, 1, 2]);
+  assert.equal(result.observations.every(item => item.reading.fields.name.value === 'Same Name'), true);
+  assert.equal(result.coverageConfirmed, false);
+});
+
+test('ambiguous scroll stops before clicking any new positions', async t => {
+  const f = await scrollFixture(t, { match: { status: 'ambiguous' } });
+  const result = await runGenshinPilot1280({ ...f, ocrSession: {}, scrollProbe: true, limit: 3 });
+  assert.equal(result.reason, 'scroll-ambiguous');
+  assert.equal(f.scrolls(), 1);
+  assert.equal(f.clickList.length, 2);
+  assert.equal(result.observations.length, 2);
+  assert.ok(result.scroll.after.sha256);
+});
+
+test('scroll must remain matched on a second frame before clicking new positions', async t => {
+  const f = await scrollFixture(t);
+  let calls = 0;
+  f.dependencies.matchScroll = async () => ++calls === 1
+    ? { status: 'matched', offset: 1, overlap: 1, displacement: 12 }
+    : { status: 'unconfirmed' };
+  const result = await runGenshinPilot1280({ ...f, ocrSession: {}, scrollProbe: true, limit: 3 });
+  assert.equal(result.reason, 'scroll-stability-unconfirmed');
+  assert.equal(f.scrolls(), 1);
+  assert.equal(f.clickList.length, 2);
+  assert.ok(result.scroll.after.sha256);
+  assert.ok(result.scroll.confirmation.frame.sha256);
+});
+
+test('two scroll highlights stay candidates and do not become selected-item facts', async t => {
+  const f = await scrollFixture(t);
+  const slots = [
+    { row: 0, column: 0, rectangle: { left: 79, top: 80, width: 82, height: 103 } },
+    { row: 1, column: 0, rectangle: { left: 79, top: 197, width: 82, height: 103 } },
+    { row: 1, column: 1, rectangle: { left: 177, top: 197, width: 82, height: 103 } },
+  ];
+  const grid = { slots, bands: [{ end: 181 }, { end: 298 }] };
+  let current;
+  f.backend.click = async point => { current = point; };
+  f.dependencies.inspectSlot = async (_frame, { rectangle }) => ({ selected: current?.x === Math.round(rectangle.left + rectangle.width / 2) && current?.y === Math.round(rectangle.top + rectangle.height / 2) });
+  f.dependencies.inspectGrid = async () => grid;
+  f.dependencies.read = async () => ({ processing: { layoutVerified: true }, fields: { name: { value: 'Name' }, level: { status: 'recognized', value: { current: 90, max: 90 } }, refinement: { value: 1 } } });
+  f.dependencies.inspectSelected = async () => f.scrolls() === 0 ? { status: 'recognized', selected: slots[0], grid } : {
+    status: 'uncertain', selected: null, candidateCount: 2,
+    candidates: [{ row: 0, column: 0 }, { row: 0, column: 1 }],
+  };
+  let options;
+  f.dependencies.matchScroll = async (_a, _g, _b, _h, received) => {
+    options = received;
+    return { status: 'matched', offset: 1, overlap: 1, displacement: 12 };
+  };
+  const result = await runGenshinPilot1280({ ...f, ocrSession: {}, scrollProbe: true, limit: 4 });
+  assert.equal(result.reason, 'scroll-probe-limit');
+  assert.equal(options.currentCandidates.length, 2);
+  assert.deepEqual(result.scroll.candidates, [{ row: 0, column: 0 }, { row: 0, column: 1 }]);
+  assert.equal(result.scroll.confirmation.candidates.length, 2);
+  assert.equal(result.observations.length, 4);
+});
+
+for (const [secondDisplacement, reason, count] of [[36, 'scroll-probe-limit', 3], [0, 'scroll-progress-unconfirmed', 2]]) {
+  test(`a low target is not clicked before verified upward movement (${secondDisplacement}px)`, async t => {
+    const f = await scrollFixture(t);
+    const makeGrid = (tops) => ({ slots: tops.map((top, row) => ({ row, column: 0, rectangle: { left: 79, top, width: 82, height: 103 } })),
+      bands: tops.map(top => ({ end: top + 101 })) });
+    const grids = [makeGrid([80, 197]), makeGrid([185, 534]), makeGrid([149, 498])];
+    let current;
+    const clicks = [];
+    f.backend.click = async point => { current = point; clicks.push(point); };
+    f.dependencies.inspectGrid = async () => grids[Math.min(f.scrolls(), 2)];
+    f.dependencies.inspectSelected = async () => f.scrolls() === 0
+      ? { status: 'recognized', selected: grids[0].slots[0], grid: grids[0] }
+      : { status: 'uncertain', selected: null, candidateCount: 0, candidates: [] };
+    f.dependencies.inspectSlot = async (_frame, { rectangle }) => ({ selected: current?.x === Math.round(rectangle.left + rectangle.width / 2) && current?.y === Math.round(rectangle.top + rectangle.height / 2) });
+    f.dependencies.matchScroll = async () => f.scrolls() === 1
+      ? { status: 'matched', offset: 1, overlap: 1, displacement: 12 }
+      : { status: 'no-new-complete-row', offset: 0, overlap: 2, displacement: secondDisplacement };
+    const result = await runGenshinPilot1280({ ...f, ocrSession: {}, scrollProbe: true, limit: 3 });
+    assert.equal(result.reason, reason);
+    assert.equal(f.scrolls(), 2);
+    assert.equal(clicks.length, count);
+    assert.equal(result.observations.length, count);
+    if (count === 3) assert.deepEqual(result.observations.map(item => item.position.row), [0, 1, 2]);
+  });
+}
+
+for (const [levels, reason, complete] of [
+  [[20, 19], 'level-cutoff-reached', true],
+  [[null, 19], 'level-cutoff-with-unresolved-levels', false],
+  [[20, 21], 'level-order-contradiction', undefined],
+]) {
+  test(`level cutoff handles ${JSON.stringify(levels)} without claiming inventory coverage`, async t => {
+    const f = await scrollFixture(t, { levels });
+    const result = await runGenshinPilot1280({ ...f, ocrSession: {}, scrollProbe: true, limit: 3 });
+    assert.equal(result.reason, reason);
+    assert.equal(result.levelScopeComplete, complete);
+    assert.equal(result.coverageConfirmed, false);
+    assert.equal(f.scrolls(), 0);
+  });
+}

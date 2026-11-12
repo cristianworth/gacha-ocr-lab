@@ -58,7 +58,7 @@ export async function inspectGenshin1280Grid(image, { client: requested } = {}) 
       supported.forEach((value, column) => { if (value) last.columns[column] += 1; });
     } else rows.push({ start: y, end: y, lines: 1, columns: supported.map(Number) });
   }
-  const bands = rows.filter(row => row.lines >= 4 && row.end - row.start >= 8 && row.end - row.start <= 24
+  const bands = rows.filter(row => row.lines >= 3 && row.end - row.start >= 8 && row.end - row.start <= 24
     && row.columns.every(count => count >= 2));
   if (bands.length < 2 || bands.some((row, index) => index && Math.abs(row.end - bands[index - 1].end - 117) > 5)) {
     throw new Error('Grade 1280x720 inconclusiva: linhas completas e espacamento nao confirmados.');
@@ -86,7 +86,7 @@ export async function inspectGenshin1280Selected(image, { client: requested } = 
     if (selection.selected) found.push({ ...slot, selection });
   }
   return { grid, status: found.length === 1 ? 'recognized' : 'uncertain',
-    selected: found.length === 1 ? found[0] : null, candidateCount: found.length,
+    selected: found.length === 1 ? found[0] : null, candidateCount: found.length, candidates: found,
     offlineOnly: true, confirmsMovement: false };
 }
 
