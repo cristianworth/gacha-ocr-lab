@@ -22,9 +22,9 @@ async function header(buffer, ocr) {
   return { ...values, verified: /^Weapons$/i.test(values.category.trim()) && /^Level$/i.test(values.sort.trim()) };
 }
 
-// A bounded pilot, not a full inventory scan. Backend must already be armed.
+// The traversal remains bounded and does not claim inventory acceptance.
 export async function runGenshinPilot1280({ backend, ocrSession, output, signal, limit = 10, scrollProbe = false, onProgress = () => {}, dependencies = {} }) {
-  if (!Number.isInteger(limit) || limit < 1 || limit > (scrollProbe ? 40 : 10)) throw new Error('Limite de posicoes invalido.');
+  if (!Number.isInteger(limit) || limit < 1 || limit > (scrollProbe ? 1000 : 10)) throw new Error('Limite de posicoes invalido.');
   await mkdir(output, { recursive: true });
   const report = { schemaVersion: 1, game: 'genshin', mode: scrollProbe ? 'scroll-probe-1280x720' : 'pilot-1280x720', scope: { minLevel: 20, rarities: [3, 4, 5] },
     startedAt: new Date().toISOString(), status: 'running', captureComplete: false, coverageConfirmed: false,
@@ -71,6 +71,7 @@ export async function runGenshinPilot1280({ backend, ocrSession, output, signal,
     let previousFrame = null;
     let pageBase = 0;
     let scrollCount = 0;
+    let scrollsWithoutPosition = 0;
     const visited = new Set();
     let lastLevel = null;
     let pendingLevel = false;
@@ -136,6 +137,7 @@ export async function runGenshinPilot1280({ backend, ocrSession, output, signal,
         }
         await guard();
         visited.add(key);
+        scrollsWithoutPosition = 0;
         previous = slot;
         previousCandidates = null;
         previousFrame = stable.frame;
@@ -144,13 +146,15 @@ export async function runGenshinPilot1280({ backend, ocrSession, output, signal,
         if (done) break;
       }
       if (done || !scrollProbe || report.observations.length >= limit) break;
-      if (scrollCount >= 4) { report.reason = 'scroll-probe-limit'; break; }
+      if (scrollCount >= 1500) { report.reason = 'scroll-total-limit'; break; }
+      if (scrollsWithoutPosition >= 16) { report.reason = 'scroll-without-position-limit'; break; }
       if (!previousFrame || (!previous && !previousCandidates)) throw new Error('scroll-source-unavailable');
       report.currentAttempt = { stage: 'before-scroll', beforeFrame: previousFrame.source };
       await save(output, report);
       await guard();
       await backend.scroll({ x: 500, y: 430, delta: -1 });
       scrollCount += 1;
+      scrollsWithoutPosition += 1;
       report.currentAttempt.stage = 'after-scroll';
       await pause(750, signal);
       const after = await capture();
@@ -195,7 +199,7 @@ export async function runGenshinPilot1280({ backend, ocrSession, output, signal,
       report.currentAttempt = null;
     }
     report.status = 'partial';
-    report.reason ??= scrollProbe ? (scrollCount ? 'scroll-probe-limit' : 'position-limit') : 'pilot-limit';
+    report.reason ??= scrollProbe ? 'position-limit' : 'pilot-limit';
   } catch (error) {
     report.status = 'partial';
     report.reason = signal?.aborted ? 'cancelled' : error.message;
@@ -208,7 +212,7 @@ export async function runGenshinPilot1280({ backend, ocrSession, output, signal,
       const level = fields.level.value;
       lines.push(`| ${index + 1} | ${fields.name.value ?? '?'} | ${level ? `${level.current}/${level.max ?? '?'}` : '?'} | ${fields.refinement.value ?? '?'} |`);
     }
-    lines.push('', 'Percurso limitado: raridade não é extraída; não comprova cobertura ou aprovação do inventário. OCR bruto e incertezas no session.json.');
+    lines.push('', 'Raridade não é extraída; o resultado não comprova cobertura integral ou aprovação do inventário. OCR bruto e incertezas no session.json.');
     await writeFile(join(output, 'summary.md'), `${lines.join('\n')}\n`, 'utf8');
   }
   return report;

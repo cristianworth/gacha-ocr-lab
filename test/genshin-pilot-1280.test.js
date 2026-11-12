@@ -148,7 +148,7 @@ async function scrollFixture(t, { match = { status: 'matched', offset: 1, overla
 test('bounded scroll skips overlap and retains equal names as separate observations', async t => {
   const f = await scrollFixture(t);
   const result = await runGenshinPilot1280({ ...f, ocrSession: {}, scrollProbe: true, limit: 3 });
-  assert.equal(result.reason, 'scroll-probe-limit');
+  assert.equal(result.reason, 'position-limit');
   assert.equal(f.scrolls(), 1);
   assert.equal(f.clickList.length, 3);
   assert.deepEqual(result.observations.map(item => item.position.row), [0, 1, 2]);
@@ -203,14 +203,14 @@ test('two scroll highlights stay candidates and do not become selected-item fact
     return { status: 'matched', offset: 1, overlap: 1, displacement: 12 };
   };
   const result = await runGenshinPilot1280({ ...f, ocrSession: {}, scrollProbe: true, limit: 4 });
-  assert.equal(result.reason, 'scroll-probe-limit');
+  assert.equal(result.reason, 'position-limit');
   assert.equal(options.currentCandidates.length, 2);
   assert.deepEqual(result.scroll.candidates, [{ row: 0, column: 0 }, { row: 0, column: 1 }]);
   assert.equal(result.scroll.confirmation.candidates.length, 2);
   assert.equal(result.observations.length, 4);
 });
 
-for (const [secondDisplacement, reason, count] of [[36, 'scroll-probe-limit', 3], [0, 'scroll-progress-unconfirmed', 2]]) {
+for (const [secondDisplacement, reason, count] of [[36, 'position-limit', 3], [0, 'scroll-progress-unconfirmed', 2]]) {
   test(`a low target is not clicked before verified upward movement (${secondDisplacement}px)`, async t => {
     const f = await scrollFixture(t);
     const makeGrid = (tops) => ({ slots: tops.map((top, row) => ({ row, column: 0, rectangle: { left: 79, top, width: 82, height: 103 } })),
@@ -235,6 +235,49 @@ for (const [secondDisplacement, reason, count] of [[36, 'scroll-probe-limit', 3]
     if (count === 3) assert.deepEqual(result.observations.map(item => item.position.row), [0, 1, 2]);
   });
 }
+
+test('traversal advances across more than four verified scrolls without repeating overlap', async t => {
+  const f = await scrollFixture(t, { levels: Array(9).fill(90) });
+  const result = await runGenshinPilot1280({ ...f, ocrSession: {}, scrollProbe: true, limit: 9 });
+  assert.equal(result.reason, 'position-limit');
+  assert.equal(f.scrolls(), 7);
+  assert.deepEqual(result.observations.map(item => item.position.row), [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.equal(result.coverageConfirmed, false);
+});
+
+test('traversal stops when repeated movement yields no new safe position', async t => {
+  const f = await scrollFixture(t, { match: { status: 'no-new-complete-row', offset: 0, overlap: 2, displacement: 12 } });
+  const result = await runGenshinPilot1280({ ...f, ocrSession: {}, scrollProbe: true, limit: 3 });
+  assert.equal(result.reason, 'scroll-without-position-limit');
+  assert.equal(f.scrolls(), 16);
+  assert.equal(result.observations.length, 2);
+  assert.equal(result.coverageConfirmed, false);
+});
+
+test('traversal tolerates small scroll steps and reaches the level cutoff on a later row', async t => {
+  const f = await scrollFixture(t, { levels: [30, 20, 19] });
+  f.dependencies.matchScroll = async () => f.scrolls() < 10
+    ? { status: 'no-new-complete-row', offset: 0, overlap: 2, displacement: 12 }
+    : { status: 'matched', offset: 1, overlap: 1, displacement: 12 };
+  const result = await runGenshinPilot1280({ ...f, ocrSession: {}, scrollProbe: true, limit: 100 });
+  assert.equal(f.scrolls(), 10);
+  assert.equal(result.reason, 'level-cutoff-reached');
+  assert.equal(result.levelScopeComplete, true);
+  assert.deepEqual(result.observations.map(item => item.position.row), [0, 1, 2]);
+  assert.equal(result.coverageConfirmed, false);
+});
+
+test('cancellation during repeated scrolling preserves observations without further input', async t => {
+  const f = await scrollFixture(t, { match: { status: 'no-new-complete-row', offset: 0, overlap: 2, displacement: 12 } });
+  const controller = new AbortController();
+  const scroll = f.backend.scroll;
+  f.backend.scroll = async point => { await scroll(point); if (f.scrolls() === 5) controller.abort(); };
+  const result = await runGenshinPilot1280({ ...f, ocrSession: {}, signal: controller.signal, scrollProbe: true, limit: 3 });
+  assert.equal(result.reason, 'cancelled');
+  assert.equal(f.scrolls(), 5);
+  assert.equal(result.observations.length, 2);
+  assert.equal(JSON.parse(await readFile(join(f.output, 'session.json'))).observations.length, 2);
+});
 
 for (const [levels, reason, complete] of [
   [[20, 19], 'level-cutoff-reached', true],

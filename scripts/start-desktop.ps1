@@ -344,7 +344,7 @@ function New-DesktopForm {
             $context.Notice.Text = "HSR em ingles, cliente 1280x720, escala Windows 100%. Fundo escuro no painel.`r`nInventory > Light Cone: Lv decrescente, lista no topo e primeiro Cone selecionado.`r`nSem filtro de estrelas: inclui Cones 3/4/5* nivel 20+. Solte mouse e teclado.`r`nD/A alternam o sentido por linha; S desce. F8 interrompe; mantenha HSR na frente."
             $context.Status.Text = 'HSR: percorre ate nivel abaixo de 20; limite de seguranca de 2000 posicoes. Confirme a preparacao.'
         } elseif ($context.Game.SelectedIndex -eq 2) {
-            $context.Notice.Text = "Genshin em ingles, cliente 1280x720, escala Windows 100%.`r`nInventory > Weapons: Level decrescente, lista no topo e primeira arma selecionada.`r`nSem filtro que esconda 3/4/5 estrelas. Ate 40 posicoes e quatro passos de roda.`r`nO jogo sera ativado apos cinco segundos. F8 interrompe; mantenha os controles livres."
+            $context.Notice.Text = "Genshin em ingles, cliente 1280x720, escala Windows 100%.`r`nInventory > Weapons: Level decrescente, lista no topo e primeira arma selecionada.`r`nSem filtro que esconda 3/4/5 estrelas. Percurso experimental ate o corte 20+.`r`nO jogo sera ativado apos cinco segundos. F8 interrompe; mantenha os controles livres."
             $context.Status.Text = 'Genshin: percurso limitado para validar rolagem. Confirme a preparacao.'
         } else {
             $context.Notice.Text = $context.ZzzNotice

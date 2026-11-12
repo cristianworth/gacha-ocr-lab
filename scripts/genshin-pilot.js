@@ -49,10 +49,10 @@ try {
   await backend.activate();
   await backend.arm();
   const scrollProbe = values['scroll-probe'] === true;
-  const report = await runGenshinPilot1280({ backend, ocrSession: ocr, output, signal: controller.signal, scrollProbe, limit: scrollProbe ? 40 : 10,
+  const report = await runGenshinPilot1280({ backend, ocrSession: ocr, output, signal: controller.signal, scrollProbe, limit: scrollProbe ? 1000 : 10,
     onProgress: (item, count) => console.log(`${count}: ${item.reading.fields.name.value ?? '(nome pendente)'}`) });
   console.log(`Piloto encerrado: ${report.reason}. Resumo: ${join(output, 'summary.md')}`);
-  if (!['pilot-limit', 'scroll-probe-limit', 'position-limit', 'level-cutoff-reached'].includes(report.reason)) process.exitCode = 1;
+  if (!['pilot-limit', 'position-limit', 'scroll-total-limit', 'level-cutoff-reached'].includes(report.reason)) process.exitCode = 1;
 } catch (error) {
   console.error(`Piloto nao iniciado ou interrompido: ${error.message}`);
   process.exitCode = 1;
