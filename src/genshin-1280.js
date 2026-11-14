@@ -1,4 +1,4 @@
-import { inspectImage, validateRectangle } from './regions.js';
+import { fieldVariants, inspectImage, validateRectangle } from './regions.js';
 import { readWeapon } from './read-weapon.js';
 import sharp from 'sharp';
 import { inspectSelection } from './genshin-inventory.js';
@@ -93,7 +93,8 @@ export async function inspectGenshin1280Selected(image, { client: requested } = 
 export async function readGenshin1280(image, options = {}) {
   const client = await checkedClient(image, options.client);
   const panel = { ...PANEL, left: client.left + PANEL.left, top: client.top + PANEL.top };
-  const result = await readWeapon(image, { ...options, game: 'genshin', languages: 'eng', panel });
+  const levelVariants = [...fieldVariants.level, { id: 'threshold-110', threshold: 110 }, { id: 'threshold-140', threshold: 140 }];
+  const result = await readWeapon(image, { ...options, game: 'genshin', languages: 'eng', panel, fieldVariants: { ...fieldVariants, level: levelVariants } });
   result.processing.client = client;
   result.processing.clientProfile = 'genshin-weapons-1280x720-offline-v1';
   result.processing.clientProfileValidatedLive = false;

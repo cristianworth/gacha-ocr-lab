@@ -37,7 +37,7 @@ test('grid keeps a faint label when all eight columns support three separated li
 
 test('offline profile translates panel regions and keeps uncertain values', async () => {
   const buffer = await sharp({ create: { width: 1282, height: 751, channels: 3, background: 'black' } }).png().toBuffer();
-  const responses = ['Test Weapon', 'Test Weapon', 'Lv. 90/90', 'Lv. 90/80', 'Refinement Rank 1', 'Refinement Rank 1', 'Bow'];
+  const responses = ['Test Weapon', 'Test Weapon', 'Lv. 90/90', 'Lv. 90/80', '', '', 'Refinement Rank 1', 'Refinement Rank 1', 'Bow'];
   const result = await readGenshin1280({ buffer, source: { sha256: 'original' } }, {
     client: { left: 1, top: 30, width: 1280, height: 720 },
     ocrSession: { recognize: async () => ({ rawText: responses.shift(), confidence: null }) },
@@ -48,4 +48,15 @@ test('offline profile translates panel regions and keeps uncertain values', asyn
   assert.equal(result.fields.level.status, 'uncertain');
   assert.equal(result.fields.level.value, null);
   assert.equal(result.processing.clientProfileValidatedLive, false);
+});
+
+test('level contrast attempts agree without discarding the raw failed readings', async () => {
+  const buffer = await sharp({ create: { width: 1280, height: 720, channels: 3, background: 'black' } }).png().toBuffer();
+  const responses = ['Test Weapon', 'Test Weapon', 'Lv. 40/4(', '', 'Lv. 40/40', 'Lv. 40/40', 'Refinement Rank 1', 'Refinement Rank 1', 'Bow'];
+  const result = await readGenshin1280({ buffer, source: { sha256: 'original' } }, {
+    ocrSession: { recognize: async () => ({ rawText: responses.shift(), confidence: null }) },
+  });
+  assert.deepEqual(result.fields.level.value, { current: 40, max: 40 });
+  assert.equal(result.fields.level.status, 'recognized');
+  assert.deepEqual(result.ocr.regions.level.attempts.map(attempt => attempt.rawText), ['Lv. 40/4(', '', 'Lv. 40/40', 'Lv. 40/40']);
 });

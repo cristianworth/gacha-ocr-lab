@@ -26,7 +26,7 @@ async function header(buffer, ocr) {
 export async function runGenshinPilot1280({ backend, ocrSession, output, signal, limit = 10, scrollProbe = false, onProgress = () => {}, dependencies = {} }) {
   if (!Number.isInteger(limit) || limit < 1 || limit > (scrollProbe ? 1000 : 10)) throw new Error('Limite de posicoes invalido.');
   await mkdir(output, { recursive: true });
-  const report = { schemaVersion: 1, game: 'genshin', mode: scrollProbe ? 'scroll-probe-1280x720' : 'pilot-1280x720', scope: { minLevel: 20, rarities: [3, 4, 5] },
+  const report = { schemaVersion: 1, game: 'genshin', mode: scrollProbe ? 'scroll-probe-1280x720' : 'pilot-1280x720', scope: { minLevel: 60, rarities: [3, 4, 5] },
     startedAt: new Date().toISOString(), status: 'running', captureComplete: false, coverageConfirmed: false,
     inventoryAccepted: false, preparation: { topAndDescendingLevel: 'user-declared', rarityFilter: 'user-declared' },
     eligibility: { levelCutoffApplied: scrollProbe, rarityExtracted: false, note: 'Raridade nao e extraida; nivel pendente nao comprova cobertura.' }, observations: [] };
@@ -122,14 +122,14 @@ export async function runGenshinPilot1280({ backend, ocrSession, output, signal,
         if (scrollProbe) {
           const level = reading.fields.level;
           const current = level?.status === 'recognized' && Number.isInteger(level.value?.current) ? level.value.current : null;
-          observation.levelEligibility = current === null ? 'pending-level' : current >= 20 ? 'eligible-level' : 'below-level';
+          observation.levelEligibility = current === null ? 'pending-level' : current >= report.scope.minLevel ? 'eligible-level' : 'below-level';
           if (current === null) pendingLevel = true;
           else {
             if (lastLevel !== null && current > lastLevel) throw new Error('level-order-contradiction');
             lastLevel = current;
           }
           await save(output, report);
-          if (current !== null && current < 20) {
+          if (current !== null && current < report.scope.minLevel) {
             report.levelScopeComplete = !pendingLevel;
             report.reason = pendingLevel ? 'level-cutoff-with-unresolved-levels' : 'level-cutoff-reached';
             done = true;

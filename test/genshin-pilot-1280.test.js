@@ -255,7 +255,7 @@ test('traversal stops when repeated movement yields no new safe position', async
 });
 
 test('traversal tolerates small scroll steps and reaches the level cutoff on a later row', async t => {
-  const f = await scrollFixture(t, { levels: [30, 20, 19] });
+  const f = await scrollFixture(t, { levels: [70, 60, 59] });
   f.dependencies.matchScroll = async () => f.scrolls() < 10
     ? { status: 'no-new-complete-row', offset: 0, overlap: 2, displacement: 12 }
     : { status: 'matched', offset: 1, overlap: 1, displacement: 12 };
@@ -280,9 +280,9 @@ test('cancellation during repeated scrolling preserves observations without furt
 });
 
 for (const [levels, reason, complete] of [
-  [[20, 19], 'level-cutoff-reached', true],
-  [[null, 19], 'level-cutoff-with-unresolved-levels', false],
-  [[20, 21], 'level-order-contradiction', undefined],
+  [[60, 59], 'level-cutoff-reached', true],
+  [[null, 59], 'level-cutoff-with-unresolved-levels', false],
+  [[60, 61], 'level-order-contradiction', undefined],
 ]) {
   test(`level cutoff handles ${JSON.stringify(levels)} without claiming inventory coverage`, async t => {
     const f = await scrollFixture(t, { levels });

@@ -10,7 +10,7 @@ export async function readWeapon(image, options = {}) {
   const game = getGame(options.game);
   const size = await inspectImage(image.buffer);
   const selection = game.id === 'hsr' ? selectHsrLayout(size, options) : selectLayout(size, options);
-  const variants = game.id === 'hsr' ? hsrFieldVariants : fieldVariants;
+  const variants = options.fieldVariants ?? (game.id === 'hsr' ? hsrFieldVariants : fieldVariants);
   const source = { ...image.source, imageSize: size };
   const common = { schemaVersion: 2, createdAt: new Date().toISOString(), game: game.id, itemType: game.itemType, source, requiresManualReview: true };
   if (selection.layout === 'text') {
