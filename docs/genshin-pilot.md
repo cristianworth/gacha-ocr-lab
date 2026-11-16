@@ -19,8 +19,10 @@ O executor observa níveis na ordem visual e para por contradição; nível ileg
 
 Cada tentativa usa uma pasta em `.cache/genshin/runs/`, com `console.log`, `exit-code.txt` e, depois de iniciado o executor, `session.json`, `summary.md` e frames. O manifesto conserva OCR bruto, candidatos, incertezas, posição, hash e evidências de seleção. `lastCapture` e `currentAttempt` ajudam a localizar uma falha; uma captura com OCR pendente ou âncora não verificada permanece registrada. Os caminhos e as imagens são locais e não entram no Git. Se falhar antes de o executor iniciar, pode haver somente log e código de saída.
 
+O resumo distingue posições dentro e abaixo do corte e níveis pendentes. Campos incertos aparecem em uma lista de revisão com candidatos e links para os frames, quando disponíveis. Esses candidatos não são confirmações humanas.
+
 O piloto confirma um contorno na posição alvo e estabilidade do painel em dois quadros; ele interrompe se não puder fazê-lo. Igualdade de arte ou nome não identifica cópia. Foco, geometria, DPI, oclusão, integridade e parada são verificados pelo helper; um bloqueio ou falha conserva a saída parcial. Nada é enviado ao Advisor.
 
 Em 10/11, o piloto no jogo alcançou dez posições. Em 11/11, as tentativas pararam após 32 posições por dificuldades de detecção da grade e da borda; as correções e suas evidências estão no [roadmap](ROADMAP.md). Não há aprovação humana integral, comprovação de cobertura ou percurso completo.
 
-Em 12/11, uma execução no jogo confirmou quatro rolagens e registrou 40 posições, encerrando no limite então previsto do piloto. O percurso ampliado foi simulado offline, mas ainda precisa ser conferido no jogo. O plano e os limites da evidência estão no [roadmap](ROADMAP.md).
+Em 15/11, uma execução no jogo chegou ao corte de 60+, com 90 posições de nível reconhecido dentro do corte, uma abaixo e dois nomes incertos. A raridade não foi extraída e o inventário não foi aprovado integralmente. Os limites da evidência estão no [roadmap](ROADMAP.md).

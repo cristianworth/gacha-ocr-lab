@@ -22,6 +22,40 @@ async function header(buffer, ocr) {
   return { ...values, verified: /^Weapons$/i.test(values.category.trim()) && /^Level$/i.test(values.sort.trim()) };
 }
 
+export function renderGenshinSummary(report) {
+  const observations = report.observations ?? [];
+  const escape = value => String(value).replace(/\|/gu, '\\|').replace(/\s+/gu, ' ').trim();
+  const eligible = observations.filter(item => item.levelEligibility === 'eligible-level').length;
+  const pending = observations.filter(item => item.levelEligibility === 'pending-level').length;
+  const cutoff = observations.filter(item => item.levelEligibility === 'below-level').length;
+  const lines = ['# Genshin — resultado da leitura', '', `Motivo: ${report.reason}`, `Posições registradas: ${observations.length}`];
+  if (report.eligibility?.levelCutoffApplied) {
+    lines.push(`Nível ${report.scope.minLevel}+: ${eligible}; nível pendente: ${pending}; abaixo do corte: ${cutoff}.`,
+      `Término por nível: ${report.levelScopeComplete === true ? 'confirmado sob ordenação declarada' : 'não confirmado'}.`);
+  }
+  lines.push('', '| Posição | Nome | Nível | Refinamento | Situação do nível |', '|---|---|---|---|---|');
+  for (const [index, item] of observations.entries()) {
+    const fields = item.reading?.fields ?? {};
+    const level = fields.level?.value;
+    const situation = { 'eligible-level': 'Dentro do corte', 'pending-level': 'Pendente', 'below-level': 'Abaixo do corte' }[item.levelEligibility] ?? 'Não avaliada';
+    lines.push(`| ${index + 1} | ${escape(fields.name?.value ?? '?')} | ${level ? `${level.current}/${level.max ?? '?'}` : '?'} | ${fields.refinement?.value ?? '?'} | ${situation} |`);
+  }
+  const uncertain = observations.flatMap((item, index) => ['name', 'level', 'refinement'].flatMap(field => {
+    const result = item.reading?.fields?.[field];
+    return result && result.status !== 'recognized' ? [{ index: index + 1, field, result, capture: item.capture?.path }] : [];
+  }));
+  if (uncertain.length) {
+    lines.push('', '## Campos para revisão', '');
+    for (const item of uncertain) {
+      const candidates = [...new Set((item.result.candidates ?? []).filter(candidate => candidate.valid).map(candidate => typeof candidate.value === 'object' ? JSON.stringify(candidate.value) : String(candidate.value)))];
+      const image = item.capture ? item.capture.split(/[\\/]/u).at(-1) : null;
+      lines.push(`- Posição ${item.index}, ${item.field}: ${candidates.length ? candidates.map(escape).join(' / ') : 'sem candidato válido'}${image ? ` ([imagem](${encodeURIComponent(image)}))` : ''}.`);
+    }
+  }
+  lines.push('', 'Raridade não é extraída; o resultado não comprova cobertura integral ou aprovação do inventário. OCR bruto e incertezas no session.json.');
+  return `${lines.join('\n')}\n`;
+}
+
 // The traversal remains bounded and does not claim inventory acceptance.
 export async function runGenshinPilot1280({ backend, ocrSession, output, signal, limit = 10, scrollProbe = false, onProgress = () => {}, dependencies = {} }) {
   if (!Number.isInteger(limit) || limit < 1 || limit > (scrollProbe ? 1000 : 10)) throw new Error('Limite de posicoes invalido.');
@@ -206,14 +240,7 @@ export async function runGenshinPilot1280({ backend, ocrSession, output, signal,
   } finally {
     report.endedAt = new Date().toISOString();
     await save(output, report);
-    const lines = ['# Genshin — percurso parcial', '', `Motivo: ${report.reason}`, `Posições registradas: ${report.observations.length}`, '', '| Posição | Nome | Nível | Refinamento |', '|---|---|---|---|'];
-    for (const [index, item] of report.observations.entries()) {
-      const fields = item.reading?.fields ?? { name: {}, level: {}, refinement: {} };
-      const level = fields.level.value;
-      lines.push(`| ${index + 1} | ${fields.name.value ?? '?'} | ${level ? `${level.current}/${level.max ?? '?'}` : '?'} | ${fields.refinement.value ?? '?'} |`);
-    }
-    lines.push('', 'Raridade não é extraída; o resultado não comprova cobertura integral ou aprovação do inventário. OCR bruto e incertezas no session.json.');
-    await writeFile(join(output, 'summary.md'), `${lines.join('\n')}\n`, 'utf8');
+    await writeFile(join(output, 'summary.md'), renderGenshinSummary(report), 'utf8');
   }
   return report;
 }

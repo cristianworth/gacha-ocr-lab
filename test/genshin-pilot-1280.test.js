@@ -4,7 +4,22 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import sharp from 'sharp';
-import { runGenshinPilot1280 } from '../src/genshin-pilot-1280.js';
+import { renderGenshinSummary, runGenshinPilot1280 } from '../src/genshin-pilot-1280.js';
+
+test('summary separates eligible, uncertain and below-cutoff positions and links review images', () => {
+  const report = { reason: 'level-cutoff-with-unresolved-levels', scope: { minLevel: 60 }, eligibility: { levelCutoffApplied: true }, levelScopeComplete: false,
+    observations: [
+      { levelEligibility: 'eligible-level', capture: { path: 'C:\\run\\frame 1.png' }, reading: { fields: { name: { status: 'uncertain', value: null, candidates: [{ valid: true, value: 'Name A' }, { valid: true, value: 'Name B' }] }, level: { status: 'recognized', value: { current: 60, max: 70 } }, refinement: { status: 'recognized', value: 1 } } } },
+      { levelEligibility: 'pending-level', reading: { fields: { level: { status: 'uncertain', value: null, candidates: [] } } } },
+      { levelEligibility: 'below-level', reading: { fields: { level: { status: 'recognized', value: { current: 40, max: 40 } } } } },
+    ] };
+  const summary = renderGenshinSummary(report);
+  assert.match(summary, /Nível 60\+: 1; nível pendente: 1; abaixo do corte: 1/);
+  assert.match(summary, /Término por nível: não confirmado/);
+  assert.match(summary, /Posição 1, name: Name A \/ Name B \(\[imagem\]\(frame%201.png\)\)/);
+  assert.match(summary, /Posição 2, level: sem candidato válido/);
+  assert.match(summary, /40\/40 \| \? \| Abaixo do corte/);
+});
 
 async function fixture(t, { dpi = 96, selected = true } = {}) {
   const output = await mkdtemp(join(tmpdir(), 'genshin-pilot-'));
