@@ -15,7 +15,7 @@ async function save(output, report) {
 
 async function header(buffer, ocr) {
   const values = {};
-  for (const [name, rectangle] of Object.entries({ category: { left: 86, top: 14, width: 130, height: 45 }, sort: { left: 95, top: 661, width: 150, height: 37 } })) {
+  for (const [name, rectangle] of Object.entries({ category: { left: 86, top: 14, width: 130, height: 45 }, sort: { left: 104, top: 664, width: 55, height: 28 } })) {
     const prepared = await prepareRegion(buffer, rectangle, { threshold: 140 });
     values[name] = (await ocr.recognize(prepared.buffer, 'SINGLE_LINE')).rawText;
   }

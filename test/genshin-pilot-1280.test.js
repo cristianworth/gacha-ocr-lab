@@ -38,6 +38,17 @@ test('pilot refuses wrong DPI before capture or input and saves a partial result
   assert.equal(JSON.parse(await readFile(join(f.output, 'session.json'))).captureComplete, false);
 });
 
+for (const [sort, expectedClicks] of [['Level', 1], ['Quality', 0], ['Level Quality', 0], ['', 0]]) {
+  test(`header requires the exact Level sorting label: ${JSON.stringify(sort)}`, async t => {
+    const f = await fixture(t);
+    delete f.dependencies.header;
+    const texts = ['Weapons', sort];
+    const result = await runGenshinPilot1280({ ...f, ocrSession: { recognize: async () => ({ rawText: texts.shift() }) }, limit: 1 });
+    assert.equal(f.clicks(), expectedClicks);
+    assert.equal(result.reason, expectedClicks ? 'pilot-limit' : 'weapons-or-level-label-unverified');
+  });
+}
+
 test('pilot records a stable confirmed selection without claiming coverage', async t => {
   const f = await fixture(t);
   const result = await runGenshinPilot1280({ ...f, ocrSession: {}, limit: 1 });
