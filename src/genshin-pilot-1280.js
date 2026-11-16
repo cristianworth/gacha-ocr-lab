@@ -33,14 +33,16 @@ export function renderGenshinSummary(report) {
     lines.push(`Nível ${report.scope.minLevel}+: ${eligible}; nível pendente: ${pending}; abaixo do corte: ${cutoff}.`,
       `Término por nível: ${report.levelScopeComplete === true ? 'confirmado sob ordenação declarada' : 'não confirmado'}.`);
   }
-  lines.push('', '| Posição | Nome | Nível | Refinamento | Situação do nível |', '|---|---|---|---|---|');
+  lines.push('', '| Posição | Nome | Nível | Refinamento | Raridade | Situação do nível | Escopo |', '|---|---|---|---|---|---|---|');
   for (const [index, item] of observations.entries()) {
     const fields = item.reading?.fields ?? {};
     const level = fields.level?.value;
     const situation = { 'eligible-level': 'Dentro do corte', 'pending-level': 'Pendente', 'below-level': 'Abaixo do corte' }[item.levelEligibility] ?? 'Não avaliada';
-    lines.push(`| ${index + 1} | ${escape(fields.name?.value ?? '?')} | ${level ? `${level.current}/${level.max ?? '?'}` : '?'} | ${fields.refinement?.value ?? '?'} | ${situation} |`);
+    const rarity = fields.rarity?.status === 'recognized' ? fields.rarity.value : null;
+    const inScope = item.levelEligibility === 'below-level' ? 'Fora do corte' : item.levelEligibility !== 'eligible-level' || rarity === null ? 'Pendente' : report.scope.rarities.includes(rarity) ? 'Incluído' : 'Fora da raridade';
+    lines.push(`| ${index + 1} | ${escape(fields.name?.value ?? '?')} | ${level ? `${level.current}/${level.max ?? '?'}` : '?'} | ${fields.refinement?.value ?? '?'} | ${rarity === null ? '?' : `${rarity}★`} | ${situation} | ${inScope} |`);
   }
-  const uncertain = observations.flatMap((item, index) => ['name', 'level', 'refinement'].flatMap(field => {
+  const uncertain = observations.flatMap((item, index) => ['name', 'level', 'refinement', 'rarity'].flatMap(field => {
     const result = item.reading?.fields?.[field];
     return result && result.status !== 'recognized' ? [{ index: index + 1, field, result, capture: item.capture?.path }] : [];
   }));
@@ -52,7 +54,7 @@ export function renderGenshinSummary(report) {
       lines.push(`- Posição ${item.index}, ${item.field}: ${candidates.length ? candidates.map(escape).join(' / ') : 'sem candidato válido'}${image ? ` ([imagem](${encodeURIComponent(image)}))` : ''}.`);
     }
   }
-  lines.push('', 'Raridade não é extraída; o resultado não comprova cobertura integral ou aprovação do inventário. OCR bruto e incertezas no session.json.');
+  lines.push('', 'Raridade ausente ou incerta permanece pendente. O resultado não comprova cobertura integral ou aprovação do inventário. OCR bruto e incertezas no session.json.');
   return `${lines.join('\n')}\n`;
 }
 
@@ -63,7 +65,7 @@ export async function runGenshinPilot1280({ backend, ocrSession, output, signal,
   const report = { schemaVersion: 1, game: 'genshin', mode: scrollProbe ? 'scroll-probe-1280x720' : 'pilot-1280x720', scope: { minLevel: 60, rarities: [3, 4, 5] },
     startedAt: new Date().toISOString(), status: 'running', captureComplete: false, coverageConfirmed: false,
     inventoryAccepted: false, preparation: { topAndDescendingLevel: 'user-declared', rarityFilter: 'user-declared' },
-    eligibility: { levelCutoffApplied: scrollProbe, rarityExtracted: false, note: 'Raridade nao e extraida; nivel pendente nao comprova cobertura.' }, observations: [] };
+    eligibility: { levelCutoffApplied: scrollProbe, rarityExtracted: true, note: 'Nivel ou raridade pendente nao comprova elegibilidade; raridade nao controla o percurso.' }, observations: [] };
   await save(output, report);
   const inspectHeader = dependencies.header ?? header;
   const inspectSelected = dependencies.inspectSelected ?? inspectGenshin1280Selected;

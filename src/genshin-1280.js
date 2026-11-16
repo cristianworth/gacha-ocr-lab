@@ -1,7 +1,7 @@
 import { fieldVariants, inspectImage, validateRectangle } from './regions.js';
 import { readWeapon } from './read-weapon.js';
 import sharp from 'sharp';
-import { inspectSelection } from './genshin-inventory.js';
+import { inspectSelection, readRarity } from './genshin-inventory.js';
 
 // Measured on the four supplied window screenshots; this is an offline profile.
 const PANEL = { left: 873, top: 79, width: 327, height: 638 };
@@ -95,6 +95,9 @@ export async function readGenshin1280(image, options = {}) {
   const panel = { ...PANEL, left: client.left + PANEL.left, top: client.top + PANEL.top };
   const levelVariants = [...fieldVariants.level, { id: 'threshold-110', threshold: 110 }, { id: 'threshold-140', threshold: 140 }];
   const result = await readWeapon(image, { ...options, game: 'genshin', languages: 'eng', panel, fieldVariants: { ...fieldVariants, level: levelVariants } });
+  result.fields.rarity = result.processing.layoutVerified
+    ? await readRarity(image.buffer, panel)
+    : { status: 'uncertain', value: null, evidence: { reason: 'weapon-type-unverified', panel } };
   result.processing.client = client;
   result.processing.clientProfile = 'genshin-weapons-1280x720-offline-v1';
   result.processing.clientProfileValidatedLive = false;

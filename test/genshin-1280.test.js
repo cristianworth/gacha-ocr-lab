@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import { readGenshin1280, inspectGenshin1280Selection, inspectGenshin1280Grid } from '../src/genshin-1280.js';
+import { card } from '../test-support/genshin-scene.js';
 
 test('offline profile requires an explicit client for window screenshots', async () => {
   const buffer = await sharp({ create: { width: 1282, height: 751, channels: 3, background: 'black' } }).png().toBuffer();
@@ -60,3 +61,16 @@ test('level contrast attempts agree without discarding the raw failed readings',
   assert.equal(result.fields.level.status, 'recognized');
   assert.deepEqual(result.ocr.regions.level.attempts.map(attempt => attempt.rawText), ['Lv. 40/4(', '', 'Lv. 40/40', 'Lv. 40/40']);
 });
+
+for (const rarity of [2, 3, 4, 5]) {
+  test(`1280 profile reads ${rarity} aligned stars independently of the weapon name`, async () => {
+    const panel = await sharp(await card(rarity)).resize(327, 638).png().toBuffer();
+    const buffer = await sharp({ create: { width: 1280, height: 720, channels: 3, background: 'black' } })
+      .composite([{ input: panel, left: 873, top: 79 }]).png().toBuffer();
+    const responses = ['Weapon', 'Weapon', 'Lv. 60/60', 'Lv. 60/60', 'Lv. 60/60', 'Lv. 60/60', 'Refinement Rank 1', 'Refinement Rank 1', 'Bow'];
+    const result = await readGenshin1280({ buffer, source: {} }, { ocrSession: { recognize: async () => ({ rawText: responses.shift() }) } });
+    assert.equal(result.fields.rarity.status, 'recognized');
+    assert.equal(result.fields.rarity.value, rarity);
+    assert.equal(result.fields.rarity.evidence.ocrConfidenceUsed, false);
+  });
+}

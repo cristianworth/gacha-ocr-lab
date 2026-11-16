@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import { renderGenshinSummary, runGenshinPilot1280 } from '../src/genshin-pilot-1280.js';
 
 test('summary separates eligible, uncertain and below-cutoff positions and links review images', () => {
-  const report = { reason: 'level-cutoff-with-unresolved-levels', scope: { minLevel: 60 }, eligibility: { levelCutoffApplied: true }, levelScopeComplete: false,
+  const report = { reason: 'level-cutoff-with-unresolved-levels', scope: { minLevel: 60, rarities: [3, 4, 5] }, eligibility: { levelCutoffApplied: true }, levelScopeComplete: false,
     observations: [
       { levelEligibility: 'eligible-level', capture: { path: 'C:\\run\\frame 1.png' }, reading: { fields: { name: { status: 'uncertain', value: null, candidates: [{ valid: true, value: 'Name A' }, { valid: true, value: 'Name B' }] }, level: { status: 'recognized', value: { current: 60, max: 70 } }, refinement: { status: 'recognized', value: 1 } } } },
       { levelEligibility: 'pending-level', reading: { fields: { level: { status: 'uncertain', value: null, candidates: [] } } } },
@@ -18,7 +18,20 @@ test('summary separates eligible, uncertain and below-cutoff positions and links
   assert.match(summary, /Término por nível: não confirmado/);
   assert.match(summary, /Posição 1, name: Name A \/ Name B \(\[imagem\]\(frame%201.png\)\)/);
   assert.match(summary, /Posição 2, level: sem candidato válido/);
-  assert.match(summary, /40\/40 \| \? \| Abaixo do corte/);
+  assert.match(summary, /40\/40 \| \? \| \? \| Abaixo do corte \| Fora do corte/);
+});
+
+test('summary only includes 3–5 star weapons with confirmed eligible level', () => {
+  const makeItem = (levelEligibility, status, value) => ({ levelEligibility, reading: { fields: { rarity: { status, value } } } });
+  const summary = renderGenshinSummary({ reason: 'test', scope: { minLevel: 60, rarities: [3, 4, 5] }, eligibility: { levelCutoffApplied: true }, observations: [
+    makeItem('eligible-level', 'recognized', 3), makeItem('eligible-level', 'recognized', 2),
+    makeItem('eligible-level', 'uncertain', null), makeItem('pending-level', 'recognized', 5), makeItem('below-level', 'recognized', 4),
+  ] });
+  assert.match(summary, /3★ \| Dentro do corte \| Incluído/);
+  assert.match(summary, /2★ \| Dentro do corte \| Fora da raridade/);
+  assert.match(summary, /\? \| Dentro do corte \| Pendente/);
+  assert.match(summary, /5★ \| Pendente \| Pendente/);
+  assert.match(summary, /4★ \| Abaixo do corte \| Fora do corte/);
 });
 
 async function fixture(t, { dpi = 96, selected = true } = {}) {
