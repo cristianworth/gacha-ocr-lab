@@ -26,3 +26,5 @@ O piloto confirma um contorno na posição alvo e estabilidade do painel em dois
 Em 10/11, o piloto no jogo alcançou dez posições. Em 11/11, as tentativas pararam após 32 posições por dificuldades de detecção da grade e da borda; as correções e suas evidências estão no [roadmap](ROADMAP.md). Não há aprovação humana integral, comprovação de cobertura ou percurso completo.
 
 Em 15/11, uma execução no jogo chegou ao corte de 60+, com 90 posições de nível reconhecido dentro do corte, uma abaixo e dois nomes incertos depois revisados por Cristian. Um replay separado reconheceu estrelas nas imagens salvas, sem comprovar precisão independente. O inventário não foi aprovado integralmente. Os limites da evidência estão no [roadmap](ROADMAP.md).
+
+Uma conferência técnica de quatro imagens de outra sessão concordou com o leitor para 1★, 3★, 4★ e 5★; a seleção não foi cega. Outra amostra de cinco imagens, com rótulos visuais registrados antes da comparação com o leitor, também concordou nas leituras de 3★, 4★ e 5★. As amostras são pequenas, do mesmo inventário e não aleatórias; não representam precisão geral nem aprovação de Cristian para a raridade.
