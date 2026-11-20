@@ -21,6 +21,8 @@ Cada tentativa usa uma pasta em `.cache/genshin/runs/`, com `console.log`, `exit
 
 O resumo distingue posições dentro e abaixo do corte e informa se nível e raridade as colocam no escopo. Se um desses dados estiver incerto, a elegibilidade permanece pendente; armas de raridade fora de 3–5 estrelas permanecem registradas, identificadas como fora do escopo. Campos incertos aparecem em uma lista de revisão com candidatos e links para os frames, quando disponíveis. Esses candidatos não são confirmações humanas. Sessões anteriores preservam seus resultados originais e não ganham raridade retroativamente.
 
+Há também uma [saída estruturada local para revisão](genshin-review-format.md), que mantém OCR e confirmações humanas separados. O Advisor não possui importador para ela.
+
 O piloto confirma um contorno na posição alvo e estabilidade do painel em dois quadros; ele interrompe se não puder fazê-lo. Igualdade de arte ou nome não identifica cópia. Foco, geometria, DPI, oclusão, integridade e parada são verificados pelo helper; um bloqueio ou falha conserva a saída parcial. Nada é enviado ao Advisor.
 
 Em 10/11, o piloto no jogo alcançou dez posições. Em 11/11, as tentativas pararam após 32 posições por dificuldades de detecção da grade e da borda; as correções e suas evidências estão no [roadmap](ROADMAP.md). Não há aprovação humana integral, comprovação de cobertura ou percurso completo.
