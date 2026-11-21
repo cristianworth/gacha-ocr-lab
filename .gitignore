@@ -29,3 +29,10 @@ __pycache__/
 gacha-ocr-lab.exe
 gacha-ocr-zzz.exe
 gacha-ocr.exe
+
+# Local agent context and credentials
+/.ai-memory.toml
+/docs/handoffs/
+.env
+.env.*
+!.env.example

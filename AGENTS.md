@@ -6,7 +6,7 @@
 - Antes de desenvolver um percurso, estabeleça dado útil, filtro, ordenação, condição de parada e saída consumida. Use as fontes, o código executado e os arquivos salvos antes de criar comportamento ou pedir capturas.
 - Em falhas recorrentes ou sucessivas no mesmo fluxo, reconstrua o percurso e seus limites de ponta a ponta, registre hipóteses e evidências que as confirmem ou descartem e avalie as próximas transições, não apenas o último erro. Planeje replays e simulações com os dados existentes antes de pedir outra execução; consulte fontes primárias externas quando esclarecerem uma dúvida concreta, preservando origem e licença.
 - Faça a menor mudança coerente. Reaproveite contratos públicos; não crie framework, UI ampla, infraestrutura de testes ou identidade persistente de itens sem necessidade demonstrada.
-- Continue na branch acordada. Preserve alterações existentes, handoffs e .ai-memory.toml; não faça limpeza, reset, push ou nova passagem de contexto fora da autorização da tarefa.
+- Use uma branch curta de trabalho a partir da branch padrão remota atualizada, respeitando a autorização da tarefa. Preserve alterações e commits alheios, handoffs e .ai-memory.toml; não faça limpeza, reset, push ou nova passagem de contexto fora do escopo autorizado.
 
 ## Evidência e dados
 
@@ -31,6 +31,7 @@
 - Não criar handoff por cerimônia. Antes de commit ou merge, siga as regras de versão/changelog aplicáveis; não incremente versão a cada commit do mesmo recorte.
 - Acompanhe a tarefa em execução e a próxima etapa em issues do GitHub: consulte as existentes para evitar duplicação, crie as que faltarem, registre avanços e limitações e feche cada issue quando seu escopo estiver efetivamente concluído. Se o GitHub estiver inacessível, preserve o progresso local e informe a pendência.
 - Ao concluir uma parte coesa que represente progresso e esteja verificada de modo proporcional, faça commit e push das alterações correspondentes na branch acordada, respeitando o escopo autorizado e preservando arquivos locais e mudanças alheias. Não crie commits artificiais apenas para gerar atividade.
+- Abra PR com problema, resultado, validação, limitações e issue relacionada; use rascunho enquanto houver revisão ou validação pendente. Revise o diff e os checks do SHA atual; se não houver CI aplicável, registre essa ausência e a validação local. CI verde não autoriza merge. Integre somente após aprovação de Cristian para o diff e autorização de integração; mudanças posteriores exigem nova revisão e aprovação. Push direto à principal exige autorização explícita. Confira CI/deploy e publicação após integrar, quando aplicáveis. Este processo não concede permissões operacionais além do pedido atual.
 - Ao informar a validação, diga explicitamente se Cristian precisa executar um teste agora, se ele é opcional ou se ainda não há teste para ele fazer. Quando necessário, apresente passos, resultado esperado e o que enviar; quando a próxima ação for do agente, diga isso claramente.
 - Nas respostas de entrega, seja breve e claro: destaque o progresso, os entraves e suas causas e as próximas alterações. Use detalhes técnicos somente quando necessários para a decisão ou a execução do teste.
 - Entregue mudança, verificações, limites e um roteiro prático proporcional. Em português, feche com Para testar (quando aplicável), Workflow e TL;DR.
