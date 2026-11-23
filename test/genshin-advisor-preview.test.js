@@ -40,3 +40,19 @@ test('rejects changed structured export, capture, linked review and incompatible
   await assert.rejects(buildGenshinAdvisorPreview({ ...f, reviewBytes: bytes({ game: 'genshin', session: { sha256: 'other' }, observations: [] }) }), /não corresponde/);
   await assert.rejects(buildGenshinAdvisorPreview({ ...f, advisorBytes: Buffer.from('## Genshin Impact\n#### Owned 5-star weapons\n') }), /Tabela Advisor incompatível/);
 });
+
+test('renders uncertain candidates, divergent field confirmation, unmatched names and original indicators', async () => {
+  const result = await buildGenshinAdvisorPreview(fixture());
+  result.levelScopeComplete = true;
+  result.coverageConfirmed = false;
+  result.observations[0].fields.name.humanReview.value = 'Different';
+  result.observations[0].fields.level.humanReview = { value: { current: 70, max: 80 }, reviewer: 'Cristian', date: '2026-11-15' };
+  result.observations[1].candidateRows = [];
+  const text = renderGenshinAdvisorPreview(result, { structuredPath: 'review.json' });
+  assert.match(text, /Incerto \(candidatos: Weapon\); confirmado por Cristian em 2026-11-15: Different/);
+  assert.match(text, /Automático: 60\/60; confirmado por Cristian em 2026-11-15: 70\/80/);
+  assert.match(text, /Sem linha candidata/);
+  assert.match(text, /Término por nível: sim; cobertura confirmada: não; inventário aprovado: não/);
+  assert.match(text, /review\.json/);
+  assert.doesNotMatch(text.split('## Proveniência')[0], /"observed"/);
+});

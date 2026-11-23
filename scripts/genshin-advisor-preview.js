@@ -6,4 +6,4 @@ const { values } = parseArgs({ options: Object.fromEntries(['session', 'review',
 if (['session', 'review', 'rarity', 'structured', 'advisor'].some(name => !values[name])) throw new Error('Informe --session, --review, --rarity, --structured e --advisor.');
 const [sessionBytes, reviewBytes, rarityBytes, structuredBytes, advisorBytes] = await Promise.all(['session', 'review', 'rarity', 'structured', 'advisor'].map(name => readFile(values[name])));
 const preview = await buildGenshinAdvisorPreview({ sessionBytes, reviewBytes, rarityBytes, structuredBytes, advisorBytes, readCapture: readFile });
-console.log(renderGenshinAdvisorPreview(preview));
+console.log(renderGenshinAdvisorPreview(preview, { structuredPath: values.structured }));

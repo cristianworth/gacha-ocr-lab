@@ -44,21 +44,58 @@ export async function buildGenshinAdvisorPreview({ sessionBytes, reviewBytes, ra
     observations.push({ ...observation, candidateRows: rows.filter(row => names.has(row.name)) });
   }
   return { source: { ...review.source, structuredSha256: sha256(structuredBytes), advisorSha256: sha256(advisorBytes) },
-    scope: review.scope, reason: review.reason, observations, advisorRows: rows };
+    scope: review.scope, reason: review.reason, levelScopeComplete: review.levelScopeComplete,
+    coverageConfirmed: review.coverageConfirmed, inventoryAccepted: review.inventoryAccepted, observations, advisorRows: rows };
 }
 
-const inline = value => JSON.stringify(value ?? null).replaceAll('|', '\\|');
-export function renderGenshinAdvisorPreview(preview) {
+const escape = value => String(value).replaceAll('\\', '\\\\').replaceAll('|', '\\|').replace(/\r?\n/g, ' ');
+const display = value => {
+  if (value == null) return '—';
+  if (typeof value === 'object' && 'current' in value && 'max' in value) return `${value.current}/${value.max}`;
+  return String(value);
+};
+function fieldText(field, format = display) {
+  const observed = field.observed;
+  let automatic = 'Automático: sem leitura';
+  if (observed) {
+    if (observed.status === 'recognized') automatic = `Automático: ${format(observed.value)}`;
+    else {
+      const candidates = [...new Set((observed.candidates ?? []).map(candidate => format(candidate.value)).filter(value => value !== '—'))];
+      automatic = `Incerto${observed.value != null ? `: ${format(observed.value)}` : ''}${candidates.length ? ` (candidatos: ${candidates.join(', ')})` : ''}`;
+    }
+  }
+  const reviewed = field.humanReview;
+  return escape(reviewed ? `${automatic}; confirmado por ${reviewed.reviewer} em ${reviewed.date}: ${format(reviewed.value)}` : automatic);
+}
+
+export function renderGenshinAdvisorPreview(preview, { structuredPath = null } = {}) {
   const lines = ['# Prévia local Genshin para revisão', '',
-    'Nenhuma alteração proposta automaticamente. Correspondências por nome são somente candidatas; cópias não têm identidade compartilhada. Ausência não remove fatos. OCR reconhecido não é aprovação humana.', '',
-    `Fontes SHA-256: ${inline(preview.source)}`, `Escopo da sessão: ${inline(preview.scope)}; parada: ${inline(preview.reason)}.`,
-    'Os campos completos, candidatos, OCR bruto e recortes permanecem no JSON estruturado identificado acima; os hashes das capturas foram conferidos.', '',
+    'Correspondências por nome são somente candidatas; cópias não têm identidade compartilhada. Ausência não remove fatos. Leitura automática não é aprovação humana.', '',
+    '## Escopo e indicadores originais', '',
+    `- Nível mínimo: ${escape(preview.scope.minLevel)}; raridades: ${escape(preview.scope.rarities.join(', '))}.`,
+    `- Motivo de parada: ${escape(preview.reason ?? 'não informado')}.`,
+    `- Término por nível: ${preview.levelScopeComplete ? 'sim' : 'não'}; cobertura confirmada: ${preview.coverageConfirmed ? 'sim' : 'não'}; inventário aprovado: ${preview.inventoryAccepted ? 'sim' : 'não'}.`,
+    '- Esses indicadores reproduzem a saída estruturada e não estabelecem cobertura adicional.', '',
+    `Dados completos, OCR bruto e recortes: ${structuredPath ? `[JSON estruturado](<${structuredPath.replaceAll('\\', '/').replaceAll('>', '%3E')}>)` : 'JSON estruturado informado ao comando'} (SHA-256 na proveniência).`, '',
     '## Observações da sessão', '',
-    '| Posição | Captura SHA-256 | Elegibilidade original | Nome | Nível | Refinamento | Raridade | Linhas candidatas do Advisor |',
-    '|---|---|---|---|---|---|---|---|'];
-  const field = item => inline({ observed: item.observed && { status: item.observed.status, value: item.observed.value, candidates: item.observed.candidates?.map(candidate => candidate.value) }, humanReview: item.humanReview });
-  for (const item of preview.observations) lines.push(`| ${item.number} | ${item.capture.sha256} | ${item.levelEligibilityFromSession ?? 'pendente'} | ${field(item.fields.name)} | ${field(item.fields.level)} | ${field(item.fields.refinement)} | ${field(item.fields.rarity)} | ${item.candidateRows.length ? item.candidateRows.map(row => `${row.section}: ${row.line.replaceAll('|', '\\|')}`).join('<br>') : 'Sem linha candidata nas duas tabelas; posse e correspondência pendentes'} |`);
-  lines.push('', '## Linhas existentes consultadas', '', 'Todas as linhas abaixo são preservadas, inclusive as sem observação correspondente. O inventário não foi aprovado.', '');
-  for (const row of preview.advisorRows) lines.push(`- ${row.section}: ${row.line}`);
+    'A elegibilidade é a classificação original da sessão; confirmações são específicas de cada campo.', '',
+    '| Posição | Elegibilidade | Nome | Nível | Refinamento | Raridade | Advisor |',
+    '|---|---|---|---|---|---|---|'];
+  const labels = { 'eligible-level': 'dentro do corte', 'below-level': 'abaixo do corte' };
+  for (const item of preview.observations) {
+    const f = item.fields;
+    lines.push(`| ${item.number} | ${escape(labels[item.levelEligibilityFromSession] ?? item.levelEligibilityFromSession ?? 'pendente')} | ${fieldText(f.name)} | ${fieldText(f.level)} | ${fieldText(f.refinement, value => value == null ? '—' : `R${value}`)} | ${fieldText(f.rarity, value => value == null ? '—' : `${value}★`)} | ${item.candidateRows.length ? `${item.candidateRows.length} linha(s) candidata(s)` : 'Sem linha candidata'} |`);
+  }
+  lines.push('', '## Linhas candidatas do Advisor', '', 'Uma linha pode ser candidata para mais de uma observação; nenhuma identifica uma cópia.', '');
+  for (const item of preview.observations.filter(item => item.candidateRows.length)) {
+    lines.push(`- Posição ${item.number}:`);
+    for (const row of item.candidateRows) lines.push(`  - ${escape(row.section)}: ${escape(row.line)}`);
+  }
+  lines.push('', '## Linhas existentes consultadas', '', 'Todas as linhas abaixo são preservadas, inclusive as sem observação correspondente.', '');
+  for (const row of preview.advisorRows) lines.push(`- ${escape(row.section)}: ${escape(row.line)}`);
+  lines.push('', '## Proveniência', '', 'Os hashes das capturas foram conferidos; cada número identifica somente uma observação desta sessão.', '');
+  for (const [name, hash] of Object.entries(preview.source)) lines.push(`- ${name}: ${hash ?? 'não informado'}`);
+  lines.push('', '| Posição | Captura SHA-256 |', '|---|---|');
+  for (const item of preview.observations) lines.push(`| ${item.number} | ${item.capture.sha256} |`);
   return lines.join('\n') + '\n';
 }

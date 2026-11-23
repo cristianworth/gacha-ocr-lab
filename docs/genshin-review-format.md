@@ -27,3 +27,5 @@ node scripts/genshin-advisor-preview.js --session CAMINHO\session.json --review 
 ```
 
 O comando reconstrói a saída estruturada pelas três entradas e exige equivalência com o JSON informado; valida referências da revisão e do replay e relê os bytes de cada captura para conferir seu SHA-256. Uma entrada divergente, captura indisponível ou mudança incompatível nas tabelas interrompe a execução. Os caminhos de captura no manifesto precisam estar acessíveis. O resultado inclui hashes das cinco entradas e não escreve no Advisor; mantenha o artefato e entradas em local privado. O exemplo 15/11 contém 91 observações, incluindo uma abaixo do corte; reprocessamento não comprova navegação, cobertura ou precisão independente. Não é um diff aplicável ou proposta de importação.
+
+A tabela resume os campos por posição, distinguindo leituras automáticas, incertezas e confirmações humanas mesmo quando divergem. As linhas candidatas e a proveniência ficam em seções próprias; o caminho do JSON estruturado é vinculado na prévia. Os indicadores de término e cobertura são reproduzidos da sessão, sem nova conclusão.
