@@ -25,7 +25,7 @@ O caminho curto foi conferido no jogo em 29/10: **34 elegíveis, 35 posições o
 
 Nada é aplicado automaticamente ao Advisor. Uma coleta filtrada não remove dados existentes. Imagens, resultados, dependências em cache e modelos não acompanham o clone nem devem entrar no Git.
 
-**Desenvolvimento paralelo em 22/11:** Genshin entrega uma prévia local revisável no [PR #11](https://github.com/cristianworth/gacha-ocr-lab/pull/11); WuWa e NTE entregam primeiros leitores offline com os exemplos fornecidos nos [PRs #13](https://github.com/cristianworth/gacha-ocr-lab/pull/13) e [#12](https://github.com/cristianworth/gacha-ocr-lab/pull/12). Os ajustes e a revisão técnica terminaram; as branches aguardam aceite de Cristian, ainda com limitações documentadas. Não estão integradas à entrada `.exe` nem aos pacotes. O [roadmap](docs/ROADMAP.md) registra evidências e os próximos recortes antes de coleta viva. Nenhum teste ou captura nova é necessário agora.
+**Desenvolvimento paralelo — 23/11:** Cristian validou e foram integrados os PRs de prévia Genshin e leitores offline WuWa/NTE. As novas frentes são saída estruturada ao encerrar Genshin ([#15](https://github.com/cristianworth/gacha-ocr-lab/issues/15)) e pilotos de até três seleções visíveis, sem rolagem, em WuWa ([#16](https://github.com/cristianworth/gacha-ocr-lab/issues/16)) e NTE ([#17](https://github.com/cristianworth/gacha-ocr-lab/issues/17)). Os leitores offline ainda não estão disponíveis na entrada `.exe` ou nos pacotes. O [roadmap](docs/ROADMAP.md) define contrato e validação antes de testes no jogo; nenhum teste ou captura nova é necessário agora.
 
 ## Organização
 
