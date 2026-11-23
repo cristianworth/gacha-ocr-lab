@@ -1,30 +1,33 @@
 import { access, mkdir, writeFile, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { resolve, join } from 'node:path';
+import { resolve, join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { parseRectangle } from '../src/regions.js';
 import { openWindowsGame } from '../src/windows-game.js';
 import { wait } from '../src/scan-control.js';
 import { runNtePilot, validateTargets } from '../src/nte-pilot.js';
 
-const root = resolve('.cache/nte/runs');
+const repository = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const root = join(repository, '.cache', 'nte', 'runs');
 const controller = new AbortController();
 let backend, timer, output, started = false;
 const cancel = () => controller.abort();
 try {
-  const { values } = parseArgs({ options: { prepared: { type: 'boolean' }, process: { type: 'string' }, pid: { type: 'string' }, target: { type: 'string', multiple: true }, models: { type: 'string', default: '.cache/models' } }, strict: true });
+  const { values } = parseArgs({ options: { prepared: { type: 'boolean' }, process: { type: 'string' }, pid: { type: 'string' }, target: { type: 'string', multiple: true }, models: { type: 'string' } }, strict: true });
   if (!values.prepared || !values.process || !values.target) throw new Error('Uso: node scripts/nte-pilot.js --prepared --process NOME_SEM_EXE --target left,top,105,105 [--target ...] [--pid PID] [--models pasta]');
   if (!/^[A-Za-z0-9_-]+$/u.test(values.process)) throw new Error('Informe nome de processo sem caminho ou extensao.');
   const pid = values.pid === undefined ? undefined : Number(values.pid);
   if (pid !== undefined && (!/^\d+$/u.test(values.pid) || !Number.isSafeInteger(pid) || pid <= 0)) throw new Error('PID invalido.');
   const targets = values.target.map(parseRectangle); validateTargets(targets);
+  const models = values.models === undefined ? join(repository, '.cache', 'models') : resolve(values.models);
   await mkdir(root, { recursive: true });
   output = join(root, `pilot-${randomUUID()}`); await mkdir(output);
   console.log(`Sessao: ${output}`);
   process.on('SIGINT', cancel);
   timer = setInterval(() => { if (existsSync(join(output, 'stop.request'))) controller.abort(); }, 100);
-  try { await access(join(resolve(values.models), 'eng.traineddata')); }
+  try { await access(join(models, 'eng.traineddata')); }
   catch { throw new Error('Modelo eng.traineddata ausente; prepare o cache antes de iniciar.'); }
   if (controller.signal.aborted) throw new Error('cancelled');
   backend = await openWindowsGame({ outputRoot: output, expectedSize: { width: 1280, height: 720 }, processNames: [values.process] });
@@ -38,7 +41,7 @@ try {
   if (controller.signal.aborted) throw new Error('cancelled');
   await backend.arm();
   started = true;
-  const result = await runNtePilot({ backend, output, targets, cachePath: resolve(values.models), signal: controller.signal });
+  const result = await runNtePilot({ backend, output, targets, cachePath: models, signal: controller.signal });
   console.log(`Parada: ${result.reason}. Resumo: ${join(output, 'summary.md')}`);
   if (result.reason !== 'pilot-limit') process.exitCode = 1;
 } catch (error) {

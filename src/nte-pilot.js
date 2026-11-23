@@ -1,9 +1,11 @@
 import sharp from 'sharp';
 import { mkdir, readdir, rename, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { readImage } from './image.js';
-import { readNteOffline } from './nte-offline.js';
+import { readNteOffline, panelRegions } from './nte-offline.js';
+import { prepareRegion } from './regions.js';
+import { createOcrSession } from './ocr.js';
 import { checkScanControl, pixelDistance, wait } from './scan-control.js';
 
 export const panel = { left: 869, top: 113, width: 348, height: 496 };
@@ -41,6 +43,28 @@ export async function inspectNteSelection(buffer) {
   return { verified: candidates.length === 1 && !uncertain.length, selected: candidates[0]?.slot ?? null, candidates, uncertain };
 }
 async function fingerprint(buffer) { return sharp(buffer).extract(panel).greyscale().raw().toBuffer(); }
+export async function inspectNtePreparation(image, cachePath, createSession = createOcrSession) {
+  const rectangle = panelRegions(panel, { width: 1280, height: 720 }).category;
+  const prepared = await prepareRegion(image.buffer, rectangle, { threshold: 120 });
+  const session = await createSession({ languages: 'eng', cachePath, offline: true });
+  try {
+    const ocr = await session.recognize(prepared.buffer, 'SINGLE_LINE');
+    return { rectangle, processing: prepared.processing, ocr, verified: /^Arc$/iu.test(ocr.rawText.trim()) };
+  } finally { await session.close(); }
+}
+export function renderNteSummary(report, output) {
+  const escape = value => String(value ?? '?').replace(/\|/gu, '\\|').replace(/\s+/gu, ' ').trim() || '?';
+  const link = path => path ? relative(output, path).split(/[\\/]/u).map(encodeURIComponent).join('/') : null;
+  const lines = ['# NTE Arc — piloto parcial', '', `Parada: ${escape(report.reason)}. Observações: ${report.observations.length}.`, '', '[Sessão e OCR bruto](session.json)', '', '| Alvo | Estado | Nome | Nível | Elemento | Atributos | Tier | Frame |', '|---|---|---|---|---|---|---|---|'];
+  for (const item of report.observations) {
+    const fields = item.reading?.fields ?? {};
+    const candidate = key => escape(fields[key]?.candidate);
+    const frame = link(item.frame?.path);
+    lines.push(`| ${item.target.left},${item.target.top} | ${escape(item.status)} | ${candidate('name')} | ${candidate('level')} | ${candidate('element')} | ${candidate('attribute1')}; ${candidate('attribute2')} | ${candidate('tier')} | ${frame ? `[frame](${frame})` : '?'} |`);
+  }
+  lines.push('', 'Todos os campos são candidatos para revisão humana. Sem cobertura, identidade de cópias ou aprovação do inventário.');
+  return `${lines.join('\n')}\n`;
+}
 async function save(output, report) {
   const temporary = join(output, `.session-${randomUUID()}.tmp`);
   await writeFile(temporary, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' });
@@ -51,7 +75,7 @@ export async function runNtePilot({ backend, output, targets, cachePath, signal,
   await mkdir(output, { recursive: true });
   if ((await readdir(output)).some(name => !['console.log', 'stop.request'].includes(name))) throw new Error('A pasta da sessao nao esta vazia.');
   const report = { schema: 'nte-arc-pilot-v1', startedAt: new Date().toISOString(), status: 'running', scope: { targets, filter: 'none', order: 'declared-targets', scroll: false }, coverageConfirmed: false, humanApproved: false, observations: [], frames: [], currentAttempt: null };
-  const pause = dependencies.wait ?? wait, inspect = dependencies.inspect ?? inspectNteSelection, read = dependencies.read ?? readNteOffline, signature = dependencies.fingerprint ?? fingerprint;
+  const pause = dependencies.wait ?? wait, inspect = dependencies.inspect ?? inspectNteSelection, read = dependencies.read ?? readNteOffline, signature = dependencies.fingerprint ?? fingerprint, prepare = dependencies.prepare ?? inspectNtePreparation;
   let frameNumber = 0;
   async function guard() {
     const state = await checkScanControl(backend, signal);
@@ -70,6 +94,14 @@ export async function runNtePilot({ backend, output, targets, cachePath, signal,
   }
   await save(output, report);
   try {
+    report.currentAttempt = { stage: 'preparation' }; await save(output, report);
+    const initial = await capture();
+    report.preparation = { frame: initial.source, selection: await inspect(initial.buffer) };
+    await save(output, report); await guard();
+    if (!report.preparation.selection.verified) throw new Error('initial-selection-unverified');
+    report.preparation.category = await prepare(initial, cachePath);
+    await save(output, report); await guard();
+    if (!report.preparation.category.verified) throw new Error('arc-category-unverified');
     for (const [index, target] of targets.entries()) {
       report.currentAttempt = { index, target, stage: 'before-click' }; await save(output, report);
       await guard();
@@ -102,7 +134,7 @@ export async function runNtePilot({ backend, output, targets, cachePath, signal,
   } catch (error) { report.reason = signal?.aborted ? 'cancelled' : error.reason ?? error.code ?? error.message; report.error = { message: error.message, stage: report.currentAttempt?.stage ?? 'initial' }; }
   finally {
     report.status = 'partial'; report.endedAt = new Date().toISOString(); await save(output, report);
-    await writeFile(join(output, 'summary.md'), `# NTE Arc — piloto parcial\n\nParada: ${report.reason}. Observações: ${report.observations.length}.\n\nTodos os campos são candidatos para revisão humana. Sem cobertura, identidade de cópias ou aprovação do inventário.\n`, 'utf8');
+    await writeFile(join(output, 'summary.md'), renderNteSummary(report, output), 'utf8');
   }
   return report;
 }
