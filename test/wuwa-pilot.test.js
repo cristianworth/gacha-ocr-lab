@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import sharp from 'sharp';
 import { runWuwaPilot } from '../src/wuwa-pilot.js';
 import { wuwaCards } from '../src/wuwa-selection.js';
@@ -37,9 +37,20 @@ test('focus failure and cancellation keep partial stage', async () => fixture(as
  const controller=new AbortController(); const cancelled=await runWuwaPilot({output:join(dir,'cancel'),targets:[wuwaCards[0]],signal:controller.signal,setup:async()=>fake({controller}),dependencies:deps});
  assert.equal(cancelled.reason,'cancelled'); assert.equal(cancelled.attempts.at(-1).stage,'click-in-progress');
 }));
+test('cooperative cancellation after the click stage is saved prevents input', async () => fixture(async dir => {
+ const output=join(dir,'cancel-after-save'); const controller=new AbortController(); const backend=fake(); const status=backend.status;
+ backend.status=async()=>{ const report=JSON.parse(await readFile(join(output,'session.json'),'utf8')); if (report.attempts.at(-1)?.stage==='click-in-progress') controller.abort(); return status(); };
+ const report=await runWuwaPilot({output,targets:[wuwaCards[0]],signal:controller.signal,setup:async()=>backend,dependencies:deps});
+ assert.equal(report.reason,'cancelled'); assert.equal(report.attempts.at(-1).stage,'click-in-progress'); assert.equal(backend.clicks,0);
+}));
 test('OCR failure retains the prior observation and current captured attempt', async () => fixture(async dir => {
- let count=0; const report=await runWuwaPilot({output:join(dir,'partial'),targets:wuwaCards.slice(0,2),setup:async()=>fake(),dependencies:{...deps,read:async()=>{if (++count===2) throw new Error('ocr-failed'); return {fields:{}};}}});
+ let count=0; const output=join(dir,'partial'); const report=await runWuwaPilot({output,targets:wuwaCards.slice(0,2),setup:async()=>fake(),dependencies:{...deps,read:async()=>{if (++count===2) throw new Error('ocr-failed'); return {fields:{}};}}});
  assert.equal(report.reason,'ocr-failed'); assert.equal(report.observations.length,2); assert.equal(report.observations[0].status,'read'); assert.equal(report.observations[1].status,'captured-pending-ocr'); assert.equal(report.attempts.at(-1).stage,'reading');
+ const summary=await readFile(join(output,'summary.md'),'utf8');
+ const rows=summary.split('\n');
+ assert.ok(rows.some(row=>row.includes('Leitura retornada') && row.includes(`[captura](${basename(report.observations[0].capture.path)})`)));
+ assert.ok(rows.some(row=>row.includes('Capturada, OCR pendente') && row.includes(`[captura](${basename(report.observations[1].capture.path)})`)));
+ assert.match(summary,/\[session\.json\]\(session\.json\)/); assert.match(summary,/não é aprovação humana/);
 }));
 
 test('client geometry guard stops before capturing or clicking', async () => fixture(async dir => {

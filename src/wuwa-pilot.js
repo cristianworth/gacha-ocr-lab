@@ -1,5 +1,5 @@
 import { mkdir, rename, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { readImage } from './image.js';
@@ -13,12 +13,14 @@ async function save(output, report) {
   await rename(temp, join(output, 'session.json'));
 }
 function summary(report) {
-  const lines = ['# WuWa — piloto parcial', '', `Parada: ${report.reason}`, `Observações: ${report.observations.length}`, '', '| Alvo | Nome | Tipo | Nível | Rank |', '|---|---|---|---|---|'];
+  const lines = ['# WuWa — piloto parcial', '', `Parada: ${report.reason}`, `Observações: ${report.observations.length}`, '', '| Alvo | Estado | Nome | Tipo | Nível | Rank | Evidência |', '|---|---|---|---|---|---|---|'];
   for (const o of report.observations) {
     const f = o.reading?.fields ?? {}; const clean = v => String(v ?? '?').replace(/[|\r\n]/gu, ' ');
-    lines.push(`| ${o.index + 1} | ${clean(f.name?.value)} | ${clean(f.type?.value)} | ${f.level?.value ? `${f.level.value.current}/${f.level.value.max}` : '?'} | ${clean(f.rank?.value)} |`);
+    const state = o.status === 'read' ? 'Leitura retornada' : o.status === 'captured-pending-ocr' ? 'Capturada, OCR pendente' : clean(o.status);
+    const capture = o.capture?.path ? `[captura](${encodeURIComponent(basename(o.capture.path))})` : '?';
+    lines.push(`| ${o.index + 1} | ${state} | ${clean(f.name?.value)} | ${clean(f.type?.value)} | ${f.level?.value ? `${f.level.value.current}/${f.level.value.max}` : '?'} | ${clean(f.rank?.value)} | ${capture} |`);
   }
-  return `${lines.join('\n')}\n\nRaridade não qualificada. Sessão parcial, sem cobertura ou aceite do inventário. Bruto e tentativas em session.json.\n`;
+  return `${lines.join('\n')}\n\nRaridade não qualificada. Leitura retornada não é aprovação humana. Sessão parcial, sem cobertura ou aceite do inventário. Bruto e tentativas em [session.json](session.json).\n`;
 }
 async function fingerprint(buffer) {
   const rectangles = [{left:883,top:80,width:345,height:28},{left:884,top:130,width:150,height:56},{left:884,top:381,width:112,height:29}];
@@ -66,7 +68,8 @@ export async function runWuwaPilot({ output, targets, setup, signal, ocrSession,
     preflight.stage = 'complete';
     for (const [index, target] of targets.entries()) {
       const attempt = { index, target, stage: 'before-click', frames: [] }; report.attempts.push(attempt); await save(output, report);
-      await guard(); attempt.stage = 'click-in-progress'; await save(output, report);
+      attempt.stage = 'click-in-progress'; await save(output, report);
+      await guard();
       await backend.click({ x: target.left + Math.floor(target.width / 2), y: target.top + Math.floor(target.height / 2) });
       await guard(); attempt.stage = 'waiting'; await save(output, report);
       let previous; let stable;

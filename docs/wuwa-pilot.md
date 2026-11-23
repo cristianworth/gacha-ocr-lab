@@ -23,6 +23,8 @@ O último comando é opcional e usa arquivos locais não distribuídos; sem a va
 
 O executor injetável registra tentativas, frames e SHA-256, conserva OCR bruto e incertezas do leitor público, grava `session.json` por substituição atômica e escreve `summary.md`; uma pasta existente é recusada. Em simulações, exige duas confirmações geométricas consecutivas e estabilidade das regiões de campos (distância média <=2) antes de ler, sem comparar nomes para inferir troca. Guarda/cancelamento são verificados antes e depois de capturas, clique, inspeção e OCR; uma falha mantém o estágio e observações anteriores. Dois frames repetidos de uma imagem não comprovam estabilidade viva, ordem real dos cliques, foco, input ou cobertura.
 
+O estágio do clique é salvo antes da última conferência de cancelamento e da janela, imediatamente anterior ao input. O resumo identifica cada observação como leitura retornada ou captura com OCR pendente e contém links relativos para a captura e o `session.json`; uma leitura retornada não constitui aprovação humana.
+
 ## Caminho vivo e próximo recorte
 
 O código de entrada fica no repositório, não há `.exe` WuWa empacotado. Depois da qualificação e revisão da guarda, o roteiro proposto é executar no diretório `C:/Users/crist/orca/workspaces/gacha-ocr-lab/wuwa-selection-pilot` com Node, modelo local e Weapons em inglês, cliente exato 1280×720 a 96 DPI, controles livres e um a três retângulos completos declarados com `--target left,top,width,height` repetido. Exemplo de sintaxe, **ainda bloqueado**:
