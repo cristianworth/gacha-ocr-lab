@@ -122,6 +122,22 @@ test('pilot does not click if stop arrives during window status check', async t 
   const result = await runGenshinPilot1280({ ...f, ocrSession: {}, signal: controller.signal });
   assert.equal(result.reason, 'cancelled');
   assert.equal(f.clicks(), 0);
+  const session = await readFile(join(f.output, 'session.json'));
+  const structured = JSON.parse(await readFile(join(f.output, 'review-structured.json')));
+  assert.equal(structured.reason, 'cancelled');
+  assert.equal(structured.source.sessionSha256, (await import('node:crypto')).createHash('sha256').update(session).digest('hex'));
+  assert.match(await readFile(join(f.output, 'summary.md'), 'utf8'), /\[review-structured.json\]/);
+});
+
+test('export collision preserves existing file and reports failure without changing the stop reason', async t => {
+  const f = await fixture(t, { dpi: 120 });
+  const existing = join(f.output, 'review-structured.json');
+  await writeFile(existing, 'human data');
+  const result = await runGenshinPilot1280({ ...f, ocrSession: {} });
+  assert.equal(result.reason, 'client-or-dpi-unverified');
+  assert.equal(JSON.parse(await readFile(join(f.output, 'session.json'))).reason, result.reason);
+  assert.equal(await readFile(existing, 'utf8'), 'human data');
+  assert.match(await readFile(join(f.output, 'summary.md'), 'utf8'), /Falha ao gerar saída estruturada/);
 });
 
 test('pilot retains the last frame reference if focus is lost just after capture', async t => {

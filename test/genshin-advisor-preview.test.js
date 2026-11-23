@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { buildGenshinReviewExport } from '../src/genshin-review-export.js';
 import { buildGenshinAdvisorPreview, renderGenshinAdvisorPreview } from '../src/genshin-advisor-preview.js';
 
@@ -55,4 +60,28 @@ test('renders uncertain candidates, divergent field confirmation, unmatched name
   assert.match(text, /Término por nível: sim; cobertura confirmada: não; inventário aprovado: não/);
   assert.match(text, /review\.json/);
   assert.doesNotMatch(text.split('## Proveniência')[0], /"observed"/);
+});
+
+test('CLI accepts automatic session alone and rejects an incompatible optional analysis', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'genshin-preview-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const f = fixture();
+  const session = JSON.parse(f.sessionBytes);
+  const capturePath = join(dir, 'capture');
+  await writeFile(capturePath, 'image');
+  for (const observation of session.observations) {
+    observation.capture.path = capturePath;
+    observation.reading.fields.rarity = { status: 'recognized', value: 4 };
+  }
+  const sessionBytes = bytes(session);
+  const inputs = { 'session.json': sessionBytes, 'structured.json': bytes(buildGenshinReviewExport({ sessionBytes })), 'advisor.md': f.advisorBytes,
+    'bad-rarity.json': bytes({ game: 'genshin', source: { sessionSha256: 'other' }, results: [] }) };
+  await Promise.all(Object.entries(inputs).map(([name, content]) => writeFile(join(dir, name), content)));
+  const args = [resolve('scripts/genshin-advisor-preview.js'), '--session', join(dir, 'session.json'), '--structured', join(dir, 'structured.json'), '--advisor', join(dir, 'advisor.md')];
+  const exec = promisify(execFile);
+  const { stdout } = await exec(process.execPath, args);
+  assert.match(stdout, /Automático: 4★/);
+  assert.doesNotMatch(stdout, /confirmado por/);
+  await assert.rejects(exec(process.execPath, [...args, '--rarity', join(dir, 'bad-rarity.json')]), /não corresponde/);
+  for (const [name, content] of Object.entries(inputs)) assert.deepEqual(await readFile(join(dir, name)), content);
 });

@@ -1,4 +1,4 @@
-import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { readImage } from './image.js';
@@ -6,6 +6,7 @@ import { prepareRegion } from './regions.js';
 import { readGenshin1280, inspectGenshin1280Selected, inspectGenshin1280Selection, inspectGenshin1280Grid } from './genshin-1280.js';
 import { fieldFingerprint, pixelDistance, wait } from './scan-control.js';
 import { matchGenshin1280Scroll } from './genshin-scroll-1280.js';
+import { buildGenshinReviewExport } from './genshin-review-export.js';
 
 async function save(output, report) {
   const temporary = join(output, `.session-${randomUUID()}.tmp`);
@@ -243,6 +244,19 @@ export async function runGenshinPilot1280({ backend, ocrSession, output, signal,
     report.endedAt = new Date().toISOString();
     await save(output, report);
     await writeFile(join(output, 'summary.md'), renderGenshinSummary(report), 'utf8');
+    let exportMessage;
+    try {
+      const sessionBytes = await readFile(join(output, 'session.json'));
+      const structured = buildGenshinReviewExport({ sessionBytes });
+      await writeFile(join(output, 'review-structured.json'), `${JSON.stringify(structured, null, 2)}\n`, { flag: 'wx' });
+      exportMessage = '\nSaída estruturada local para revisão: [review-structured.json](review-structured.json).\n';
+    } catch (error) {
+      exportMessage = `\nFalha ao gerar saída estruturada local: ${error.message}. A sessão e o resumo foram preservados.\n`;
+      console.error(exportMessage.trim());
+    }
+    await appendFile(join(output, 'summary.md'), exportMessage, 'utf8').catch(error => {
+      console.error(`Falha ao registrar resultado da exportação no resumo: ${error.message}`);
+    });
   }
   return report;
 }
