@@ -9,6 +9,8 @@ const boxes = {
   rank: { left: 884, top: 381, width: 112, height: 29 },
 };
 const variants = [{ id: 'threshold-140', threshold: 140 }, { id: 'threshold-110', threshold: 110 }];
+// The name region includes distant artwork; 120 suppresses observed low-intensity artifacts.
+const nameVariants = [{ id: 'threshold-140', threshold: 140 }, { id: 'threshold-120', threshold: 120 }];
 
 export function interpretWuwaRegions(regions) {
   const values = (key, parse) => (regions[key]?.attempts ?? []).map(a => parse(a.rawText)).filter(v => v !== null);
@@ -40,7 +42,7 @@ export async function readWuwaOffline(image, { client: requested, cachePath, ocr
       const rectangle = { left: client.left + Math.round(box.left * client.width / 1280), top: client.top + Math.round(box.top * client.height / 720), width: Math.round(box.width * client.width / 1280), height: Math.round(box.height * client.height / 720) };
       validateRectangle(rectangle, size);
       const attempts = [];
-      for (const variant of variants) {
+      for (const variant of key === 'name' ? nameVariants : variants) {
         const prepared = await prepareRegion(image.buffer, rectangle, variant);
         attempts.push({ id: variant.id, ...await session.recognize(prepared.buffer, 'SINGLE_LINE'), processing: prepared.processing });
       }
