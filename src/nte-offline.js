@@ -10,10 +10,10 @@ export const regions = {
   category: { left: 72, top: 8, width: 80, height: 29 },
   name: { left: 136, top: 53, width: 205, height: 29 },
   level: { left: 140, top: 86, width: 63, height: 28 },
-  element: { left: 210, top: 86, width: 120, height: 28 },
+  element: { left: 240, top: 86, width: 90, height: 28 },
   attribute1: { left: 35, top: 211, width: 300, height: 29 },
   attribute2: { left: 35, top: 242, width: 300, height: 29 },
-  tier: { left: 30, top: 278, width: 305, height: 29 },
+  tier: { left: 39, top: 278, width: 296, height: 29 },
 };
 
 export function panelRegions(panel, size) {
@@ -38,7 +38,8 @@ export async function readNteOffline(image, { panel, cachePath, outputDir, creat
       const crop = await sharp(image.buffer).extract(rectangle).png().toBuffer();
       const cropPath = join(directory, `${field}.png`);
       await writeFile(cropPath, crop);
-      const prepared = await prepareRegion(image.buffer, rectangle, { gray: true });
+      const variant = ['category', 'element'].includes(field) ? { threshold: 120 } : { gray: true };
+      const prepared = await prepareRegion(image.buffer, rectangle, variant);
       const ocr = await session.recognize(prepared.buffer, 'SINGLE_LINE');
       fields[field] = { status: 'review-required', candidate: ocr.rawText.trim() || null,
         crop: { path: cropPath, sha256: createHash('sha256').update(crop).digest('hex'), rectangle },

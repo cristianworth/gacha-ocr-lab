@@ -15,9 +15,9 @@ As três capturas de desenvolvimento mostram a aba de inventário **Arc** e inte
 Requer Node.js, `npm ci` e modelo inglês `eng.traineddata` em `.cache/models` (ou `--models` para outra pasta). O OCR opera offline; não baixa modelos. O modelo local reutilizado nesta qualificação foi copiado do cache do laboratório original, SHA-256 `5dc5d8d640a212c9d6184921ba103b186f50e0fed9ee716c53e6b312b400d747`; sua origem e licença não foram estabelecidas aqui. O usuário deve fornecer um modelo cuja origem e licença tenha verificado para outros ambientes.
 
 ```powershell
-node scripts/nte-offline.js 'D:/Repo/gacha-ocr-lab/examples/NTE/Fluff of Fortitude.png' --panel 872,146,348,496 --output .cache/nte/fluff
-node scripts/nte-offline.js 'D:/Repo/gacha-ocr-lab/examples/NTE/Raging Flames.png' --panel 868,145,348,496 --output .cache/nte/flames
-node scripts/nte-offline.js 'D:/Repo/gacha-ocr-lab/examples/NTE/Umbrella.png' --panel 870,146,348,496 --output .cache/nte/umbrella
+node scripts/nte-offline.js 'D:/Repo/gacha-ocr-lab/examples/NTE/Fluff of Fortitude.png' --panel 872,146,348,496 --output .cache/nte/replay-v2/fluff
+node scripts/nte-offline.js 'D:/Repo/gacha-ocr-lab/examples/NTE/Raging Flames.png' --panel 868,145,348,496 --output .cache/nte/replay-v2/flames
+node scripts/nte-offline.js 'D:/Repo/gacha-ocr-lab/examples/NTE/Umbrella.png' --panel 870,146,348,496 --output .cache/nte/replay-v2/umbrella
 node --test test/nte-offline.test.js
 ```
 
@@ -25,6 +25,8 @@ Para outra imagem, informe o retângulo do painel em pixels da imagem, sem escal
 
 ## Qualificação local
 
-Nas três imagens usadas para desenvolver o perfil, o OCR retornou os três nomes, `Lvl 80`, `Lvl 60` e `Lvl 30`, e as seis linhas de atributos visíveis. As três linhas de Tier retornaram texto com ruído inicial; o nome do elemento na linha dedicada saiu vazio nas duas primeiras e com um caractere extra na terceira. A região de categoria saiu vazia nas três; a identificação de Arc vem da inspeção visual técnica, não do OCR. Estrelas, letra, estado equipado/bloqueado e descrição não são extraídos. O texto que fica fora da área visível não pode ser recuperado. Estas observações não são revisão de Cristian nem medição independente de precisão.
+Nas três imagens usadas para desenvolver o perfil, o replay retornou `Arc`, os três nomes, `Lvl 80`, `Lvl 60` e `Lvl 30`, os elementos `Plasma`, `Plasma` e `Condensate`, e as seis linhas de atributos visíveis. As linhas de Tier retornaram `1Tier`, `1Tier` e `5Tier`, com o texto de restrição visível; o OCR não inseriu espaço entre número e Tier e variou as aspas. Elemento vem de sua própria região, sem consultar Tier. Todos são candidatos sujeitos à revisão humana.
 
-Os resultados e recortes ficam em `.cache/nte/{fluff,flames,umbrella}/`, fora do Git. O próximo recorte é qualificar aquisição real após revisão, sem presumir navegação, cobertura ou ordenação a partir destes arquivos.
+No primeiro processamento, normalização em tons de cinza deixou categoria vazia nas três imagens, elemento vazio em duas e ruidoso em uma; os ícones também invadiam os recortes de elemento e Tier. No experimento local, limiares 120 e 160 leram categoria e elemento nos três exemplos, enquanto 190 e 220 produziram erros em alguns deles; o perfil usa 120. Tier com normalização e recorte sem ícone preservou o texto visível nas três, enquanto os limiares também perderam ou corromperam texto. Os resultados originais permanecem em `.cache/nte/{fluff,flames,umbrella}/`, o replay em `.cache/nte/replay-v2/` e o registro das alternativas em `.cache/nte-experiment.log`, fora do Git.
+
+Estrelas, letra, estado equipado/bloqueado e descrição não são extraídos. O texto fora da área visível não pode ser recuperado. Estas observações não são revisão de Cristian nem medição independente de precisão. Após revisão, a próxima etapa é qualificar aquisição real sem presumir navegação, cobertura ou ordenação a partir destes arquivos.

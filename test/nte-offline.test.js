@@ -25,6 +25,11 @@ test('preserves provenance, crops, raw OCR and empty fields for review', async (
     assert.equal(result.fields.name.candidate, null);
     assert.equal(result.fields.name.status, 'review-required');
     assert.equal(result.fields.name.ocr.tsv, 'raw tsv');
+    assert.deepEqual(result.fields.element.crop.rectangle, { left: 240, top: 86, width: 90, height: 28 });
+    assert.equal(result.fields.tier.crop.rectangle.left, 39);
+    assert.ok(result.fields.element.processing.operations.includes('threshold-120'));
+    assert.ok(result.fields.category.processing.operations.includes('threshold-120'));
+    assert.ok(result.fields.tier.processing.operations.includes('normalize'));
     assert.equal(result.review.humanApproved, false);
     assert.equal(result.fields.name.crop.sha256.length, 64);
     assert.ok((await readFile(result.fields.name.crop.path)).length > 0);
