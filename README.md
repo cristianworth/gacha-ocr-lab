@@ -25,7 +25,7 @@ O caminho curto foi conferido no jogo em 29/10: **34 elegíveis, 35 posições o
 
 Nada é aplicado automaticamente ao Advisor. Uma coleta filtrada não remove dados existentes. Imagens, resultados, dependências em cache e modelos não acompanham o clone nem devem entrar no Git.
 
-**Desenvolvimento paralelo em 22/11:** Genshin prepara uma prévia local revisável no [PR #11](https://github.com/cristianworth/gacha-ocr-lab/pull/11); WuWa e NTE iniciaram leitores offline com os exemplos fornecidos nos [PRs #13](https://github.com/cristianworth/gacha-ocr-lab/pull/13) e [#12](https://github.com/cristianworth/gacha-ocr-lab/pull/12). São branches separadas em revisão, ainda com campos pendentes; não estão integradas à entrada `.exe` nem aos pacotes. O coordenador revisa os resultados antes de planejar coleta viva. Nenhum teste ou captura nova é necessário agora.
+**Desenvolvimento paralelo em 22/11:** Genshin entrega uma prévia local revisável no [PR #11](https://github.com/cristianworth/gacha-ocr-lab/pull/11); WuWa e NTE entregam primeiros leitores offline com os exemplos fornecidos nos [PRs #13](https://github.com/cristianworth/gacha-ocr-lab/pull/13) e [#12](https://github.com/cristianworth/gacha-ocr-lab/pull/12). Os ajustes e a revisão técnica terminaram; as branches aguardam aceite de Cristian, ainda com limitações documentadas. Não estão integradas à entrada `.exe` nem aos pacotes. O [roadmap](docs/ROADMAP.md) registra evidências e os próximos recortes antes de coleta viva. Nenhum teste ou captura nova é necessário agora.
 
 ## Organização
 
