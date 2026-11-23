@@ -1,0 +1,21 @@
+# NTE: piloto Arc sem rolagem
+
+O piloto observa de um a três cartões explicitamente informados, na ordem declarada, sem corte de nível/raridade, menu ou rolagem. `pilot-limit` só encerra esse recorte: a sessão é sempre parcial e não demonstra cobertura, identidade de cópias nem aprovação humana. Nomes, níveis, elementos, atributos e Tier continuam candidatos `review-required`; estrelas e ícones não são lidos.
+
+## Geometria e qualificação offline
+
+O perfil usa cliente **1280×720, 96 DPI**, painel cliente `(869,113,348,496)` e grade fixa de 7 colunas por 4 linhas: retângulos de 105×105 com esquerda `73 + 110 × coluna` e topo `107 + 130 × linha`, índices iniciados em zero. Os alvos devem corresponder exatamente a retângulos distintos dessa grade e estar inteiramente visíveis. O executor verifica o contorno rosa nas duas laterais e embaixo, em toda a grade, e exige um único candidato no alvo em dois frames consecutivos; contornos ausentes, múltiplos ou incertos interrompem. O painel também precisa estar estável nos dois frames. É uma qualificação restrita, não um detector genérico; animação, mudanças visuais ou geometria diferente podem interromper a coleta.
+
+Os PNGs têm molduras e os retângulos `--panel` do leitor offline são da **imagem original**. Para o experimento, os recortes de cliente adotados foram Fluff `(3,33,1280,720)` e Umbrella `(1,31,1280,720)`; Raging possui imagem de apenas 1276 px de largura, portanto foi recortado em `(0,30,1276,720)` e completado com quatro pixels pretos à direita apenas para exercitar a visão. Isso não prova cliente 1280×720 naquele exemplo. Subtraindo a origem, os painéis anteriormente medidos ficam respectivamente `(869,113)`, `(868,115)` e `(869,115)`; a pequena variação e o contorno superior escurecido de Fluff são limitações visuais reais, não prova de estabilidade viva. No replay, o painel fixo acima retornou os campos dos três exemplos e seleção única nos slots `(73,107)`, `(513,237)` e `(623,237)`. Os arquivos não demonstram cliques consecutivos. Frames idênticos repetidos em simulação não demonstram estabilidade no jogo.
+
+As fontes foram preservadas em `D:/Repo/gacha-ocr-lab/examples/NTE/`: SHA-256 Fluff `aaeba0b76a6dac827d1e723a8835d9caf839f80519a9046238e45e6b8d6435b6`, Raging `d1ecfcd15e3b224fe8a80fa763f0727d6b77ba27167f291fbbe7f9bcd098377b`, Umbrella `60e79ced516d0efb9d3fb3fa959ddec94dbff70e9c21834b031a7760a0dd7cd6`. As pastas locais `.cache/nte/runs/qualification-replay/` e `.cache/nte/runs/simulated-pilot-replay/` contêm cópias derivadas, recortes, OCR bruto e hashes; essas imagens desenvolveram o perfil e não são avaliação independente. O modelo reutilizado tem o hash e a restrição de procedência descritos em [leitura offline](nte-offline.md).
+
+## Roteiro futuro, após revisão
+
+No repositório atualizado, com Node, dependências e modelo inglês preparado em `.cache/models`, prepare manualmente Arc em inglês, com até três cartões inteiramente visíveis nas posições do perfil, sem necessidade de ordenação. Informe o nome real do processo, sem extensão ou caminho, confirmado por quem executar; não é inferido do título. Exemplo de um alvo, a partir da raiz deste repositório:
+
+```powershell
+node scripts/nte-pilot.js --prepared --process NOME_DO_PROCESSO --target 73,107,105,105
+```
+
+Repita `--target` para outros cartões, na ordem desejada; `--pid` seleciona uma janela correspondente quando necessário. O comando verifica cliente/DPI e integridade, espera cinco segundos antes de ativar/armar, e mantém F8 como parada. Deixe controles livres e o jogo visível; `Ctrl+C` ou arquivo `stop.request` na pasta da sessão também solicitam cancelamento. Observe `console.log` quando houver redirecionamento; só abra `session.json` após o encerramento. Não há `.exe` nem integração ao pacote para este piloto; janelas e pacotes extraídos anteriormente não carregam o código, e o jogo não precisa ser reaberto apenas para carregar o script. A sessão própria em `.cache/nte/runs/pilot-<uuid>/` guarda frames, hashes, estágio, recortes, bruto e `summary.md`; envie apenas seu `session.json` ao coordenador depois do encerramento, se ele solicitar a validação. A execução futura resolveria a dúvida de interação, geometria e estabilidade reais; não aprovaria o inventário nem mediria precisão independente.
