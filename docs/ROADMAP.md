@@ -41,7 +41,21 @@ Cristian validou os PRs #11–#14, integrados até `fd5637f`, e autorizou contin
 - **NTE #17:** piloto de até três alvos visíveis, sem scroll/corte, com seleção única, painel estável em dois frames e categoria Arc conferida antes do primeiro clique. Saídas ficam no laboratório mesmo quando a CLI parte de outro cwd; resumo distingue captura pendente de OCR e candidatos revisáveis. O replay registrou três observações, com sete frames íntegros, repetição de imagens e padding de quatro pixels em um exemplo explicitamente documentados. Treze testes passaram no worker; inputs, geometria e estabilidade vivos ainda precisam da conferência curta da #22 após aceite do novo diff.
 - **Limites compartilhados:** ordem dos alvos declarados, sem inferir ordem global; sessões sempre parciais. Helper público preservado para F8, foco, oclusão, geometria e integridade. Processo informado/verificado explicitamente. Replays não comprovam interação nem precisão independente. Filtro útil, ordem global, corte e scroll de uma coleta ampla permanecem fora do recorte; nada é escrito no Advisor.
 
-Próxima ação: revisar/aceitar os novos PRs, sem repetir coleta Genshin. NTE tem roteiro de validação na #22, a combinar antes de executar, com raiz e entrada exatas e envio somente do `session.json` após término. WuWa precisa de evidência visual pontual da linha parcial antes de habilitar cliques, não de coleta OCR ampla. Os guias específicos estão nas branches/PRs de cada piloto; o `.exe` do checkout original e pacotes extraídos não recebem esses pilotos automaticamente. Novos diffs não herdam autorização de merge dos anteriores.
+### Quem faz o próximo passo
+
+| Jogo | Minha parte (agente) | Sua parte agora (Cristian) | Depois |
+|---|---|---|---|
+| Genshin | Implementação, testes e revisão do PR #19 concluídos; integrar somente após aprovação do novo diff e autorização | Revisar/aceitar o PR #19 para permitir integração. Nenhuma coleta ou teste no jogo solicitado | Eu integro o diff autorizado e confiro o resultado; você não precisa enviar dados de OCR |
+| NTE | Piloto implementado/revisado no PR #20; roteiro da #22 preparado. A execução real ainda será combinada | Revisar/aceitar o PR #20. Não executar OCR nem piloto agora por esta atualização | Após aceite e combinação do teste, você executa o piloto de até três seleções e envia somente session.json após o término; eu analiso e corrijo o que a evidência mostrar |
+| WuWa | Protótipo e revisão do PR #21 concluídos, com cliques reais bloqueados. Roteiro da captura manual abaixo preparado | Enviar uma captura manual conforme os passos abaixo. Não rodar OCR nem o piloto bloqueado. O aceite do PR #21 é uma decisão separada | Eu analiso contorno/reposicionamento, ajusto e testo a guarda e preparo um piloto somente se a evidência permitir |
+
+**WuWa — captura manual necessária agora, feita por Cristian:**
+
+1. Abrir Weapons em inglês, com cliente 1280×720 e Windows 100%, na área em que a quarta linha (a inferior) aparece cortada.
+2. Selecionar manualmente um cartão parcialmente visível dessa linha.
+3. Enviar uma captura da janela inteira após a seleção, incluindo a grade e o painel do item. Se o jogo rolar a lista ou reposicionar o cartão sozinho, enviar a tela resultante e informar esse movimento; não tentar forçar o cartão a continuar cortado.
+
+O agente fará a análise dessa imagem; Cristian não precisa interpretar o contorno, executar scripts nem iniciar coleta OCR. Não há coleta ampla solicitada em nenhum dos três jogos. Os guias específicos estão nas branches/PRs; o `.exe` do checkout original e pacotes extraídos não recebem esses pilotos automaticamente. Novos diffs não herdam autorização de merge dos anteriores.
 
 ## Entrega atual — entrada simples ZZZ
 
