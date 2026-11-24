@@ -74,9 +74,20 @@ export async function runChild({ root, game, window, spawnChild = spawn, print =
   print(`Log desta abertura: ${log}`);
   const child = spawnChild(process.execPath, pilotArgs(root, game, window), { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], shell: false, windowsHide: false });
   let directory = null, invalid = false, cancelRequested = false, stopWritten = false, stopInFlight = false;
-  let logQueue = Promise.resolve();
-  const logLine = line => { print(line); logQueue = logQueue.then(() => appendFile(log, `${line}\n`, 'utf8')); };
+  let logQueue = Promise.resolve(), logError = null;
   const requestCancel = () => { cancelRequested = true; print('Parada solicitada; aguardando o processo salvar e encerrar.'); };
+  const logLine = line => {
+    print(line);
+    logQueue = logQueue.then(async () => {
+      if (logError) return;
+      try { await appendFile(log, `${line}\n`, 'utf8'); }
+      catch (error) {
+        logError = error;
+        print(`Falha ao gravar o log ${log}: ${error.message}`);
+        requestCancel();
+      }
+    });
+  };
   process.on('SIGINT', requestCancel);
   onReady({ requestCancel, child });
   async function stopIfReady() {
@@ -125,9 +136,10 @@ export async function runChild({ root, game, window, spawnChild = spawn, print =
     await access(session);
     print(`Apos solicitacao, envie somente: ${session}`);
     const report = JSON.parse(await readFile(session, 'utf8'));
-    print(code === 0 && report.reason === 'pilot-limit' ? 'Limite do piloto atingido; resultado parcial, OCR sujeito a revisao.' : `Piloto parcial ou interrompido: ${report.reason ?? 'motivo indisponivel'}.`);
+    const success = !logError && code === 0 && report.reason === 'pilot-limit';
+    print(success ? 'Limite do piloto atingido; resultado parcial, OCR sujeito a revisao.' : `Piloto parcial ou interrompido: ${report.reason ?? 'motivo indisponivel'}.`);
     print(`Resumo (abra manualmente): ${join(actualDir, 'summary.md')}`);
-    return { code: code === 0 && report.reason === 'pilot-limit' ? 0 : 1, log, directory: actualDir, session, report };
+    return { code: success ? 0 : 1, log, directory: actualDir, session, report };
   } catch (error) { print(`Resultado indisponivel: ${error.message}. Pasta anunciada: ${directory}. Log: ${log}`); return { code: 1, log, directory }; }
 }
 

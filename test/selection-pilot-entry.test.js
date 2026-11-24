@@ -1,6 +1,7 @@
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { mkdirSync, unlinkSync } from 'node:fs';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -41,6 +42,46 @@ test('pending cancellation waits for own child to save and log, ignoring old run
   assert.equal(result.directory, dir); assert.equal(result.code, 1); assert.equal(result.report.reason, 'cancelled');
   assert.match(await readFile(result.log, 'utf8'), /progress[\s\S]*saved/);
 });
+for (const failurePoint of ['before-marker', 'after-marker']) {
+  test(`log write failure ${failurePoint} requests stop and waits for child close`, { timeout: 5000 }, async t => {
+    const root = await setup(t), game = 'wuwa';
+    const dir = join(root, '.cache', game, 'runs', `pilot-${randomUUID()}`);
+    const stub = join(root, 'stub.cjs');
+    await writeFile(stub, `const fs=require('fs'),p=require('path'),d=process.env.STUB_DIR;
+      const announce=()=>{console.log('PILOT_SESSION_DIR='+d);setTimeout(()=>{fs.mkdirSync(d);const timer=setInterval(()=>{if(fs.existsSync(p.join(d,'stop.request'))){clearInterval(timer);fs.writeFileSync(p.join(d,'session.json'),JSON.stringify({reason:'pilot-limit'}));fs.writeFileSync(p.join(d,'child-closed.txt'),'closed');console.log('child cleaned up');}},20)},150)};
+      if(process.env.BEFORE==='yes'){console.log('before marker');setTimeout(announce,300)}else announce();`);
+    const messages = [];
+    let child, childClosed = false;
+    t.after(() => { if (child && child.exitCode === null) child.kill(); });
+    const result = await runChild({
+      root, game, window: win(),
+      print: line => {
+        messages.push(line);
+        if (line.startsWith('Log desta abertura: ')) {
+          const log = line.slice('Log desta abertura: '.length);
+          unlinkSync(log); mkdirSync(log);
+        }
+      },
+      spawnChild: (node, args, options) => {
+        child = spawn(node, [stub], { ...options, env: { ...process.env, STUB_DIR: dir, BEFORE: failurePoint === 'before-marker' ? 'yes' : 'no' } });
+        child.once('close', () => { childClosed = true; });
+        return child;
+      },
+    });
+    assert.equal(result.code, 1);
+    assert.equal(result.report.reason, 'pilot-limit');
+    assert.equal(await readFile(join(dir, 'stop.request'), 'utf8'), 'stop\n');
+    assert.equal(await readFile(join(dir, 'child-closed.txt'), 'utf8'), 'closed');
+    assert.equal(child.exitCode, 0);
+    assert.equal(childClosed, true);
+    assert.equal(messages.filter(line => line.startsWith('Falha ao gravar o log ')).length, 1);
+    assert.ok(messages.some(line => line.startsWith('Parada solicitada')));
+    const failure = messages.findIndex(line => line.startsWith('Falha ao gravar o log '));
+    const marker = messages.findIndex(line => line.startsWith('PILOT_SESSION_DIR='));
+    assert.ok(failurePoint === 'before-marker' ? failure < marker : failure > marker);
+    assert.ok(!messages.some(line => line.startsWith('Limite do piloto atingido')));
+  });
+}
 test('failed startup cannot select an unrelated existing result', async t => {
   const root = await setup(t), game = 'nte';
   const old = join(root,'.cache',game,'runs',`pilot-${randomUUID()}`); await mkdir(old, { recursive: true });
