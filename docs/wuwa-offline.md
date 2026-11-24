@@ -23,3 +23,7 @@ Para outra imagem, informe o retângulo do cliente `left,top,width,height` em pi
 ## Resultado técnico dos exemplos de desenvolvimento
 
 Com os retângulos acima e o modelo identificado, o OCR reconheceu os três nomes, tipo, 90/90 e Rank 1. O segundo tratamento do nome usa agora limiar 120 em vez de 110: no bruto anterior, artefatos distantes da palavra produziram `Augment .` e `Emerald of Genesis |`; em 120 e 140 as duas tentativas concordam nos três exemplos. Os limiares 120 e 130 também foram experimentados nessa amostra; 150 e 160 degradaram o nome roxo de Augment. Não há remoção de pontuação do texto, e o teste sintético preserva apóstrofo e exclamação; estes exemplos reais não qualificam pontuação em outros nomes. Raridade permanece incerta nos três. Esses exemplos orientaram os recortes e tratamentos, portanto não são avaliação independente nem aprovação de Cristian. Uma imagem isolada não comprova navegação, ordem global, cobertura ou identidade de cópias.
+
+## Piloto de seleção
+
+O executor experimental e a medição do contorno estão em [wuwa-pilot.md](wuwa-pilot.md). A quarta linha visível ainda não foi qualificada; a CLI interrompe antes do primeiro clique. Nenhuma aquisição viva está solicitada agora.
