@@ -24,8 +24,8 @@ export async function inspectWuwaSelection(image, { client = { left: 0, top: 0, 
   const partial = Array.from({length: 6}, (_, i) => {
     const c = {left: 119 + 118*i, top: 518, width:95};
     const sides = [side(c,true,c.left,76), side(c,true,c.left+94,76), side(c,false,c.top,95)];
-    return { column: i, scores: sides, mark: sides.filter(v => v >= 0.35).length >= 2 ? 'partial-candidate' : 'unqualified' };
+    return { column: i, scores: sides, mark: sides.filter(v => v >= 0.35).length >= 2 ? 'partial-candidate' : sides.some(v => v >= 0.20) ? 'partial-uncertain' : 'unqualified' };
   });
-  const ambiguous = completeAmbiguous || partial.some(p => p.mark === 'partial-candidate');
-  return { status: 'selection-viewport-unqualified', targetIndex, completeCandidates: candidates, ambiguous, scores, partial, client, coordinates: 'client-pixels', note: 'Quarta linha parcialmente visivel nao qualificada; limiar baixo nao prova ausencia.' };
+  const ambiguous = completeAmbiguous || partial.some(p => p.mark !== 'unqualified');
+  return { status: 'selection-viewport-unqualified', targetIndex, completeCandidates: candidates, ambiguous, scores, partial, client, coordinates: 'client-pixels', note: 'Selecao parcial real detectada, mas sinal abaixo do limiar nao prova ausencia de contorno fraco.' };
 }

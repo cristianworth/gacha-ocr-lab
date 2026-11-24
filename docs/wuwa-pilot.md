@@ -1,36 +1,38 @@
-# WuWa — piloto visível bloqueado para qualificação
+﻿# WuWa — piloto visível ainda bloqueado
 
-O recorte proposto observa nome, tipo, nível e Rank de um a três cartões completos declarados, na ordem declarada, sem filtro ou rolagem. Raridade não é qualificada. A saída é local e sempre parcial: `coverageConfirmed=false` e `inventoryAccepted=false`. Nenhuma observação identifica uma cópia, comprova ordem global ou altera o Advisor.
+O recorte observa candidatos a nome, tipo, nível e Rank de um a três cartões completos distintos, na ordem declarada, sem filtro nem rolagem. Raridade não está qualificada. A sessão é sempre parcial: `coverageConfirmed=false` e `inventoryAccepted=false`. Seleção geométrica não identifica cópia nem aprova dados; nada é enviado ao Advisor.
 
-**Não executar no jogo agora:** a verificação da quarta linha visível não está qualificada. A CLI inicializa e arma o helper, captura o primeiro frame e para em `selection-viewport-unqualified` antes de qualquer clique. Isto é um bloqueio deliberado, não um piloto vivo validado; os demais passos foram exercitados somente com backend simulado. O coordenador avaliará evidência adicional depois da revisão.
+**Não executar no jogo agora.** O executor exige OCR do cabeçalho inglês `Weapons` no primeiro frame e preserva o bruto antes de verificar a seleção. Mesmo que essa preparação passe, a seleção permanece `selection-viewport-unqualified` antes de qualquer clique. A seleção inicial teria de ser o primeiro alvo declarado; isso não foi validado em jogo.
 
-## Geometria e evidência
+## Evidência e limite
 
-As imagens de desenvolvimento mostram três seleções em slots distintos. Para converter da imagem original ao cliente, use respectivamente `0,29,1280,720`, `0,30,1276,718` e `1,34,1280,720`; a avaliação converte as posições nominais do cliente para a imagem considerando offset e escala. As linhas completas nominais têm canto superior esquerdo `(119 + 118*coluna, 95 + 141*linha)` e dimensões `95,118`, com coluna 0–5 e linha 0–2. São as únicas posições aceitas como alvos experimentais, e não uma detecção geral ou comprovação de que a tela atual é a grade correta.
+Os quatro exemplos foram usados para desenvolver o perfil, não para avaliação independente. Nos três exemplos anteriores há um candidato completo em índices zero-based 12, 0 e 9; no novo frame há seleção parcial real na primeira coluna da quarta linha e nenhum candidato completo. As faixas superior e laterais visíveis dessa seleção são fortes; outros cartões parciais apresentam valores baixos. Isso confirma que uma seleção parcial pode ser detectada nesse frame, mas não prova que uma seleção fraca ou ilegível produza sinal distinguível de ausência. Valores intermediários são registrados como `partial-uncertain`; valores baixos continuam não qualificados. Conflitos e seleção parcial não autorizam clique. O frame estático não mostra rolagem ou movimento.
 
-O detector mede pixels amarelos nas quatro bordas dos 18 retângulos completos. Nos exemplos, os índices zero-based dos candidatos foram 12, 0 e 9; o mínimo das quatro frações foi respectivamente 0,991, 0,851 e 0,845. Os 18 retângulos e a quarta linha são inspecionados independentemente do alvo pedido; nenhum candidato equivale a confirmação ou identidade. Para os seis cartões parciais da quarta linha, são medidos topo e os primeiros 76 pixels das laterais. A detecção de duas faixas com fração >=0,35 registra `partial-candidate` e ambiguidade; pontuação inferior é `unqualified`, nunca prova de ausência. Os exemplos originais não contêm seleção conhecida na quarta linha. Contornos sintéticos fortes e fracos sobrepostos aos frames verificam somente a resposta do código, não a aparência real de um cartão parcial selecionado. A viewport inteira continua `selection-viewport-unqualified`, mesmo quando há um único candidato completo.
+Clientes medidos nos arquivos, respectivamente: `0,29,1280,720`, `0,30,1276,718`, `1,34,1280,720` e `1,29,1280,718`. No último, a borda ocupa a coluna zero e o conteúdo começa após a barra de título; a imagem termina aos 718 pixels disponíveis. O perfil de alvos usa 18 retângulos nominais com canto `(119 + 118*coluna, 95 + 141*linha)`, largura 95 e altura 118, para colunas 0–5 e linhas 0–2. A quarta linha é apenas inspecionada, nunca alvo. As medições completas e hashes estão no relatório local ignorado `.cache/wuwa/selection-qualification-report.md` e em `.cache/wuwa/measurements.jsonl`.
 
-## Replays e simulações
+A preparação recorta `(72,34,82,27)` no cliente 1280×720 e exige texto exato `Weapons`; falha ou texto diferente bloqueia antes de input. O OCR bruto e seu processamento ficam no manifesto. Isso não comprova foco, geometria ou seleção; os guardas correspondentes continuam independentes. A guarda final acontece imediatamente após persistir `click-in-progress`, sem gravação aguardada entre ela e o clique.
+
+## Validação local
 
 ```powershell
 npm ci
 node --test test/wuwa-selection.test.js test/wuwa-pilot.test.js test/wuwa-offline.test.js
 $env:WUWA_EXAMPLES='D:/Repo/gacha-ocr-lab/examples/Wuwa'
-node --test test/wuwa-selection.test.js
+node --test test/wuwa-selection.test.js test/wuwa-pilot.test.js test/wuwa-offline.test.js
 ```
 
-O último comando é opcional e usa arquivos locais não distribuídos; sem a variável, esse caso é ignorado. Os testes restantes geram cenas em memória e sessões temporárias sob `.cache/wuwa`. O OCR real pode ser reexecutado conforme [o guia offline](wuwa-offline.md), usando pastas novas. O modelo de referência tem SHA-256 `5dc5d8d640a212c9d6184921ba103b186f50e0fed9ee716c53e6b312b400d747`; sua origem anterior não foi estabelecida, portanto não distribuí-lo. Esses frames ajudaram a desenvolver o perfil e não são uma avaliação independente.
+Com os exemplos locais os 16 testes passaram. O OCR real no novo frame retornou candidatos Novaburst, pistols, 90/90 e Rank 5; raridade continua incerta. A leitura do cabeçalho e os campos são evidência de desenvolvimento, não aprovação humana. Testes simulados cobrem preparação errada ou ausente, cancelamento durante OCR e após persistência do clique com zero cliques, estabilidade, OCR falho e preservação parcial. Nenhum input ou aquisição no jogo foi realizado.
 
-O executor injetável registra tentativas, frames e SHA-256, conserva OCR bruto e incertezas do leitor público, grava `session.json` por substituição atômica e escreve `summary.md`; uma pasta existente é recusada. Em simulações, exige duas confirmações geométricas consecutivas e estabilidade das regiões de campos (distância média <=2) antes de ler, sem comparar nomes para inferir troca. Guarda/cancelamento são verificados antes e depois de capturas, clique, inspeção e OCR; uma falha mantém o estágio e observações anteriores. Dois frames repetidos de uma imagem não comprovam estabilidade viva, ordem real dos cliques, foco, input ou cobertura.
+## Futuro piloto, após qualificação e revisão
 
-O estágio do clique é salvo antes da última conferência de cancelamento e da janela, imediatamente anterior ao input. O resumo identifica cada observação como leitura retornada ou captura com OCR pendente e contém links relativos para a captura e o `session.json`; uma leitura retornada não constitui aprovação humana.
+A entrada é o script Node neste repositório, **não existe `.exe` WuWa**. O diretório de trabalho desta branch é `C:/Users/crist/orca/workspaces/gacha-ocr-lab/wuwa-selection-qualification`, com script em `scripts/wuwa-pilot.js`. `npm ci` e `.cache/models/eng.traineddata` precisam estar preparados; o modelo local medido tem SHA-256 `5dc5d8d640a212c9d6184921ba103b186f50e0fed9ee716c53e6b312b400d747`, origem e licença não estabelecidas e não deve ser distribuído. O nome real do processo deve ser verificado pelo usuário, sem extensão; `--pid` opcional distingue processos.
 
-## Caminho vivo e próximo recorte
-
-O código de entrada fica no repositório, não há `.exe` WuWa empacotado. Depois da qualificação e revisão da guarda, o roteiro proposto é executar no diretório `C:/Users/crist/orca/workspaces/gacha-ocr-lab/wuwa-selection-pilot` com Node, modelo local e Weapons em inglês, cliente exato 1280×720 a 96 DPI, controles livres e um a três retângulos completos declarados com `--target left,top,width,height` repetido. Exemplo de sintaxe, **ainda bloqueado**:
+Após desbloqueio e nova revisão, preparar Weapons em inglês, cliente 1280×720 a 96 DPI, primeiro alvo completamente visível já selecionado, controles livres e um a três alvos nominais distintos. Sintaxe proposta, atualmente bloqueada:
 
 ```powershell
 node scripts/wuwa-pilot.js --prepared --process NOME_REAL_DO_PROCESSO --target 119,95,95,118
 ```
 
-O nome real do processo deve ser informado sem extensão; `--pid` opcional escolhe entre processos correspondentes. O helper valida a janela, integridade, foco, oclusão, geometria e F8; há espera de cinco segundos antes de ativar e armar. `Ctrl+C` ou `stop.request` na pasta da sessão solicita cancelamento. A pasta é criada em `.cache/wuwa/runs/` e não é sobrescrita. A CLI atual retorna erro deliberado antes do primeiro clique e salva a sessão parcial; não há teste humano a executar agora. Caso a guarda venha a ser qualificada, será preciso reabrir qualquer janela de console já encerrada para usar o código atualizado; nenhuma janela de aplicativo `.exe` participa deste caminho. A futura intervenção mínima deve esclarecer como o contorno realmente aparece numa seleção parcial da quarta linha, e o coordenador definirá preparação e coleta após revisão. O artefato a examinar será `session.json` da execução específica, sem transferir aprovação entre sessões.
+O helper verifica processo, janela, integridade, foco, oclusão e geometria. Depois dos cinco segundos de espera, F8 interrompe quando armado; Ctrl+C ou arquivo `stop.request` na pasta da sessão solicita cancelamento cooperativo. O resultado fica em uma pasta exclusiva `.cache/wuwa/runs/`, com `session.json`, `summary.md` e frames; é sempre parcial. Após término, enviar somente `session.json`. Será preciso abrir um console novo para carregar código atualizado; não há aplicativo ou pacote extraído a reabrir.
+
+**Minha parte:** revisar a evidência que falta para distinguir contorno fraco de ausência e o diff antes de decidir sobre o bloqueio. **Sua parte agora:** nenhuma; não execute o piloto nem envie captura. O teste vivo é futuro e depende de autorização e qualificação; não foi validado por replays ou simulações.

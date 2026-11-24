@@ -43,3 +43,17 @@ test('optional development frames: selected and neighbouring geometry plus parti
     }
   }
 });
+
+test('optional real partial selection is detected without confirmation', {skip: !root}, async () => {
+ const image=await readImage(`${root}/Novaburst.png`);
+ const result=await inspectWuwaSelection(image,{client:{left:1,top:29,width:1280,height:718},target:wuwaCards[0]});
+ assert.deepEqual(result.completeCandidates,[]); assert.equal(result.partial[0].mark,'partial-candidate');
+ assert.equal(result.ambiguous,true); assert.equal(result.status,'selection-viewport-unqualified');
+});
+
+test('an intermediate partial contour is ambiguous, never evidence of absence', async () => {
+ const shape = '<path d="M119 545 V518" fill="none" stroke="#ffeb94" stroke-width="2"/>';
+ const result=await inspectWuwaSelection(await scene([0],shape),{target:wuwaCards[0]});
+ assert.equal(result.partial[0].mark,'partial-uncertain'); assert.equal(result.ambiguous,true);
+ assert.equal(result.status,'selection-viewport-unqualified');
+});
