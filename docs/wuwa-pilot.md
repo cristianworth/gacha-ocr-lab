@@ -2,7 +2,7 @@
 
 O piloto observa candidatos a nome, tipo, nível e Rank de um a três cartões completos distintos, na ordem declarada, sem filtro ou rolagem. Raridade não é qualificada. Toda sessão é parcial: `coverageConfirmed=false`, `inventoryAccepted=false`; não identifica cópias nem escreve no Advisor.
 
-**A implementação aguarda revisão. Não executar no jogo agora.** O detector pode retornar `confirmed` para uma correspondência geométrica única sob o perfil e as condições visíveis medidas. Isso não prova seleção interna única, ausência de marcas invisíveis, identidade ou cobertura global. Um piloto vivo curto deve avaliar o render atual antes de qualquer percurso maior.
+**O PR #24 foi aprovado e integrado; a entrada assistida está em revisão. Não executar no jogo agora.** O detector pode retornar `confirmed` para uma correspondência geométrica única sob o perfil e as condições visíveis medidas. Isso não prova seleção interna única, ausência de marcas invisíveis, identidade ou cobertura global. Um piloto vivo curto deve avaliar o render atual antes de qualquer percurso maior.
 
 ## Perfil e evidência
 
@@ -18,14 +18,12 @@ Os três frames completos fornecidos produziram candidatos 12, 0 e 9 (índices z
 
 `npm ci` prepara dependências. Execute `node --test test/wuwa-selection.test.js test/wuwa-pilot.test.js test/wuwa-offline.test.js`; para os testes com imagens privadas, defina antes `$env:WUWA_EXAMPLES='D:/Repo/gacha-ocr-lab/examples/Wuwa'`. Dezoito testes passaram com os quatro exemplos. Sobreposições sintéticas a 25%, 50% e 100% ilustram sinais concorrentes; não estabelecem contraste mínimo geral. O executor usa duas confirmações consecutivas com estabilidade do painel, guarda final imediatamente antes do clique e gravação parcial. Cancelamento na preparação ou após persistir `click-in-progress` foi simulado com zero cliques; falha OCR conserva observações e captura pendente. Não houve aquisição ou input no jogo.
 
-## Procedimento futuro após revisão e autorização
+## Entrada assistida e validação futura
 
-Não existe `.exe` WuWa. O diretório de trabalho é `C:/Users/crist/orca/workspaces/gacha-ocr-lab/wuwa-selection-qualification`, com entrada `scripts/wuwa-pilot.js`. É necessário Node, `npm ci` e modelo inglês em `.cache/models/eng.traineddata`; o modelo local tem SHA-256 `5dc5d8d640a212c9d6184921ba103b186f50e0fed9ee716c53e6b312b400d747`, origem/licença não estabelecidas e não deve ser distribuído. Verificar o nome real do processo sem extensão; `--pid` opcional escolhe entre processos.
+Não existe `.exe` WuWa nem pacote deste piloto. Na raiz deste repositório, `pilot-wuwa.cmd -Check` verifica Node.js 22+, dependências (`npm ci`) e `.cache/models/eng.traineddata`, sem UAC ou interação com jogo. O modelo inglês local tem origem/licença não estabelecidas e não deve ser distribuído.
 
-Para um futuro piloto mínimo, preparar Weapons em inglês no cliente 1280×720 e 96 DPI, deixar o primeiro cartão completo escolhido selecionado, controles livres e declarar um único alvo nominal. Após a revisão, a sintaxe é:
+Depois da revisão e da combinação do teste #25, execute `pilot-wuwa.cmd` nesta raiz. A entrada pede UAC, lista janelas visíveis com nome, PID e título, exige escolha explícita e confirmação. Prepare Weapons em inglês, cliente 1280×720, 96 DPI/Windows 100%, lista no topo e menus fechados; o primeiro cartão completo já deve estar selecionado. Os dois alvos fixos são `119,95,95,118` e `237,95,95,118`, em ordem: o primeiro confere render, o segundo permite observar troca. A seleção da quarta linha parcial deve ser rejeitada.
 
-`node scripts/wuwa-pilot.js --prepared --process NOME_REAL_DO_PROCESSO --target 119,95,95,118`
+O helper mantém as guardas, espera cinco segundos antes da ativação e usa F8 para parar após armar. Ctrl+C ou `stop.request` na pasta anunciada também solicitam parada; aguarde a gravação e encerramento. O gesto físico de Ctrl+C na nova entrada ainda não foi validado no jogo. A entrada guarda o log em `.cache/pilot-entry/<uuid>/console.log` e identifica a pasta do filho pelo marcador ASCII `PILOT_SESSION_DIR=`; não consulta sessões antigas. Só lê `session.json` após o filho encerrar e apresenta o caminho exato do resumo e do manifesto, inclusive em parcial. `pilot-limit` termina somente o recorte, não aprova OCR ou inventário. Envie apenas o `session.json` quando o coordenador solicitar.
 
-O helper verifica processo, janela, integridade, foco, oclusão e geometria. Após a espera de cinco segundos, F8 interrompe quando armado; Ctrl+C ou `stop.request` na pasta da sessão solicita parada cooperativa. A pasta exclusiva em `.cache/wuwa/runs/` contém `session.json`, resumo e frames; após término, enviar apenas `session.json`. Abrir um console novo para carregar o código atualizado; nenhum pacote extraído ou janela de aplicativo participa.
-
-**Minha parte:** coordenador revisa o diff e decide sobre futuro teste vivo. **Sua parte agora:** nenhuma; não execute o piloto nem envie captura. Confirmações geométricas e OCR são candidatos, sem aceite humano de inventário.
+O jogo não precisa reiniciar para carregar o script; feche e abra um console novo para usar a atualização. Pacotes extraídos e o `.exe` de outro checkout não recebem essa entrada. O uso direto da CLI existente continua disponível. **Minha parte:** revisar o novo diff e combinar o teste. **Sua parte agora:** nenhuma; não inicie o piloto nem envie captura.
