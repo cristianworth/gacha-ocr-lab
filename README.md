@@ -25,13 +25,14 @@ O caminho curto foi conferido no jogo em 29/10: **34 elegíveis, 35 posições o
 
 Nada é aplicado automaticamente ao Advisor. Uma coleta filtrada não remove dados existentes. Imagens, resultados, dependências em cache e modelos não acompanham o clone nem devem entrar no Git.
 
-**WuWa e NTE — pilotos limitados:** os PRs #20 e #24 foram aprovados e integrados. As entradas locais `pilot-wuwa.cmd` e `pilot-nte.cmd` estão em revisão na [#26](https://github.com/cristianworth/gacha-ocr-lab/issues/26); `-Check` verifica a instalação sem operar o jogo. As validações reais [NTE #22](https://github.com/cristianworth/gacha-ocr-lab/issues/22) e [WuWa #25](https://github.com/cristianworth/gacha-ocr-lab/issues/25) serão combinadas depois da revisão. Nenhuma captura ou OCR é solicitado agora. Não há `.exe` nem pacote desses pilotos. [Guias WuWa](docs/wuwa-pilot.md) e [NTE](docs/nte-pilot.md); responsabilidades no [roadmap](docs/ROADMAP.md).
+**WuWa e NTE — pilotos limitados:** os PRs #20 e #24 e as entradas locais `pilot-wuwa.cmd`/`pilot-nte.cmd` ([PR #27](https://github.com/cristianworth/gacha-ocr-lab/pull/27)) foram aprovados e integrados. A implementação [#26](https://github.com/cristianworth/gacha-ocr-lab/issues/26) está concluída; `-Check` verifica a instalação sem operar o jogo. O próximo recorte é combinar as validações reais [NTE #22](https://github.com/cristianworth/gacha-ocr-lab/issues/22) e [WuWa #25](https://github.com/cristianworth/gacha-ocr-lab/issues/25), ainda não executadas. Nenhuma captura ou OCR é solicitado neste fechamento. Não há `.exe` nem pacote desses pilotos. [Guias WuWa](docs/wuwa-pilot.md) e [NTE](docs/nte-pilot.md); responsabilidades no [roadmap](docs/ROADMAP.md).
 
 ## Organização
 
 | Documento | Finalidade |
 |---|---|
 | [AGENTS.md](AGENTS.md) | Regras estáveis para trabalhar no laboratório |
+| [Coordenação e revisão](docs/orchestration-workflow.md) | Aprendizados da orquestração e aplicação do GitHub Flow com evidências |
 | [Guia ZZZ](docs/zzz-scan.md) | Preparação, execução, saídas, falhas e contratos atuais |
 | [Piloto Genshin](docs/genshin-pilot.md) | Preparação e limites do piloto atual em 1280×720 |
 | [Pacote portátil](docs/zzz-portable.md) | Build local, runtime incluído, uso e limites de distribuição |
