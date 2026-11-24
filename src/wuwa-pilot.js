@@ -77,7 +77,7 @@ export async function runWuwaPilot({ output, targets, setup, signal, ocrSession,
     preflight.selection = await inspect(initial, { target: targets[0] }); await save(output, report);
     await guard();
     // This conservative viewport gate is deliberately before the first click.
-    if (preflight.selection.status !== 'confirmed') throw new Error('selection-viewport-unqualified');
+    if (preflight.selection.status !== 'confirmed') throw new Error(preflight.selection.status);
     preflight.stage = 'complete';
     for (const [index, target] of targets.entries()) {
       const attempt = { index, target, stage: 'before-click', frames: [] }; report.attempts.push(attempt); await save(output, report);

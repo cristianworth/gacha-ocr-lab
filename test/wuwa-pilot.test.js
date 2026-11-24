@@ -15,9 +15,9 @@ function fake({failAt, controller} = {}) {
 }
 const ok = async () => ({status:'confirmed'});
 const deps = {prepare:async()=>({verified:true}), inspect:ok, wait:async()=>{}, read:async()=>({fields:{name:{value:'Same'},rarity:{status:'uncertain'}}})};
-test('real selector blocks before first click and preserves preflight', async () => fixture(async dir => {
+test('real selector rejects empty frame before first click and preserves preflight', async () => fixture(async dir => {
  const backend=fake(); const output=join(dir,'run'); const report=await runWuwaPilot({output,targets:[wuwaCards[0]],setup:async()=>backend,dependencies:{prepare:async()=>({verified:true})}});
- assert.equal(report.reason,'selection-viewport-unqualified'); assert.equal(backend.clicks,0); assert.equal(report.attempts[0].frames.length,1);
+ assert.equal(report.reason,'selection-not-detected'); assert.equal(backend.clicks,0); assert.equal(report.attempts[0].frames.length,1);
  assert.equal((JSON.parse(await readFile(join(output,'session.json')))).coverageConfirmed,false);
  await assert.rejects(runWuwaPilot({output,targets:[wuwaCards[0]],setup:async()=>backend}),/EEXIST/);
 }));
@@ -75,3 +75,15 @@ test('preparation checks the exact Weapons header and retains raw OCR', async ()
   assert.equal(result.verified,verified); assert.equal(result.ocr.rawText,rawText);
  }
 });
+
+test('real selector runner confirms twice and rejects initial wrong selection before clicking', async () => fixture(async dir => {
+ const c=wuwaCards[0];
+ const selected=await sharp(Buffer.from(`<svg width="1280" height="720"><rect x="${c.left}" y="${c.top}" width="94" height="117" fill="none" stroke="#ffeb94" stroke-width="2"/></svg>`)).png().toBuffer();
+ for (const [name,frame,expected] of [['positive',selected,'pilot-limit'],['negative',blank,'selection-not-detected']]) {
+  const backend=fake(); backend.capture=async path=>writeFile(path,frame,{flag:'wx'});
+  const {inspect:ignored,...realSelectorDeps}=deps;
+  const report=await runWuwaPilot({output:join(dir,name),targets:[c],setup:async()=>backend,dependencies:realSelectorDeps});
+  assert.equal(report.reason,expected); assert.equal(backend.clicks,name==='positive'?1:0);
+  if(name==='positive') {assert.equal(report.observations.length,1); assert.equal(report.observations[0].selection.status,'confirmed'); assert.equal(report.observations[0].stability.consecutiveFrames,2);}
+ }
+}));
