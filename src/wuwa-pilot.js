@@ -5,6 +5,7 @@ import sharp from 'sharp';
 import { readImage } from './image.js';
 import { readWuwaOffline } from './wuwa-offline.js';
 import { inspectWuwaSelection, validateWuwaTargets } from './wuwa-selection.js';
+import { prepareRegion } from './regions.js';
 import { checkScanControl, pixelDistance, wait } from './scan-control.js';
 
 async function save(output, report) {
@@ -29,6 +30,14 @@ async function fingerprint(buffer) {
   return Buffer.concat(pieces);
 }
 
+// English header in the initial 1280x720 client, independent of weapon name.
+export async function inspectWuwaPreparation(image, ocrSession) {
+  const rectangle = { left: 72, top: 34, width: 82, height: 27 };
+  const prepared = await prepareRegion(image.buffer, rectangle, { threshold: 140 });
+  const ocr = await ocrSession.recognize(prepared.buffer, 'SINGLE_LINE');
+  return { rectangle, processing: prepared.processing, ocr, verified: /^Weapons$/iu.test(ocr.rawText.trim()) };
+}
+
 // The injected inspector and reader exist for simulations; the CLI never overrides them.
 export async function runWuwaPilot({ output, targets, setup, signal, ocrSession, dependencies = {} }) {
   validateWuwaTargets(targets);
@@ -38,6 +47,7 @@ export async function runWuwaPilot({ output, targets, setup, signal, ocrSession,
   let backend; let frameNumber = 0;
   const inspect = dependencies.inspect ?? inspectWuwaSelection;
   const read = dependencies.read ?? readWuwaOffline;
+  const prepare = dependencies.prepare ?? inspectWuwaPreparation;
   const pause = dependencies.wait ?? wait;
   const signature = dependencies.fingerprint ?? fingerprint;
   async function guard() {
@@ -61,10 +71,13 @@ export async function runWuwaPilot({ output, targets, setup, signal, ocrSession,
     await guard();
     const preflight = { stage: 'preflight', frames: [] }; report.attempts.push(preflight); await save(output, report);
     const initial = await capture(preflight);
+    preflight.preparation = await prepare(initial, ocrSession); await save(output, report);
+    await guard();
+    if (!preflight.preparation.verified) throw new Error('weapons-screen-unverified');
     preflight.selection = await inspect(initial, { target: targets[0] }); await save(output, report);
     await guard();
     // This conservative viewport gate is deliberately before the first click.
-    if (preflight.selection.status !== 'confirmed') throw new Error('selection-viewport-unqualified');
+    if (preflight.selection.status !== 'confirmed') throw new Error(preflight.selection.status);
     preflight.stage = 'complete';
     for (const [index, target] of targets.entries()) {
       const attempt = { index, target, stage: 'before-click', frames: [] }; report.attempts.push(attempt); await save(output, report);

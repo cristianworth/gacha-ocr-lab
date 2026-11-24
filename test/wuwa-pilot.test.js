@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import sharp from 'sharp';
-import { runWuwaPilot } from '../src/wuwa-pilot.js';
+import { runWuwaPilot, inspectWuwaPreparation } from '../src/wuwa-pilot.js';
 import { wuwaCards } from '../src/wuwa-selection.js';
 
 await mkdir('.cache/wuwa',{recursive:true});
@@ -14,10 +14,10 @@ function fake({failAt, controller} = {}) {
   return { get clicks(){return clicks}, async status(){ statusCalls++; if (statusCalls===failAt) return {armed:false,stopped:true,stopReason:'focus-lost'}; return {armed:true,stopped:false,window:{width:1280,height:720,dpi:96}}; }, async click(){ clicks++; if (controller) controller.abort(); }, async capture(path){await writeFile(path,blank,{flag:'wx'});} };
 }
 const ok = async () => ({status:'confirmed'});
-const deps = {inspect:ok, wait:async()=>{}, read:async()=>({fields:{name:{value:'Same'},rarity:{status:'uncertain'}}})};
-test('real selector blocks before first click and preserves preflight', async () => fixture(async dir => {
- const backend=fake(); const output=join(dir,'run'); const report=await runWuwaPilot({output,targets:[wuwaCards[0]],setup:async()=>backend});
- assert.equal(report.reason,'selection-viewport-unqualified'); assert.equal(backend.clicks,0); assert.equal(report.attempts[0].frames.length,1);
+const deps = {prepare:async()=>({verified:true}), inspect:ok, wait:async()=>{}, read:async()=>({fields:{name:{value:'Same'},rarity:{status:'uncertain'}}})};
+test('real selector rejects empty frame before first click and preserves preflight', async () => fixture(async dir => {
+ const backend=fake(); const output=join(dir,'run'); const report=await runWuwaPilot({output,targets:[wuwaCards[0]],setup:async()=>backend,dependencies:{prepare:async()=>({verified:true})}});
+ assert.equal(report.reason,'selection-not-detected'); assert.equal(backend.clicks,0); assert.equal(report.attempts[0].frames.length,1);
  assert.equal((JSON.parse(await readFile(join(output,'session.json')))).coverageConfirmed,false);
  await assert.rejects(runWuwaPilot({output,targets:[wuwaCards[0]],setup:async()=>backend}),/EEXIST/);
 }));
@@ -57,4 +57,33 @@ test('client geometry guard stops before capturing or clicking', async () => fix
  const backend=fake(); backend.status=async()=>({armed:true,stopped:false,window:{width:1279,height:720,dpi:96}});
  const report=await runWuwaPilot({output:join(dir,'geometry'),targets:[wuwaCards[0]],setup:async()=>backend,dependencies:deps});
  assert.equal(report.reason,'client-or-dpi-unverified'); assert.equal(backend.clicks,0); assert.equal(report.attempts.length,0);
+}));
+
+test('wrong or missing Weapons and cancellation during preparation prevent input', async () => fixture(async dir => {
+ for (const [name, preparation] of [['wrong', {verified:false, ocr:{rawText:'Characters'}}], ['missing', {verified:false, ocr:{rawText:''}}]]) {
+  const backend=fake(); const report=await runWuwaPilot({output:join(dir,name),targets:[wuwaCards[0]],setup:async()=>backend,dependencies:{...deps,prepare:async()=>preparation}});
+  assert.equal(report.reason,'weapons-screen-unverified'); assert.equal(backend.clicks,0); assert.deepEqual(report.attempts[0].preparation,preparation);
+ }
+ const controller=new AbortController(), backend=fake();
+ const report=await runWuwaPilot({output:join(dir,'cancel-preparation'),targets:[wuwaCards[0]],signal:controller.signal,setup:async()=>backend,dependencies:{...deps,prepare:async()=>{controller.abort(); return {verified:true};}}});
+ assert.equal(report.reason,'cancelled'); assert.equal(backend.clicks,0);
+}));
+
+test('preparation checks the exact Weapons header and retains raw OCR', async () => {
+ for (const [rawText, verified] of [['Weapons\n',true],['Characters\n',false],['',false],['Weapons 120/2000',false]]) {
+  const result=await inspectWuwaPreparation({buffer:blank},{recognize:async()=>({rawText})});
+  assert.equal(result.verified,verified); assert.equal(result.ocr.rawText,rawText);
+ }
+});
+
+test('real selector runner confirms twice and rejects initial wrong selection before clicking', async () => fixture(async dir => {
+ const c=wuwaCards[0];
+ const selected=await sharp(Buffer.from(`<svg width="1280" height="720"><rect x="${c.left}" y="${c.top}" width="94" height="117" fill="none" stroke="#ffeb94" stroke-width="2"/></svg>`)).png().toBuffer();
+ for (const [name,frame,expected] of [['positive',selected,'pilot-limit'],['negative',blank,'selection-not-detected']]) {
+  const backend=fake(); backend.capture=async path=>writeFile(path,frame,{flag:'wx'});
+  const {inspect:ignored,...realSelectorDeps}=deps;
+  const report=await runWuwaPilot({output:join(dir,name),targets:[c],setup:async()=>backend,dependencies:realSelectorDeps});
+  assert.equal(report.reason,expected); assert.equal(backend.clicks,name==='positive'?1:0);
+  if(name==='positive') {assert.equal(report.observations.length,1); assert.equal(report.observations[0].selection.status,'confirmed'); assert.equal(report.observations[0].stability.consecutiveFrames,2);}
+ }
 }));
