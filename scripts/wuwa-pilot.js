@@ -27,6 +27,7 @@ try {
   process.on('SIGINT', cancel);
   timer = setInterval(() => { if (existsSync(join(output,'stop.request'))) controller.abort(); },100);
   console.log(`Pasta da sessão: ${output}`);
+  console.log(`PILOT_SESSION_DIR=${output}`);
   const report = await runWuwaPilot({ output, targets, signal: controller.signal,
     setup: async (directory, signal) => {
       ocr = await createOcrSession({languages:'eng',cachePath:resolve(values.models ?? join(root,'.cache','models')),offline:true});

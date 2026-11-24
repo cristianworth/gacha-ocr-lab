@@ -24,6 +24,7 @@ try {
   const models = values.models === undefined ? join(repository, '.cache', 'models') : resolve(values.models);
   await mkdir(root, { recursive: true });
   output = join(root, `pilot-${randomUUID()}`); await mkdir(output);
+  console.log(`PILOT_SESSION_DIR=${output}`);
   console.log(`Sessao: ${output}`);
   process.on('SIGINT', cancel);
   timer = setInterval(() => { if (existsSync(join(output, 'stop.request'))) controller.abort(); }, 100);
