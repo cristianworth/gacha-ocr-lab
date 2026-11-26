@@ -59,13 +59,19 @@ export async function runDesktopSelection({ root, game, action, entry, check = c
     // runChild consumes the child's marker and verifies ownership, freshness and realpath.
     // It returns only after close, including drained stdout/stderr and pending log writes.
     receipt.directory = result.directory ?? null;
+    receipt.childExitCode = result.exitCode ?? null;
     if (result.logError) throw new Error(`Falha ao gravar log do filho: ${result.logError}`);
     if (result.report) {
       const report = validatePilotReport(game, result.report);
       receipt.result = 'partial';
       receipt.reason = report.reason;
       receipt.pendingOcr = report.observations.filter(o => o.status === 'captured-pending-ocr').length;
-      receipt.failed = result.code !== 0;
+      // The pilot CLIs use exit 1 for an expected cooperative/F8 stop as well.
+      // A nonzero exit after pilot-limit is a failure even with a valid manifest.
+      const expectedStop = result.exitCode === 1 && ['cancelled', 'emergency-f8'].includes(report.reason);
+      receipt.failed = result.code !== 0 && !expectedStop;
+      if (receipt.failed) receipt.error = `Falha ao encerrar o filho (codigo ${receipt.childExitCode ?? 'indisponivel'}; motivo ${report.reason}).`;
+      print(`Encerramento do filho: codigo ${receipt.childExitCode ?? 'indisponivel'}; ${receipt.failed ? 'falha' : expectedStop ? 'parada esperada' : 'normal'}.`);
       print(`Resultado parcial: ${report.reason}; sem cobertura ou aceite do inventario.`);
     } else receipt.error = 'Nenhuma sessao propria com manifesto final legivel foi confirmada. Consulte o log desta abertura.';
     return receipt;

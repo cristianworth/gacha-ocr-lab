@@ -104,6 +104,8 @@ export async function runNtePilot({ backend, output, targets, cachePath, signal,
     if (!report.preparation.category.verified) throw new Error('arc-category-unverified');
     for (const [index, target] of targets.entries()) {
       report.currentAttempt = { index, target, stage: 'before-click' }; await save(output, report);
+      // The helper may fail after sending input, so persist the uncertain transition first.
+      report.currentAttempt.stage = 'click-in-progress'; await save(output, report);
       await guard();
       await backend.click({ x: target.left + 52, y: target.top + 52 });
       report.currentAttempt.stage = 'selection-and-stability'; await save(output, report);

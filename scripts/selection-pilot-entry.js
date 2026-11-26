@@ -149,7 +149,7 @@ export async function runChild({ root, game, window, spawnChild = spawn, print =
     code = await new Promise((resolveExit, reject) => { child.once('error', reject); child.once('close', resolveExit); });
   } finally { clearInterval(timer); process.removeListener('SIGINT', requestCancel); }
   await logQueue;
-  if (invalid || !directory) { print(`Nenhuma sessao propria confirmada. Log: ${log}`); return { code: 1, log }; }
+  if (invalid || !directory) { print(`Nenhuma sessao propria confirmada. Log: ${log}`); return { code: 1, exitCode: code, log }; }
   let verifiedDirectory;
   try {
     const actualDir = await ownDirectory(directory);
@@ -161,8 +161,8 @@ export async function runChild({ root, game, window, spawnChild = spawn, print =
     const success = !logError && code === 0 && report.reason === 'pilot-limit';
     print(success ? 'Limite do piloto atingido; resultado parcial, OCR sujeito a revisao.' : `Piloto parcial ou interrompido: ${report.reason ?? 'motivo indisponivel'}.`);
     print(`Resumo (abra manualmente): ${join(actualDir, 'summary.md')}`);
-    return { code: success ? 0 : 1, log, directory: actualDir, session, report, logError: logError?.message };
-  } catch (error) { print(`Resultado indisponivel: ${error.message}. Pasta anunciada: ${directory}. Log: ${log}`); return { code: 1, log, directory: verifiedDirectory, logError: logError?.message }; }
+    return { code: success ? 0 : 1, exitCode: code, log, directory: actualDir, session, report, logError: logError?.message };
+  } catch (error) { print(`Resultado indisponivel: ${error.message}. Pasta anunciada: ${directory}. Log: ${log}`); return { code: 1, exitCode: code, log, directory: verifiedDirectory, logError: logError?.message }; }
 }
 
 export async function main(args = process.argv.slice(2)) {

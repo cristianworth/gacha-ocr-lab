@@ -71,11 +71,14 @@ else {
       observations:[{status:'captured-pending-ocr',capture:{path:'pending.png'}}],
       scope:{targets,filter:'none',order:'declared-targets',scroll:false}};
     if(mode==='bad-manifest')report.coverageConfirmed=true;
+    if(mode==='f8-stop')report.reason='emergency-f8';
     if(mode==='preparation-error' && game==='nte') {delete report.scope; report.observations=[]; report.reason='preflight';report.error={stage:'preparation'};}
     fs.writeFileSync(path.join(dir,'session.json'),JSON.stringify(report));
     fs.writeFileSync(path.join(dir,'summary.md'),'Own partial fixture result');
     fs.writeFileSync(path.join(dir,'child-closed.txt'),'closed');
     console.log('fixture cleanup complete');if(stopped || mode==='preparation-error')process.exitCode=1;
+    if(mode==='shutdown-error'){console.error('fixture backend close failed');process.exitCode=1;}
+    if(mode==='f8-stop')process.exitCode=1;
    };
    if(mode==='wait'){
     const timer=setInterval(()=>{console.log('fixture waiting');if(fs.existsSync(path.join(dir,'stop.request'))){clearInterval(timer);setTimeout(save,150)}},100);
@@ -163,6 +166,46 @@ def test_graphical_selection_owns_result_and_preserves_pending_ocr(tmp_path, gam
 
 
 @pytest.mark.parametrize('game', ['wuwa', 'nte'])
+@pytest.mark.parametrize('mode,expected,code', [('complete', 'partial', 0), ('shutdown-error', 'error', 1), ('f8-stop', 'partial', 1)])
+def test_shutdown_exit_status_preserves_own_partial_result_and_diagnostics(tmp_path, game, mode, expected, code):
+    root = prepare(tmp_path, mode)
+    result = drive(tmp_path, root, game)
+    assert result['Result'] == expected and result['ClosedAfterChild'] and result['WhileActive']
+    assert result['Opened'] == result['Run'] and result['Folder'] == f'"{result["Run"]}"'
+    run, entry = Path(result['Run']), Path(result['Entry'])
+    receipt = json.loads((entry / 'result.json').read_text(encoding='utf-8'))
+    manifest = json.loads((run / 'session.json').read_text(encoding='utf-8'))
+    assert receipt['childExitCode'] == code and receipt['failed'] is (mode == 'shutdown-error')
+    assert (entry / 'exit-code.txt').read_text().strip() == ('1' if expected == 'error' else '0')
+    assert manifest['status'] == 'partial' and manifest['coverageConfirmed'] is False and 'failed' not in manifest
+    assert manifest['observations'][0]['status'] == 'captured-pending-ocr'
+    assert (run / 'summary.md').read_text() == 'Own partial fixture result'
+    if mode == 'shutdown-error':
+        assert manifest['reason'] == 'pilot-limit' and 'codigo 1' in receipt['error']
+        assert 'Falha no encerramento' in result['Status'] and 'filho 1; supervisor 1' in result['Status']
+        assert 'Parcial preservado' in result['Status'] and 'fixture backend close failed' in result['Log']
+        assert 'filho=1; supervisor=1' in result['Log'] and str(entry / 'console.log') in result['Log']
+    else:
+        assert 'Piloto parcial encerrado:' in result['Status'] and 'Falha no encerramento' not in result['Status']
+
+
+@pytest.mark.parametrize('game', ['wuwa', 'nte'])
+def test_supervisor_exit_failure_overrides_valid_partial_receipt(tmp_path, game):
+    root = prepare(tmp_path)
+    adapter = root / 'scripts/run-desktop-selection.ps1'
+    script = adapter.read_text(encoding='utf-8-sig').replace('$code = $LASTEXITCODE',
+        "$code = $LASTEXITCODE\n    if ($Action -eq 'run') { $writer.WriteLine('fixture supervisor failure'); $code = 7 }")
+    adapter.write_text(script, encoding='utf-8-sig')
+    result = drive(tmp_path, root, game)
+    entry = Path(result['Entry'])
+    receipt = json.loads((entry / 'result.json').read_text(encoding='utf-8'))
+    assert receipt['result'] == 'partial' and receipt['failed'] is False and receipt['childExitCode'] == 0
+    assert result['Result'] == 'error' and result['ClosedAfterChild'] and result['Opened'] == result['Run']
+    assert result['Folder'] == f'"{result["Run"]}"' and (entry / 'exit-code.txt').read_text().strip() == '7'
+    assert 'filho 0; supervisor 7' in result['Status'] and 'fixture supervisor failure' in result['Log']
+
+
+@pytest.mark.parametrize('game', ['wuwa', 'nte'])
 @pytest.mark.parametrize('when,close', [('before-marker', False), ('after-session', False), ('before-marker', True), ('after-session', True)])
 def test_stop_and_close_remain_pending_until_own_session_and_wait_for_child(tmp_path, game, when, close):
     root = prepare(tmp_path, 'wait')
@@ -197,7 +240,7 @@ def test_startup_and_manifest_errors_never_reopen_old_success(tmp_path, game, mo
     (old / 'summary.md').write_text('Old success')
     result = drive(tmp_path, root, game)
     assert result['Run'] != str(old) and result['Opened'] != str(old) and result['ClosedAfterChild']
-    expected = 'partial' if mode == 'preparation-error' else 'error'
+    expected = 'error'
     assert result['Result'] == expected
     if mode in ('startup-error', 'old-marker', 'external-marker', 'conflicting-marker'):
         assert result['Run'] is None and result['Opened'] is None

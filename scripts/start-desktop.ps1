@@ -183,10 +183,16 @@ function Complete-DesktopSelectionProcess {
         $Context.LastRun = $directory
         $Context.PathLabel.Text = "Arquivos desta sessao: $directory"
     }
-    $Context.LastResult = if ($null -ne $Context.LastRun -and $saved.result -eq 'partial' -and !$Active.MonitorError) { 'partial' } else { 'error' }
+    $Context.LastResult = if ($null -ne $Context.LastRun -and $saved.result -eq 'partial' -and
+        !$Failed -and !$saved.failed -and !$Active.MonitorError) { 'partial' } else { 'error' }
     $Context.Status.Text = if ($Context.LastResult -eq 'partial') {
         "Piloto parcial encerrado: $($saved.reason). Sem cobertura ou aceite. OCR pendente: $($saved.pendingOcr). Abra o resultado."
-    } else { "Falha no piloto: $($saved.error) $($Active.MonitorError). Confira o log e os arquivos desta tentativa." }
+    } else {
+        $childCode = if ($null -ne $saved.childExitCode) { [string]$saved.childExitCode } else { 'indisponivel' }
+        $Context.Log.AppendText("Falha no encerramento: filho=$childCode; supervisor=$($Active.Process.ExitCode); erro=$($saved.error) $($Active.MonitorError); log=$($Active.Reader.Path)`r`n")
+        $detail = if ($null -ne $Context.LastRun) { 'Parcial preservado; confira o log e abra o resultado.' } else { 'Confira o log desta tentativa.' }
+        "Falha no encerramento (filho $childCode; supervisor $($Active.Process.ExitCode)). $detail"
+    }
 }
 
 function Start-DesktopRun {

@@ -38,7 +38,7 @@ for (const game of ['wuwa', 'nte']) {
     const result = await runDesktopSelection({ ...options, game, action: 'run',
       list: async () => { checked = true; return [window]; },
       run: async ({ beforeSpawn, windowsHide }) => { assert.equal(windowsHide, true); await beforeSpawn(); assert.ok(checked); closed = true;
-        return { code: 0, directory: join(options.root, '.cache', game, 'runs', 'pilot-fixture'), report: report(game) }; },
+        return { code: 0, exitCode: 0, directory: join(options.root, '.cache', game, 'runs', 'pilot-fixture'), report: report(game) }; },
     });
     assert.ok(closed); assert.equal(result.result, 'partial'); assert.equal(result.pendingOcr, 1);
     assert.equal(JSON.parse(await readFile(join(options.entry, 'result.json'), 'utf8')).result, 'partial');
@@ -50,6 +50,18 @@ for (const game of ['wuwa', 'nte']) {
     });
     assert.equal(result.result, 'error'); assert.match(result.error, /log/); assert.equal(result.directory, 'own');
   });
+  for (const [reason, exitCode, failed] of [['pilot-limit', 1, true], ['cancelled', 1, false], ['emergency-f8', 1, false], ['cancelled', 2, true]]) {
+    test(`${game} distinguishes ${reason} exit ${exitCode} from a normal partial result`, async t => {
+      const options = await setup(t), original = { ...report(game), reason }, bytes = JSON.stringify(original);
+      const result = await runDesktopSelection({ ...options, game, action: 'run',
+        run: async () => ({ code: 1, exitCode, directory: 'own', report: original }),
+      });
+      assert.equal(result.result, 'partial'); assert.equal(result.directory, 'own');
+      assert.equal(result.childExitCode, exitCode); assert.equal(result.failed, failed);
+      if (failed) assert.match(result.error, new RegExp(`codigo ${exitCode}`));
+      assert.equal(JSON.stringify(original), bytes);
+    });
+  }
 }
 test('NTE preparation failure uses its own schema and cannot masquerade as pilot-limit', () => {
   const partial = { schema: 'nte-arc-pilot-v1', status: 'partial', reason: 'cancelled', error: { stage: 'preparation' }, coverageConfirmed: false, humanApproved: false, observations: [] };
