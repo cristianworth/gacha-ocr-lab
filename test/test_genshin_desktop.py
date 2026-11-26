@@ -9,6 +9,9 @@ from test_zzz_launcher import installation
 
 def test_genshin_pilot_uses_own_folder_and_stop_request(tmp_path):
     root = installation(tmp_path)
+    # Keep the CommonJS stub independent of the checkout's ESM package when
+    # pytest artifacts are stored under .cache instead of the system temp dir.
+    (root / 'package.json').write_text('{"type":"commonjs"}', encoding='utf-8')
     for relative in ('scripts/genshin-pilot.js', 'src/genshin-pilot-1280.js', 'src/genshin-1280.js', 'src/genshin-scroll-1280.js',
                      'node_modules/sharp/package.json', 'node_modules/tesseract.js/package.json',
                      '.cache/models/eng.traineddata'):

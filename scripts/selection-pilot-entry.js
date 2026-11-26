@@ -41,6 +41,16 @@ export function pilotArgs(root, game, window) {
   return [join(root, 'scripts', `${game}-pilot.js`), '--prepared', '--process', window.name, '--pid', String(window.pid), ...targets[game].flatMap(t => ['--target', t])];
 }
 
+// Shared by the assisted prompt and the desktop adapter after human confirmation.
+export async function revalidateWindow(selected, { list }) {
+  if (!selected || !/^[A-Za-z0-9_-]+$/u.test(selected.name) || !Number.isSafeInteger(selected.pid) ||
+      selected.pid <= 0 || typeof selected.handle !== 'string' || !/^\d+$/u.test(selected.handle) ||
+      typeof selected.started !== 'string' || !/^\d+$/u.test(selected.started)) return false;
+  const current = await list();
+  return current.filter(w => w.pid === selected.pid && w.name === selected.name &&
+    w.handle === selected.handle && w.started === selected.started).length === 1;
+}
+
 export async function chooseAndPrepare(game, { list, ask, print }) {
   const windows = await list();
   if (!windows.length) { print('Nenhuma janela visivel elegivel encontrada. Abra o jogo e tente novamente.'); return null; }
@@ -56,23 +66,32 @@ export async function chooseAndPrepare(game, { list, ask, print }) {
   print('F8 interrompe depois de armar; Ctrl+C ou stop.request solicitam parada. Aguarde salvar.');
   const answer = await ask('Digite SIM para confirmar e iniciar, ou 0 para cancelar: ');
   if (answer === null || answer.trim() !== 'SIM') return null;
-  const current = await list();
-  const matches = current.filter(w => w.pid === selected.pid && w.name === selected.name && w.handle === selected.handle && w.started === selected.started);
-  if (matches.length !== 1) { print('Janela fechada, alterada ou ambigua; nenhuma coleta iniciada.'); return null; }
+  if (!(await revalidateWindow(selected, { list }))) { print('Janela fechada, alterada ou ambigua; nenhuma coleta iniciada.'); return null; }
   return selected;
 }
 
-export async function runChild({ root, game, window, spawnChild = spawn, print = console.log, onReady = () => {} }) {
+export async function runChild({ root, game, window, spawnChild = spawn, print = console.log, onReady = () => {}, beforeSpawn = async () => {}, windowsHide = false }) {
   const runs = join(root, '.cache', game, 'runs');
   await mkdir(runs, { recursive: true });
-  if ((await realpath(runs)).toLowerCase() !== join(await realpath(root), '.cache', game, 'runs').toLowerCase()) throw new Error('A raiz das sessoes deve ficar neste repositorio, sem redirecionamento.');
+  const expectedRuns = join(await realpath(root), '.cache', game, 'runs');
+  if ((await realpath(runs)).toLowerCase() !== expectedRuns.toLowerCase()) throw new Error('A raiz das sessoes deve ficar neste repositorio, sem redirecionamento.');
   const existing = new Set((await readdir(runs)).map(name => name.toLowerCase()));
+  async function ownDirectory(directory) {
+    const actualRoot = await realpath(runs), actualDir = await realpath(directory);
+    if (actualRoot.toLowerCase() !== expectedRuns.toLowerCase() ||
+        actualDir.toLowerCase() !== resolve(directory).toLowerCase() ||
+        dirname(actualDir).toLowerCase() !== actualRoot.toLowerCase() || existing.has(basename(actualDir).toLowerCase())) {
+      throw Object.assign(new Error('diretorio antigo ou redirecionado fora da sessao propria'), { code: 'PILOT_SESSION_INVALID' });
+    }
+    return actualDir;
+  }
   const logDir = join(root, '.cache', 'pilot-entry', randomUUID());
   await mkdir(logDir, { recursive: true });
   const log = join(logDir, 'console.log');
   await writeFile(log, '', { flag: 'wx' });
   print(`Log desta abertura: ${log}`);
-  const child = spawnChild(process.execPath, pilotArgs(root, game, window), { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], shell: false, windowsHide: false });
+  await beforeSpawn();
+  const child = spawnChild(process.execPath, pilotArgs(root, game, window), { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], shell: false, windowsHide });
   let directory = null, invalid = false, cancelRequested = false, stopWritten = false, stopInFlight = false;
   let logQueue = Promise.resolve(), logError = null;
   const requestCancel = () => { cancelRequested = true; print('Parada solicitada; aguardando o processo salvar e encerrar.'); };
@@ -94,11 +113,13 @@ export async function runChild({ root, game, window, spawnChild = spawn, print =
     if (!cancelRequested || !directory || stopWritten || invalid || stopInFlight) return;
     stopInFlight = true;
     try {
-      const actualRoot = await realpath(runs), actualDir = await realpath(directory);
-      if (dirname(actualDir).toLowerCase() !== actualRoot.toLowerCase()) { invalid = true; return; }
+      const actualDir = await ownDirectory(directory);
       await writeFile(join(actualDir, 'stop.request'), 'stop\n', { flag: 'a' }); stopWritten = true;
     }
-    catch (error) { if (error.code !== 'ENOENT') logLine(`Nao foi possivel registrar parada: ${error.message}`); }
+    catch (error) {
+      if (error.code === 'PILOT_SESSION_INVALID') invalid = true;
+      if (error.code !== 'ENOENT') logLine(`Nao foi possivel registrar parada: ${error.message}`);
+    }
     finally { stopInFlight = false; }
   }
   let lastStatus = Date.now();
@@ -129,9 +150,10 @@ export async function runChild({ root, game, window, spawnChild = spawn, print =
   } finally { clearInterval(timer); process.removeListener('SIGINT', requestCancel); }
   await logQueue;
   if (invalid || !directory) { print(`Nenhuma sessao propria confirmada. Log: ${log}`); return { code: 1, log }; }
+  let verifiedDirectory;
   try {
-    const actualRoot = await realpath(runs), actualDir = await realpath(directory);
-    if (dirname(actualDir).toLowerCase() !== actualRoot.toLowerCase()) throw new Error('diretorio fora da raiz de sessoes');
+    const actualDir = await ownDirectory(directory);
+    verifiedDirectory = actualDir;
     const session = join(actualDir, 'session.json');
     await access(session);
     print(`Apos solicitacao, envie somente: ${session}`);
@@ -139,8 +161,8 @@ export async function runChild({ root, game, window, spawnChild = spawn, print =
     const success = !logError && code === 0 && report.reason === 'pilot-limit';
     print(success ? 'Limite do piloto atingido; resultado parcial, OCR sujeito a revisao.' : `Piloto parcial ou interrompido: ${report.reason ?? 'motivo indisponivel'}.`);
     print(`Resumo (abra manualmente): ${join(actualDir, 'summary.md')}`);
-    return { code: success ? 0 : 1, log, directory: actualDir, session, report };
-  } catch (error) { print(`Resultado indisponivel: ${error.message}. Pasta anunciada: ${directory}. Log: ${log}`); return { code: 1, log, directory }; }
+    return { code: success ? 0 : 1, log, directory: actualDir, session, report, logError: logError?.message };
+  } catch (error) { print(`Resultado indisponivel: ${error.message}. Pasta anunciada: ${directory}. Log: ${log}`); return { code: 1, log, directory: verifiedDirectory, logError: logError?.message }; }
 }
 
 export async function main(args = process.argv.slice(2)) {

@@ -81,18 +81,118 @@ function Reset-DesktopControls {
     param($Context)
     $idle = $null -eq $Context.Active -and !$Context.Closing
     $Context.StartButton.Enabled = $idle -and ($Context.Simulation -or
-        ($Context.Game.SelectedIndex -in @(0,1,2) -and $Context.Prepared.Checked))
+        ($Context.Game.SelectedIndex -in @(0,1,2,3,4) -and $Context.Prepared.Checked -and
+            ($Context.Game.SelectedIndex -lt 3 -or $Context.PilotWindow.SelectedIndex -ge 0)))
     $Context.Game.Enabled = $idle
     $Context.Prepared.Enabled = $idle
+    $Context.PilotWindow.Enabled = $idle
+    $Context.RefreshWindows.Enabled = $idle
     $hasResult = $idle -and $null -ne $Context.LastResult -and $null -ne $Context.LastRun -and
         (Test-Path -LiteralPath $Context.LastRun -PathType Container)
     $Context.ResultButton.Enabled = $hasResult
     $Context.FolderButton.Enabled = $hasResult
 }
 
+function Start-DesktopSelectionProcess {
+    param([Parameter(Mandatory)]$Context, [ValidateSet('list','run')][string]$Action)
+    if ($null -ne $Context.Active -or $Context.Closing -or $Context.Game.SelectedIndex -notin @(3,4)) { return }
+    if ($Action -eq 'run' -and (!$Context.Prepared.Checked -or $Context.PilotWindow.SelectedIndex -lt 0)) { return }
+    $game = if ($Context.Game.SelectedIndex -eq 3) { 'wuwa' } else { 'nte' }
+    $Context.LastRun = $null
+    $Context.LastResult = $null
+    $Context.Log.Clear()
+    $process = $null
+    try {
+        foreach ($file in @('scripts\run-desktop-selection.ps1','scripts\desktop-selection-entry.js','scripts\selection-pilot-entry.js','scripts\selection-pilot-windows.ps1')) {
+            if (!(Test-Path -LiteralPath (Join-Path $Context.Root $file) -PathType Leaf)) { throw "Ambiente $game incompleto: $file. Prepare os scripts nesta instalacao." }
+        }
+        $entry = Join-Path $Context.Root ('.cache\desktop-pilot\' + [guid]::NewGuid().ToString())
+        New-Item -ItemType Directory -Path $entry -ErrorAction Stop | Out-Null
+        if ($Action -eq 'run') {
+            $window = $Context.PilotWindow.SelectedItem.Window
+            [IO.File]::WriteAllText((Join-Path $entry 'window.json'), ($window | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
+        } else {
+            $Context.PilotWindow.Items.Clear()
+            $Context.Prepared.Checked = $false
+        }
+        $Context.PathLabel.Text = "Log desta abertura: $(Join-Path $entry 'console.log'). A sessao sera criada pelo piloto."
+        $info = [Diagnostics.ProcessStartInfo]::new()
+        $info.FileName = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        $info.Arguments = '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}" -Game {1} -Action {2} -EntryDirectory "{3}"' -f `
+            (Join-Path $Context.Root 'scripts\run-desktop-selection.ps1'), $game, $Action, $entry
+        $info.WorkingDirectory = $Context.Root
+        $info.UseShellExecute = $false
+        $info.CreateNoWindow = $true
+        $info.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
+        $process = [Diagnostics.Process]::new()
+        $process.StartInfo = $info
+        if (!$process.Start()) { throw 'O processo nao iniciou.' }
+        $Context.Active = [pscustomobject]@{
+            Process = $process; Directory = $entry; ControlDirectory = $entry; Action = $Action
+            Reader = New-DesktopLogReader (Join-Path $entry 'console.log')
+            StopRequested = $false; StopDelivered = $false; Result = $null; MonitorError = $null; Game = $game
+        }
+        if ($Action -eq 'run') { $Context.StartCount++ }
+        Reset-DesktopControls $Context
+        $Context.StopButton.Enabled = $true
+        $Context.Status.Text = if ($Action -eq 'list') { "Verificando ambiente $game e listando janelas, sem captura ou input..." }
+            else { "Iniciando piloto limitado $game. O jogo sera ativado em cinco segundos; F8 interrompe apos armar." }
+    } catch {
+        if ($null -ne $process) { $process.Dispose() }
+        $Context.Status.Text = "Falha ao preparar $game`: $($_.Exception.Message)"
+        $Context.LastResult = 'error'
+        Reset-DesktopControls $Context
+    }
+}
+
+function Complete-DesktopSelectionProcess {
+    param($Context, $Active, [bool]$Failed)
+    $receipt = Join-Path $Active.ControlDirectory 'result.json'
+    $saved = $null
+    if (Test-Path -LiteralPath $receipt -PathType Leaf) {
+        $saved = Get-Content -LiteralPath $receipt -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    }
+    if ($null -eq $saved -or $saved.game -ne $Active.Game -or $saved.action -ne $Active.Action) {
+        throw 'Filho encerrou sem resultado proprio legivel. Confira o log desta abertura.'
+    }
+    if (Test-Path -LiteralPath (Join-Path $Active.ControlDirectory 'monitor-error.txt')) {
+        $Active.MonitorError = 'Falha ao gravar log do supervisor; confira os arquivos da tentativa.'
+    }
+    if ($Active.Action -eq 'list') {
+        if (!$Failed -and $saved.result -eq 'ready' -and !$Active.StopRequested) {
+            foreach ($window in $saved.windows) {
+                [void]$Context.PilotWindow.Items.Add([pscustomobject]@{
+                    Label = "$($window.name) | PID $($window.pid) | $($window.title)"; Window = $window
+                })
+            }
+            $Context.PilotWindow.SelectedIndex = -1
+            $Context.Status.Text = if ($Context.PilotWindow.Items.Count) { 'Escolha a janela real por nome, PID e titulo e confirme a preparacao.' }
+                else { 'Nenhuma janela elegivel. Abra o jogo e clique Atualizar janelas.' }
+        } else { $Context.Status.Text = "Preparacao encerrada: $($saved.error). Confira o log; nenhum piloto iniciado." }
+        $Context.LastResult = $null
+        return
+    }
+    # The Node adapter uses the public runChild contract to validate the child's
+    # marker and manifest after close. Never derive a session from the log folder.
+    if ($saved.directory) {
+        $directory = [IO.Path]::GetFullPath([string]$saved.directory)
+        $runs = Join-Path $Context.Root ".cache\$($Active.Game)\runs"
+        if (![string]::Equals((Split-Path -Parent $directory), $runs, [StringComparison]::OrdinalIgnoreCase) -or
+            (Split-Path -Leaf $directory) -notmatch '^pilot-[0-9a-f-]{36}$' -or
+            !(Test-Path -LiteralPath $directory -PathType Container)) { throw 'Pasta de sessao propria invalida.' }
+        $Context.LastRun = $directory
+        $Context.PathLabel.Text = "Arquivos desta sessao: $directory"
+    }
+    $Context.LastResult = if ($null -ne $Context.LastRun -and $saved.result -eq 'partial' -and !$Active.MonitorError) { 'partial' } else { 'error' }
+    $Context.Status.Text = if ($Context.LastResult -eq 'partial') {
+        "Piloto parcial encerrado: $($saved.reason). Sem cobertura ou aceite. OCR pendente: $($saved.pendingOcr). Abra o resultado."
+    } else { "Falha no piloto: $($saved.error) $($Active.MonitorError). Confira o log e os arquivos desta tentativa." }
+}
+
 function Start-DesktopRun {
     param([Parameter(Mandatory)]$Context)
     if ($null -ne $Context.Active -or $Context.Closing) { return }
+    if (!$Context.Simulation -and $Context.Game.SelectedIndex -in @(3,4)) { Start-DesktopSelectionProcess $Context -Action run; return }
     if (!$Context.Simulation -and (!$Context.Prepared.Checked -or $Context.Game.SelectedIndex -notin @(0,1,2))) { return }
     $selectedGame = if ($Context.Simulation) { 'zzz' } elseif ($Context.Game.SelectedIndex -eq 1) { 'hsr' } elseif ($Context.Game.SelectedIndex -eq 2) { 'genshin' } else { 'zzz' }
     $runs = if ($selectedGame -eq 'hsr') { Join-Path $Context.Root '.cache\hsr\runs' } elseif ($selectedGame -eq 'genshin') { Join-Path $Context.Root '.cache\genshin\runs' } else { $Context.RunsRoot }
@@ -162,9 +262,10 @@ function Request-DesktopStop {
     $Context.StopButton.Enabled = $false
     $Context.Status.Text = 'Interrompendo inputs; aguarde a gravacao e leitura das imagens ja capturadas...'
     # The public probe creates the directory. Do not pre-create it and violate RunDirectory.
-    if (!(Test-Path -LiteralPath $Context.Active.Directory -PathType Container)) { return }
+    $stopDirectory = if ($Context.Active.Game -in @('wuwa','nte')) { $Context.Active.ControlDirectory } else { $Context.Active.Directory }
+    if (!(Test-Path -LiteralPath $stopDirectory -PathType Container)) { return }
     try {
-        [IO.File]::WriteAllText((Join-Path $Context.Active.Directory 'stop.request'), 'stop')
+        [IO.File]::WriteAllText((Join-Path $stopDirectory 'stop.request'), 'stop')
         $Context.Active.StopDelivered = $true
     } catch {
         $Context.Status.Text = "Nao foi possivel solicitar parada: $($_.Exception.Message). O filho continua acompanhado."
@@ -214,7 +315,10 @@ function Update-DesktopRun {
                   elseif ($active.Result -eq 'partial') { 'partial' }
                   elseif ($active.Result -eq 'complete') { 'complete' }
                   else { 'error' }
-        if ($Context.Simulation) {
+        if ($active.Game -in @('wuwa','nte')) {
+            Complete-DesktopSelectionProcess -Context $Context -Active $active -Failed:($code -ne 0 -or $receiptCode -ne '0' -or $null -ne $active.MonitorError)
+            $result = $Context.LastResult
+        } elseif ($Context.Simulation) {
             $Context.Status.Text = switch ($result) {
                 'complete' { 'Simulacao finalizada. Nenhuma coleta ZZZ foi executada.' }
                 'partial' { 'Simulacao parcial ou interrompida. Filho encerrado.' }
@@ -276,57 +380,67 @@ function New-DesktopForm {
     $form.Font = [Drawing.Font]::new('Segoe UI', 10)
     $game = [Windows.Forms.ComboBox]::new()
     $game.DropDownStyle = 'DropDownList'
-    $game.SetBounds(16, 16, 300, 30)
-    $game.Items.AddRange(@('ZZZ - W-Engines S/A 20+', 'HSR - Cones de Luz 20+ (validacao)', 'Genshin - Armas 60+ (rolagem limitada)'))
+    $game.SetBounds(16, 16, 450, 30)
+    $game.Items.AddRange(@('ZZZ - W-Engines S/A 20+', 'HSR - Cones de Luz 20+ (validacao)', 'Genshin - Armas 60+ (rolagem limitada)', 'WuWa - Weapons (piloto limitado: 2 alvos)', 'NTE - Arc (piloto limitado: 3 alvos)'))
     $game.SelectedIndex = 0
+    $pilotWindow = [Windows.Forms.ComboBox]::new()
+    $pilotWindow.DropDownStyle = 'DropDownList'
+    $pilotWindow.DisplayMember = 'Label'
+    $pilotWindow.SetBounds(16, 58, 568, 30)
+    $pilotWindow.Visible = $false
+    $refreshWindows = [Windows.Forms.Button]::new()
+    $refreshWindows.Text = 'Atualizar janelas'
+    $refreshWindows.SetBounds(596, 54, 168, 36)
+    $refreshWindows.Visible = $false
     $notice = [Windows.Forms.Label]::new()
     $notice.Text = if ($Simulation) { 'Processo simulado. Nenhum jogo ou input real. F8 simulado avanca sozinho.' }
                   else { "Jogo em ingles, cliente 1280x720, escala Windows 100%.`r`nW-Engine Storage: S e A; B e especialidades desmarcados.`r`nLevel do maior para o menor. Feche o filtro e volte ao topo. Solte os controles.`r`nF8 inicia e interrompe no jogo. Clicar nesta janela durante a captura pode parar por foco." }
-    $notice.SetBounds(16, 58, 744, 102)
+    $notice.SetBounds(16, 102, 744, 102)
     $prepared = [Windows.Forms.CheckBox]::new()
     $prepared.Text = 'Confirmo filtros, ordenacao, lista no topo e controles soltos.'
-    $prepared.SetBounds(16, 164, 744, 32)
+    $prepared.SetBounds(16, 208, 744, 32)
     $prepared.Visible = !$Simulation
     $status = [Windows.Forms.Label]::new()
     $status.Text = if ($Simulation) { 'Pronta para simular. Nao e necessario abrir o jogo ou usar F8.' }
                   else { 'Confira a preparacao acima e marque a confirmacao para iniciar.' }
-    $status.SetBounds(16, 208, 744, 48)
+    $status.SetBounds(16, 252, 744, 48)
     $start = [Windows.Forms.Button]::new()
     $start.Text = if ($Simulation) { 'Iniciar simulacao' } else { 'Iniciar coleta' }
-    $start.SetBounds(16, 264, 160, 36)
+    $start.SetBounds(16, 308, 160, 36)
     $stop = [Windows.Forms.Button]::new()
     $stop.Text = 'Interromper'
-    $stop.SetBounds(188, 264, 140, 36)
+    $stop.SetBounds(188, 308, 140, 36)
     $stop.Enabled = $false
     $response = [Windows.Forms.Button]::new()
     $response.Text = 'Testar resposta: 0'
-    $response.SetBounds(340, 264, 200, 36)
+    $response.SetBounds(340, 308, 200, 36)
     $response.Visible = [bool]$Simulation
     $resultButton = [Windows.Forms.Button]::new()
     $resultButton.Text = 'Abrir resultado'
-    $resultButton.SetBounds(340, 264, 140, 36)
+    $resultButton.SetBounds(340, 308, 140, 36)
     $resultButton.Visible = !$Simulation
     $folderButton = [Windows.Forms.Button]::new()
     $folderButton.Text = 'Abrir pasta'
-    $folderButton.SetBounds(492, 264, 130, 36)
+    $folderButton.SetBounds(492, 308, 130, 36)
     $folderButton.Visible = !$Simulation
     $pathLabel = [Windows.Forms.Label]::new()
     $pathLabel.Text = 'Cada execucao usa uma pasta propria nesta instalacao.'
-    $pathLabel.SetBounds(16, 310, 744, 48)
+    $pathLabel.SetBounds(16, 354, 744, 48)
     $pathLabel.AutoEllipsis = $true
     $log = [Windows.Forms.TextBox]::new()
-    $log.SetBounds(16, 366, 748, 238)
+    $log.SetBounds(16, 410, 748, 194)
     $log.Multiline = $true
     $log.ReadOnly = $true
     $log.ScrollBars = 'Vertical'
     $log.Anchor = 'Top, Bottom, Left, Right'
-    $form.Controls.AddRange(@($game, $notice, $prepared, $status, $start, $stop, $response, $resultButton, $folderButton, $pathLabel, $log))
+    $form.Controls.AddRange(@($game, $pilotWindow, $refreshWindows, $notice, $prepared, $status, $start, $stop, $response, $resultButton, $folderButton, $pathLabel, $log))
     $timer = [Windows.Forms.Timer]::new()
     $timer.Interval = 100
     $context = [pscustomobject]@{
         Form = $form; Status = $status; StartButton = $start; StopButton = $stop
         ResponseButton = $response; PathLabel = $pathLabel; Log = $log; Timer = $timer
         Game = $game; Prepared = $prepared; Notice = $notice; ZzzNotice = $notice.Text
+        PilotWindow = $pilotWindow; RefreshWindows = $refreshWindows
         ResultButton = $resultButton; FolderButton = $folderButton
         Root = $rootPath; Simulation = [bool]$Simulation; Installation = $Installation
         RunsRoot = if ($Simulation) { Join-Path $rootPath '.cache\desktop-simulation\runs' } else { $Installation.RunsRoot }
@@ -338,14 +452,34 @@ function New-DesktopForm {
     $start.Add_Click({ Start-DesktopRun $context }.GetNewClosure())
     $stop.Add_Click({ Request-DesktopStop $context }.GetNewClosure())
     $prepared.Add_CheckedChanged({ Reset-DesktopControls $context }.GetNewClosure())
+    $pilotWindow.Add_SelectedIndexChanged({
+        $context.Prepared.Checked = $false
+        Reset-DesktopControls $context
+    }.GetNewClosure())
+    $refreshWindows.Add_Click({ Start-DesktopSelectionProcess $context -Action list }.GetNewClosure())
     $game.Add_SelectedIndexChanged({
         $context.Prepared.Checked = $false
+        $context.Prepared.Text = 'Confirmo filtros, ordenacao, lista no topo e controles soltos.'
+        $context.StartButton.Text = 'Iniciar coleta'
+        $pilot = $context.Game.SelectedIndex -in @(3,4)
+        $context.PilotWindow.Visible = $pilot
+        $context.RefreshWindows.Visible = $pilot
+        $context.PilotWindow.Items.Clear()
         if ($context.Game.SelectedIndex -eq 1) {
             $context.Notice.Text = "HSR em ingles, cliente 1280x720, escala Windows 100%. Fundo escuro no painel.`r`nInventory > Light Cone: Lv decrescente, lista no topo e primeiro Cone selecionado.`r`nSem filtro de estrelas: inclui Cones 3/4/5* nivel 20+. Solte mouse e teclado.`r`nD/A alternam o sentido por linha; S desce. F8 interrompe; mantenha HSR na frente."
             $context.Status.Text = 'HSR: percorre ate nivel abaixo de 20; limite de seguranca de 2000 posicoes. Confirme a preparacao.'
         } elseif ($context.Game.SelectedIndex -eq 2) {
             $context.Notice.Text = "Genshin em ingles, cliente 1280x720, escala Windows 100%.`r`nInventory > Weapons: Level decrescente, lista no topo e primeira arma selecionada.`r`nSem filtro que esconda 3/4/5 estrelas. Percurso experimental ate o corte 60+.`r`nO jogo sera ativado apos cinco segundos. F8 interrompe; mantenha os controles livres."
             $context.Status.Text = 'Genshin: percurso limitado para validar rolagem. Confirme a preparacao.'
+        } elseif ($pilot) {
+            $wuwa = $context.Game.SelectedIndex -eq 3
+            $preparation = if ($wuwa) { 'Weapons: primeiro cartao completo ja selecionado; nao selecione a quarta linha parcial.' }
+                else { 'Arc: cartoes completos e uma selecao valida na grade.' }
+            $targets = if ($wuwa) { '119,95,95,118 e 237,95,95,118' } else { '73,107,105,105; 183,107,105,105; 293,107,105,105' }
+            $context.Notice.Text = "Ingles, cliente 1280x720, 96 DPI/Windows 100%, topo e menus fechados.`r`n$preparation`r`nAlvos fixos: $targets. Sem filtro, corte ou rolagem; sempre parcial.`r`nAtivacao em cinco segundos. F8 interrompe apos armar; controles livres e jogo na frente."
+            $context.Prepared.Text = 'Confirmo janela escolhida, ingles, geometria, topo, menus fechados e selecao preparada.'
+            $context.StartButton.Text = 'Iniciar piloto'
+            $context.Status.Text = 'Clique Atualizar janelas; escolha nome, PID e titulo reais, depois confirme a preparacao.'
         } else {
             $context.Notice.Text = $context.ZzzNotice
             $context.Status.Text = 'Confirme a preparacao para iniciar ZZZ.'
