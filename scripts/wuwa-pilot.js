@@ -49,4 +49,15 @@ try {
   console.log(`Parada: ${report.reason}. Resumo: ${join(output,'summary.md')}`);
   if (report.reason !== 'pilot-limit') process.exitCode = 1;
 } catch (error) { console.error(`Piloto não iniciado: ${error.message}`); process.exitCode = 1; }
-finally { clearInterval(timer); process.removeListener('SIGINT', cancel); await backend?.close().catch(e => console.error(e.message)); await ocr?.close().catch(e => console.error(e.message)); }
+finally {
+  clearInterval(timer); process.removeListener('SIGINT', cancel);
+  // Exit 1 already represents an interrupted/partial pilot. Keep finalization
+  // failure distinct, and attempt OCR cleanup even if the helper close fails.
+  for (const [name, resource] of [['helper', backend], ['OCR', ocr]]) {
+    try { await resource?.close(); }
+    catch (error) {
+      console.error(`Falha na finalizacao de ${name}; encerramento nao confirmado: ${error.message}`);
+      process.exitCode = 2;
+    }
+  }
+}

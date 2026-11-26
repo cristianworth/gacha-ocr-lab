@@ -47,10 +47,18 @@ export async function inspectNtePreparation(image, cachePath, createSession = cr
   const rectangle = panelRegions(panel, { width: 1280, height: 720 }).category;
   const prepared = await prepareRegion(image.buffer, rectangle, { threshold: 120 });
   const session = await createSession({ languages: 'eng', cachePath, offline: true });
+  let failure;
   try {
     const ocr = await session.recognize(prepared.buffer, 'SINGLE_LINE');
     return { rectangle, processing: prepared.processing, ocr, verified: /^Arc$/iu.test(ocr.rawText.trim()) };
-  } finally { await session.close(); }
+  } catch (error) { failure = error; throw error; }
+  finally {
+    try { await session.close(); }
+    catch (error) {
+      if (!failure) throw error;
+      failure.finalizationError = error;
+    }
+  }
 }
 export function renderNteSummary(report, output) {
   const escape = value => String(value ?? '?').replace(/\|/gu, '\\|').replace(/\s+/gu, ' ').trim() || '?';
@@ -70,12 +78,15 @@ async function save(output, report) {
   await writeFile(temporary, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' });
   await rename(temporary, join(output, 'session.json'));
 }
-export async function runNtePilot({ backend, output, targets, cachePath, signal, dependencies = {} }) {
+export async function runNtePilot({ backend, output, targets, cachePath, signal, createSession = createOcrSession, dependencies = {} }) {
   validateTargets(targets);
   await mkdir(output, { recursive: true });
   if ((await readdir(output)).some(name => !['console.log', 'stop.request'].includes(name))) throw new Error('A pasta da sessao nao esta vazia.');
   const report = { schema: 'nte-arc-pilot-v1', startedAt: new Date().toISOString(), status: 'running', scope: { targets, filter: 'none', order: 'declared-targets', scroll: false }, coverageConfirmed: false, humanApproved: false, observations: [], frames: [], currentAttempt: null };
-  const pause = dependencies.wait ?? wait, inspect = dependencies.inspect ?? inspectNteSelection, read = dependencies.read ?? readNteOffline, signature = dependencies.fingerprint ?? fingerprint, prepare = dependencies.prepare ?? inspectNtePreparation;
+  const pause = dependencies.wait ?? wait, inspect = dependencies.inspect ?? inspectNteSelection,
+    read = dependencies.read ?? ((image, options) => readNteOffline(image, { ...options, createSession })),
+    signature = dependencies.fingerprint ?? fingerprint,
+    prepare = dependencies.prepare ?? ((image, path) => inspectNtePreparation(image, path, createSession));
   let frameNumber = 0;
   async function guard() {
     const state = await checkScanControl(backend, signal);

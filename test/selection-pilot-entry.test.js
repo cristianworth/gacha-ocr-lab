@@ -130,6 +130,17 @@ test('conflicting markers fail even when a valid session exists', async t => {
   assert.equal(result.code,1); assert.equal(result.session,undefined);
 });
 
+test('a new junction to an older session cannot receive stop or become the result', { skip: process.platform !== 'win32' }, async t => {
+  const root=await setup(t), game='wuwa', runs=join(root,'.cache',game,'runs');
+  const old=join(runs,`pilot-${randomUUID()}`), fresh=join(runs,`pilot-${randomUUID()}`);
+  await mkdir(old,{recursive:true});await writeFile(join(old,'session.json'),'{"reason":"pilot-limit"}');
+  const result=await runChild({root,game,window:win(),print:()=>{},onReady:({requestCancel})=>requestCancel(),
+    spawnChild:(node,args,options)=>spawn(node,['-e',`const fs=require('fs');fs.symlinkSync(process.env.OLD,process.env.FRESH,'junction');console.log('PILOT_SESSION_DIR='+process.env.FRESH);setTimeout(()=>{},200)`],
+      {...options,env:{...process.env,OLD:old,FRESH:fresh}})});
+  assert.equal(result.code,1);assert.equal(result.directory,undefined);assert.equal(result.session,undefined);
+  await assert.rejects(readFile(join(old,'stop.request')),{code:'ENOENT'});
+});
+
 test('pilot CLIs announce their own ASCII session markers without live access', async t => {
   const { copyFile } = await import('node:fs/promises');
   const { spawnSync } = await import('node:child_process');
