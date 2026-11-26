@@ -126,3 +126,34 @@ test('CLI anchors run directory to repository when invoked from another cwd', as
   const report = JSON.parse(await readFile(join(path, 'session.json')));
   assert.equal(report.error.stage, 'preparation');
 });
+
+test('records uncertain click transition when input may have been sent before a guard failure', async t => {
+  const dir = await tempDir(t), source = join(dir, 'source.png'), output = join(dir, 'run');
+  await writeFile(source, await scene([0])); let sent = false;
+  const backend = {
+    status: async () => ({ armed: true, window: { width: 1280, height: 720, dpi: 96 } }),
+    capture: async path => copyFile(source, path),
+    click: async () => { sent = true; throw new Error('post-input-guard-failure'); },
+  };
+  const result = await runNtePilot({ backend, output, targets: [slots[0]], dependencies: { prepare } });
+  const saved = JSON.parse(await readFile(join(output, 'session.json')));
+  assert.equal(sent, true); assert.equal(result.reason, 'post-input-guard-failure');
+  assert.equal(saved.error.stage, 'click-in-progress'); assert.equal(saved.currentAttempt.stage, 'click-in-progress');
+  assert.equal(saved.observations.length, 0); assert.ok(saved.preparation.frame.sha256);
+});
+
+test('final guard can stop after recording click transition without sending input', async t => {
+  const dir = await tempDir(t), source = join(dir, 'source.png'), output = join(dir, 'run');
+  await writeFile(source, await scene([0])); let clicked = false;
+  const backend = {
+    status: async () => {
+      const report = JSON.parse(await readFile(join(output, 'session.json')));
+      return report.currentAttempt?.stage === 'click-in-progress' ? { stopped: true, stopReason: 'focus-lost' } : { armed: true, window: { width: 1280, height: 720, dpi: 96 } };
+    },
+    capture: async path => copyFile(source, path), click: async () => { clicked = true; },
+  };
+  const result = await runNtePilot({ backend, output, targets: [slots[0]], dependencies: { prepare } });
+  const saved = JSON.parse(await readFile(join(output, 'session.json')));
+  assert.equal(clicked, false); assert.equal(result.reason, 'focus-lost');
+  assert.equal(saved.error.stage, 'click-in-progress'); assert.equal(saved.observations.length, 0);
+});
