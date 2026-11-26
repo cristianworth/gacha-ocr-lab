@@ -50,7 +50,15 @@ for (const game of ['wuwa', 'nte']) {
     });
     assert.equal(result.result, 'error'); assert.match(result.error, /log/); assert.equal(result.directory, 'own');
   });
-  for (const [reason, exitCode, failed] of [['pilot-limit', 1, true], ['cancelled', 1, false], ['emergency-f8', 1, false], ['cancelled', 2, true]]) {
+  test(`${game} log failure also retains the explicit finalization failure signal`, async t => {
+    const options = await setup(t);
+    const result = await runDesktopSelection({ ...options, game, action: 'run', run: async () => ({
+      code: 1, exitCode: 2, directory: 'own', report: { ...report(game), reason: 'cancelled' }, logError: 'disk unavailable',
+    }) });
+    assert.equal(result.result, 'error'); assert.equal(result.finalizationFailed, true);
+    assert.equal(result.childExitCode, 2); assert.equal(result.directory, 'own'); assert.match(result.error, /log/);
+  });
+  for (const [reason, exitCode, failed] of [['pilot-limit', 1, true], ['cancelled', 1, false], ['emergency-f8', 1, false], ['cancelled', 2, true], ['emergency-f8', 2, true], ['pilot-limit', 2, true]]) {
     test(`${game} distinguishes ${reason} exit ${exitCode} from a normal partial result`, async t => {
       const options = await setup(t), original = { ...report(game), reason }, bytes = JSON.stringify(original);
       const result = await runDesktopSelection({ ...options, game, action: 'run',
@@ -58,6 +66,7 @@ for (const game of ['wuwa', 'nte']) {
       });
       assert.equal(result.result, 'partial'); assert.equal(result.directory, 'own');
       assert.equal(result.childExitCode, exitCode); assert.equal(result.failed, failed);
+      assert.equal(result.finalizationFailed, exitCode === 2);
       if (failed) assert.match(result.error, new RegExp(`codigo ${exitCode}`));
       assert.equal(JSON.stringify(original), bytes);
     });

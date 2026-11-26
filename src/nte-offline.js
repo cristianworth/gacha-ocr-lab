@@ -33,6 +33,7 @@ export async function readNteOffline(image, { panel, cachePath, outputDir, creat
   await mkdir(directory, { recursive: true });
   const session = await createSession({ languages: 'eng', cachePath, offline: true });
   const fields = {};
+  let failure;
   try {
     for (const [field, rectangle] of Object.entries(boxes)) {
       const crop = await sharp(image.buffer).extract(rectangle).png().toBuffer();
@@ -45,7 +46,14 @@ export async function readNteOffline(image, { panel, cachePath, outputDir, creat
         crop: { path: cropPath, sha256: createHash('sha256').update(crop).digest('hex'), rectangle },
         processing: prepared.processing, ocr };
     }
-  } finally { await session.close(); }
+  } catch (error) { failure = error; throw error; }
+  finally {
+    try { await session.close(); }
+    catch (error) {
+      if (!failure) throw error;
+      failure.finalizationError = error;
+    }
+  }
   return { schema: 'nte-arc-offline-v1', source: image.source, imageSize: size, panel,
     fields, review: { humanApproved: false, notes: ['OCR candidates require human review.', 'Icons, stars and scroll-hidden content are not extracted.', 'No navigation, ordering or coverage is established.'] } };
 }

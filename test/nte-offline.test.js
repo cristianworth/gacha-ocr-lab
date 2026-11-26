@@ -13,6 +13,17 @@ test('rejects invalid panel geometry', () => {
   assert.throws(() => panelRegions({ left: 0.5, top: 0, width: 348, height: 496 }, size), /inteiros/);
 });
 
+test('reading preserves the original OCR cause when closing also fails', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'nte-close-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const buffer = await sharp({ create: { width: 348, height: 496, channels: 3, background: 'white' } }).png().toBuffer();
+  const original = new Error('original reading OCR failure', { cause: new Error('original cause') });
+  const closing = new Error('reading OCR close failed');
+  await assert.rejects(readNteOffline({ buffer, source: {} }, { panel: { left: 0, top: 0, width: 348, height: 496 }, outputDir: dir, cachePath: dir,
+    createSession: async () => ({ recognize: async () => { throw original; }, close: async () => { throw closing; } }),
+  }), error => error === original && error.cause.message === 'original cause' && error.finalizationError === closing);
+});
+
 test('preserves provenance, crops, raw OCR and empty fields for review', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'nte-offline-'));
   try {

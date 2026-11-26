@@ -60,6 +60,7 @@ export async function runDesktopSelection({ root, game, action, entry, check = c
     // It returns only after close, including drained stdout/stderr and pending log writes.
     receipt.directory = result.directory ?? null;
     receipt.childExitCode = result.exitCode ?? null;
+    receipt.finalizationFailed = result.exitCode === 2;
     if (result.logError) throw new Error(`Falha ao gravar log do filho: ${result.logError}`);
     if (result.report) {
       const report = validatePilotReport(game, result.report);
@@ -70,7 +71,9 @@ export async function runDesktopSelection({ root, game, action, entry, check = c
       // A nonzero exit after pilot-limit is a failure even with a valid manifest.
       const expectedStop = result.exitCode === 1 && ['cancelled', 'emergency-f8'].includes(report.reason);
       receipt.failed = result.code !== 0 && !expectedStop;
-      if (receipt.failed) receipt.error = `Falha ao encerrar o filho (codigo ${receipt.childExitCode ?? 'indisponivel'}; motivo ${report.reason}).`;
+      if (receipt.failed) receipt.error = receipt.finalizationFailed
+        ? `Falha na finalizacao dos recursos do filho; encerramento nao confirmado (codigo 2; motivo ${report.reason}).`
+        : `Falha ao encerrar o filho (codigo ${receipt.childExitCode ?? 'indisponivel'}; motivo ${report.reason}).`;
       print(`Encerramento do filho: codigo ${receipt.childExitCode ?? 'indisponivel'}; ${receipt.failed ? 'falha' : expectedStop ? 'parada esperada' : 'normal'}.`);
       print(`Resultado parcial: ${report.reason}; sem cobertura ou aceite do inventario.`);
     } else receipt.error = 'Nenhuma sessao propria com manifesto final legivel foi confirmada. Consulte o log desta abertura.';

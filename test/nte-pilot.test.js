@@ -157,3 +157,57 @@ test('final guard can stop after recording click transition without sending inpu
   assert.equal(clicked, false); assert.equal(result.reason, 'focus-lost');
   assert.equal(saved.error.stage, 'click-in-progress'); assert.equal(saved.observations.length, 0);
 });
+
+test('public OCR factory owns preparation and reading sessions in the real NTE runner', async t => {
+  const dir = await tempDir(t), source = join(dir, 'source.png');
+  await writeFile(source, await scene([0])); let created = 0, closed = 0;
+  const backend = { status: async () => ({ armed: true, window: { width: 1280, height: 720, dpi: 96 } }),
+    click: async () => {}, capture: async path => copyFile(source, path) };
+  const result = await runNtePilot({ backend, output: join(dir, 'run'), targets: [slots[0]],
+    createSession: async () => { created++; return { recognize: async () => ({ rawText: 'Arc' }), close: async () => { closed++; } }; },
+    dependencies: { wait: async () => {} },
+  });
+  assert.equal(result.reason, 'pilot-limit'); assert.equal(created, 2); assert.equal(closed, 2);
+  assert.equal(result.observations.length, 1);
+});
+
+test('preparation preserves the original OCR cause when closing also fails', async () => {
+  const original = new Error('original preparation OCR failure', { cause: new Error('original cause') });
+  const closing = new Error('preparation OCR close failed');
+  await assert.rejects(inspectNtePreparation({ buffer: await scene([0]) }, 'unused', async () => ({
+    recognize: async () => { throw original; }, close: async () => { throw closing; },
+  })), error => error === original && error.cause.message === 'original cause' && error.finalizationError === closing);
+});
+
+test('preparation close failure alone propagates through the real runner with partial evidence', async t => {
+  const dir = await tempDir(t), source = join(dir, 'source.png');
+  await writeFile(source, await scene([0])); let closed = false, clicked = false;
+  const backend = { status: async () => ({ armed: true, window: { width: 1280, height: 720, dpi: 96 } }),
+    click: async () => { clicked = true; }, capture: async path => copyFile(source, path) };
+  const result = await runNtePilot({ backend, output: join(dir, 'run'), targets: [slots[0]], createSession: async () => ({
+    recognize: async () => ({ rawText: 'Arc' }), close: async () => { closed = true; throw new Error('preparation OCR close failed'); },
+  }) });
+  assert.equal(closed, true); assert.equal(clicked, false); assert.equal(result.reason, 'preparation OCR close failed');
+  assert.equal(result.status, 'partial'); assert.ok(result.preparation.frame.sha256);
+});
+
+for (const stage of ['preparation', 'reading']) {
+  test(`NTE cancellation during ${stage} OCR close keeps the reason and partial evidence`, async t => {
+    const dir = await tempDir(t), source = join(dir, 'source.png'), controller = new AbortController();
+    await writeFile(source, await scene([0])); let sessions = 0, attempts = 0;
+    const backend = { status: async () => ({ armed: true, window: { width: 1280, height: 720, dpi: 96 } }),
+      click: async () => {}, capture: async path => copyFile(source, path) };
+    const result = await runNtePilot({ backend, output: join(dir, 'run'), targets: [slots[0]], signal: controller.signal,
+      createSession: async () => { const current = ++sessions; return {
+        recognize: async () => ({ rawText: 'Arc' }), close: async () => {
+          attempts++;
+          if (current === (stage === 'preparation' ? 1 : 2)) { controller.abort(); throw new Error('fixture OCR close failed'); }
+        },
+      }; }, dependencies: { wait: async () => {} },
+    });
+    assert.equal(result.reason, 'cancelled'); assert.equal(result.error.message, 'fixture OCR close failed');
+    assert.equal(result.status, 'partial'); assert.equal(attempts, stage === 'preparation' ? 1 : 2);
+    if (stage === 'reading') assert.equal(result.observations[0].status, 'captured-pending-ocr');
+    assert.ok(result.preparation.frame.sha256);
+  });
+}
