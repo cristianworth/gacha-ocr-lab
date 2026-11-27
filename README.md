@@ -25,7 +25,7 @@ O caminho curto foi conferido no jogo em 29/10: **34 elegíveis, 35 posições o
 
 Nada é aplicado automaticamente ao Advisor. Uma coleta filtrada não remove dados existentes. Imagens, resultados, dependências em cache e modelos não acompanham o clone nem devem entrar no Git.
 
-**WuWa e NTE — pilotos limitados no launcher:** as sessões reais de dois alvos WuWa e três NTE terminaram com `pilot-limit`, sem filtro, corte ou rolagem. [NTE #22](https://github.com/cristianworth/gacha-ocr-lab/issues/22) foi concluída; [WuWa #25](https://github.com/cristianworth/gacha-ocr-lab/issues/25) permanece aberta para o preflight negativo da quarta linha parcial. Não são aprovação do inventário ou precisão geral; a raridade WuWa segue não qualificada. [Guias WuWa](docs/wuwa-pilot.md) e [NTE](docs/nte-pilot.md) registram evidências e limites; o [roadmap](docs/ROADMAP.md) divide o próximo passo. Não há nova coleta positiva ou OCR solicitado agora.
+**WuWa e NTE — pilotos limitados no launcher:** as sessões reais de dois alvos WuWa e três NTE terminaram com `pilot-limit`, sem filtro, corte ou rolagem. O preflight WuWa também rejeitou uma seleção parcial antes dos cliques; [WuWa #25](https://github.com/cristianworth/gacha-ocr-lab/issues/25) e [NTE #22](https://github.com/cristianworth/gacha-ocr-lab/issues/22) foram concluídas nesses recortes. Não são aprovação do inventário ou precisão geral; o segundo nome WuWa continua incerto e a raridade não qualificada. [Guias WuWa](docs/wuwa-pilot.md) e [NTE](docs/nte-pilot.md) registram evidências e limites; não há novo teste humano solicitado agora.
 
 ## Organização
 
